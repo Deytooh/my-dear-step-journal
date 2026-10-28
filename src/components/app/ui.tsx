@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import type { ReactNode } from "react";
 import { ChevronRight, Pencil, Ruler, Scale, Smile, Syringe, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -9,7 +10,7 @@ import { useJournal } from "@/lib/journal";
 
 export function IconBubble({ tone = "sage", children, size = "md" }: { tone?: "sage" | "peach"; children: ReactNode; size?: "sm" | "md" }) {
   return (
-    <span className={cn("flex shrink-0 items-center justify-center rounded-full", tone === "sage" ? "bg-sage" : "bg-peach", size === "md" ? "size-14" : "size-11")}>
+    <span className={cn("feel-icon flex shrink-0 items-center justify-center rounded-full", tone === "sage" ? "bg-sage" : "bg-peach", size === "md" ? "size-14" : "size-11")}>
       {children}
     </span>
   );
@@ -58,7 +59,7 @@ export function recordIcon(r: JournalRecord) {
 
 export function measureSummary(r: MeasureRec) {
   const parts: [string, number | null][] = [["허리", r.waist], ["엉덩이", r.hip], ["가슴", r.chest], ["허벅지", r.thigh]];
-  return parts.filter(([, v]) => v != null).map(([k, v]) => `${k} ${fmtNumber(v!)}`).join(" · ") + " cm";
+  return parts.filter(([, v]) => v != null).map(([k, v]) => `${k} ${v != null ? fmtNumber(v) : ""}`).join(" · ") + " cm";
 }
 
 export function recordValue(r: JournalRecord) {
@@ -88,7 +89,7 @@ export function RecordRow({ r, onEdit, trailing = "edit" }: { r: JournalRecord; 
   const ic = recordIcon(r);
   const label = r.type === "memory" ? t("type.memory") : t(`type.${r.type}`);
   return (
-    <button onClick={onEdit} className="press flex w-full items-center gap-4 py-4 text-left">
+    <Button variant="unstyled" size="unstyled" onClick={onEdit} className="feel-panel press flex w-full items-center gap-4 py-4 text-left">
       <IconBubble tone={ic.tone}>{ic.icon}</IconBubble>
       <div className="min-w-0 flex-1">
         <div className="text-sm text-muted-foreground">{label}<DemoTag show={r.demo} /></div>
@@ -96,7 +97,7 @@ export function RecordRow({ r, onEdit, trailing = "edit" }: { r: JournalRecord; 
         <div className="text-sm text-muted-foreground">{recordWhen(r, tz)}</div>
       </div>
       {trailing === "edit" ? <Pencil className="size-5 text-muted-foreground" aria-label="수정" /> : <ChevronRight className="size-5 text-muted-foreground" />}
-    </button>
+    </Button>
   );
 }
 
@@ -106,11 +107,11 @@ export function Segmented<T extends string>({ value, onChange, options, size = "
       {options.map((o) => {
         const active = o.value === value;
         return (
-          <button key={o.value} role="tab" aria-selected={active} onClick={() => onChange(o.value)}
+          <Button variant="unstyled" size="unstyled" key={o.value} role="tab" aria-selected={active} onClick={() => onChange(o.value)}
             className={cn("press flex-1 rounded-full transition-colors", size === "lg" ? "h-12 text-[17px]" : "h-10 text-[15px]",
               active ? (size === "lg" ? "bg-primary font-semibold text-primary-foreground" : "bg-secondary font-semibold") : "text-muted-foreground")}>
             {o.label}
-          </button>
+          </Button>
         );
       })}
     </div>

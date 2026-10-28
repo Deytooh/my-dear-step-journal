@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, Plus } from "lucide-react";
 import { t } from "@/lib/i18n";
@@ -16,6 +17,8 @@ export const Route = createFileRoute("/today")({
       { name: "description", content: "오늘의 체중, 컨디션, 다음 주사 알림과 남은 재고를 한눈에." },
       { property: "og:title", content: "오늘 · my dear step" },
       { property: "og:description", content: "오늘의 기록과 다음 주사 알림을 한눈에 보는 GLP-1 저널." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Today,
@@ -55,10 +58,10 @@ function Today() {
       <Card className="px-5 pb-5">
         {records.length === 0 && <p className="py-6 text-center text-muted-foreground">{t("today.empty")}</p>}
         <div className="divide-y">{records.map((r) => <RecordRow key={r.id} r={r} onEdit={() => open(r.type, r)} />)}</div>
-        <button onClick={() => open("menu")} className="press mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-full border border-primary/40 font-semibold">
+        <Button variant="unstyled" size="unstyled" onClick={() => open("menu")} className="press mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-full border border-primary/40 font-semibold">
           <span className="flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground"><Plus className="size-4" /></span>
           {t("today.addOther")}
-        </button>
+        </Button>
       </Card>
 
       <VoiceCard title={t("voice.title")} sub={t("voice.sub")} onClick={() => open("voice")} />

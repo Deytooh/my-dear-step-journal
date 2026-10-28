@@ -1,11 +1,13 @@
+import { Button } from "@/components/ui/button";
 import { useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Mic, MicOff, Check } from "lucide-react";
+import { Mic, MicOff, Check, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { extractWithMomo, type MomoCandidate } from "@/lib/momo.functions";
 import { useJournal, type JournalRecord } from "@/lib/journal";
 import { fmtMonthDay, fmtTime, instantFromLocal, todayLocal } from "@/lib/dates";
+import { celebrateSave } from "./AppFeel";
 import { t, getLocale } from "@/lib/i18n";
 
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -78,12 +80,13 @@ export function MomoSheet({ onDone }: { onDone: () => void }) {
     if (!chosen.length) return;
     const before = j.snapshot();
     chosen.forEach((d) => j.saveRecord(d.rec));
+    celebrateSave();
     toast.success(t("momo.saved", { n: chosen.length }), { action: { label: t("toast.undo"), onClick: () => j.restoreSnapshot(before) } });
     onDone();
   };
 
   return (
-    <div className="space-y-4">
+    <div className="feel-form space-y-4" aria-busy={busy}>
       <DrawerTitle className="text-[24px] font-bold">{t("voice.all")}</DrawerTitle>
       <DrawerDescription className="text-sm text-muted-foreground">{t("momo.hint")}</DrawerDescription>
       {drafts === null ? (
@@ -91,33 +94,35 @@ export function MomoSheet({ onDone }: { onDone: () => void }) {
           <div className="relative">
             <textarea aria-label={t("momo.input")} value={text} onChange={(e) => setText(e.target.value)} rows={4} maxLength={4000}
               placeholder={t("momo.placeholder")} className="w-full rounded-[20px] border bg-card p-4 pr-14 text-[16px] placeholder:text-muted-foreground" />
-            <button type="button" onClick={toggleMic} aria-label={listening ? t("momo.stop") : t("momo.speak")} aria-pressed={listening}
+            <Button variant="unstyled" size="unstyled" type="button" onClick={toggleMic} aria-label={listening ? t("momo.stop") : t("momo.speak")} aria-pressed={listening}
               className={`press absolute right-3 bottom-4 flex size-11 items-center justify-center rounded-full ${listening ? "bg-primary text-primary-foreground animate-pulse" : "bg-secondary"}`}>
               {listening ? <MicOff className="size-5" /> : <Mic className="size-5" />}
-            </button>
+            </Button>
           </div>
-          <button onClick={run} disabled={busy || !text.trim()} className="press h-12 w-full rounded-full bg-primary font-semibold text-primary-foreground disabled:opacity-50">
+          <Button variant="unstyled" size="unstyled" onClick={run} disabled={busy || !text.trim()} className="press h-12 w-full rounded-full bg-primary font-semibold text-primary-foreground disabled:opacity-50">
+            {busy && <LoaderCircle className="feel-busy mr-2 size-5" />}
             {busy ? t("momo.thinking") : t("momo.extract")}
-          </button>
+          </Button>
+          {busy && <div role="progressbar" aria-label={t("momo.thinking")} className="feel-progress h-1.5"><div className="feel-indeterminate h-full w-1/3 rounded-full bg-primary" /></div>}
         </>
       ) : (
         <>
           {reply && <p className="rounded-[20px] bg-accent p-4 text-[15px]">{reply}</p>}
           <p className="text-sm font-medium">{t("momo.review")}</p>
           {drafts.length === 0 && <p className="text-sm text-muted-foreground">{t("momo.none")}</p>}
-          <ul className="space-y-2">
+          <ul className="feel-list space-y-2">
             {drafts.map((d, i) => { const { what, when } = describe(d.rec, j.tz); return (
               <li key={d.rec.id}>
-                <button type="button" aria-pressed={d.on} onClick={() => setDrafts(drafts.map((x, k) => (k === i ? { ...x, on: !x.on } : x)))}
-                  className={`press flex w-full items-center gap-3 rounded-[20px] border p-4 text-left ${d.on ? "border-primary bg-secondary" : "opacity-60"}`}>
+                <Button variant="unstyled" size="unstyled" type="button" aria-pressed={d.on} onClick={() => setDrafts(drafts.map((x, k) => (k === i ? { ...x, on: !x.on } : x)))}
+                  className={`feel-chip press flex w-full items-center gap-3 rounded-[20px] border p-4 text-left ${d.on ? "border-primary bg-secondary" : "opacity-60"}`}>
                   <span className={`flex size-6 items-center justify-center rounded-full border ${d.on ? "bg-primary text-primary-foreground" : ""}`}>{d.on && <Check className="size-4" />}</span>
                   <span className="flex-1"><span className="block font-semibold">{what}</span><span className="block text-xs text-muted-foreground">{when}</span></span>
-                </button>
+                </Button>
               </li>); })}
           </ul>
           <div className="flex gap-2">
-            <button onClick={() => setDrafts(null)} className="press h-12 flex-1 rounded-full border">{t("momo.back")}</button>
-            <button onClick={confirm} disabled={!drafts.some((d) => d.on)} className="press h-12 flex-[2] rounded-full bg-primary font-semibold text-primary-foreground disabled:opacity-50">{t("momo.confirm")}</button>
+            <Button variant="unstyled" size="unstyled" onClick={() => setDrafts(null)} className="press h-12 flex-1 rounded-full border">{t("momo.back")}</Button>
+            <Button variant="unstyled" size="unstyled" onClick={confirm} disabled={!drafts.some((d) => d.on)} className="press h-12 flex-[2] rounded-full bg-primary font-semibold text-primary-foreground disabled:opacity-50">{t("momo.confirm")}</Button>
           </div>
         </>
       )}

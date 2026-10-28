@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { PhotoImg } from "@/components/app/PhotoImg";
 import { useEffect, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Image as ImageIcon, Mic, Package, Ruler, Scale, Smile, Syringe, X } from "lucide-react";
@@ -9,6 +10,7 @@ import { useJournal, type JournalRecord, type Purchase, type PartOfDay } from "@
 import { IconBubble } from "./ui";
 import momo from "@/assets/momo.png";
 import { MomoSheet } from "./MomoSheet";
+import { celebrateSave } from "./AppFeel";
 import { cn } from "@/lib/utils";
 
 export type EntryKind = "menu" | "weight" | "injection" | "condition" | "memory" | "purchase" | "reminder" | "stock" | "voice" | "measure";
@@ -25,14 +27,14 @@ export function QuickAddSheet({ open, onOpenChange, kind, setKind, editing }: Pr
         <div className="overflow-y-auto px-5 pb-8">
           <div className="flex justify-between pt-2">
             {kind !== "menu" && !editing ? (
-              <button onClick={() => setKind("menu")} className="press -ml-2 flex size-11 items-center justify-center" aria-label="뒤로">
+              <Button variant="unstyled" size="unstyled" onClick={() => setKind("menu")} className="press -ml-2 flex size-11 items-center justify-center" aria-label="뒤로">
                 <ChevronLeft className="size-6" />
-              </button>
+              </Button>
             ) : <span />}
-            <button onClick={close} className="press -mr-2 flex size-11 items-center justify-center" aria-label="닫기"><X className="size-6" /></button>
+            <Button variant="unstyled" size="unstyled" onClick={close} className="press -mr-2 flex size-11 items-center justify-center" aria-label="닫기"><X className="size-6" /></Button>
           </div>
           {kind === "menu" ? (
-            <Menu setKind={setKind} showMomo={settings.showMomo} />
+            <div key="menu" className="feel-panel"><Menu setKind={setKind} showMomo={settings.showMomo} /></div>
           ) : (
             <EntryForm key={`${kind}-${editing && "id" in editing ? editing.id : "new"}`} kind={kind} editing={editing} onDone={close} />
           )}
@@ -60,17 +62,17 @@ function Menu({ setKind, showMomo }: { setKind: (k: EntryKind) => void; showMomo
         </div>
         {showMomo && <img src={momo} alt="" aria-hidden width={80} height={80} className="size-20 object-contain" />}
       </div>
-      <ul className="mt-4 divide-y">
+      <ul className="feel-menu mt-4 divide-y">
         {items.map((it) => (
           <li key={it.k}>
-            <button onClick={() => setKind(it.k)} className="press flex w-full items-center gap-4 py-4 text-left">
+            <Button variant="unstyled" size="unstyled" onClick={() => setKind(it.k)} className="press flex w-full items-center gap-4 py-4 text-left">
               <IconBubble tone={it.tone}>{it.icon}</IconBubble>
               <span className="flex-1">
                 <span className="block text-[18px] font-bold">{t(it.title)}</span>
                 <span className="block text-sm text-muted-foreground">{t(it.sub)}</span>
               </span>
               <ChevronRight className="size-5 text-muted-foreground" />
-            </button>
+            </Button>
           </li>
         ))}
       </ul>
@@ -81,14 +83,14 @@ function Menu({ setKind, showMomo }: { setKind: (k: EntryKind) => void; showMomo
 
 export function VoiceCard({ title, sub, onClick }: { title: string; sub: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="press mt-4 flex w-full items-center gap-4 rounded-[24px] bg-secondary p-4 text-left">
-      <span className="flex size-14 items-center justify-center rounded-full bg-[color-mix(in_oklab,var(--color-chart-4)_25%,transparent)]"><Mic className="size-6" /></span>
+    <Button variant="unstyled" size="unstyled" onClick={onClick} className="press mt-4 flex w-full items-center gap-4 rounded-[24px] bg-secondary p-4 text-left">
+      <span className="flex size-14 items-center justify-center rounded-full bg-[var(--voice-bubble)]"><Mic className="size-6" /></span>
       <span className="flex-1">
         <span className="block font-bold">{title}</span>
         <span className="block text-sm text-muted-foreground">{sub}</span>
       </span>
       <ChevronRight className="size-5 text-muted-foreground" />
-    </button>
+    </Button>
   );
 }
 
@@ -104,7 +106,7 @@ function Field({ label, children, optional }: { label: string; children: ReactNo
   );
 }
 const inputCls = "h-12 w-full rounded-[12px] border bg-card px-4 text-[16px] outline-none focus:border-primary";
-const chipCls = (on: boolean) => cn("press min-h-11 rounded-full border px-4 text-[15px]", on ? "border-primary bg-primary text-primary-foreground" : "bg-card");
+const chipCls = (on: boolean) => cn("feel-chip press min-h-11 rounded-full border px-4 text-[15px]", on ? "border-primary bg-primary text-primary-foreground" : "bg-card");
 
 function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: JournalRecord | Purchase | undefined; onDone: () => void }) {
   const j = useJournal();
@@ -185,6 +187,7 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
       if (!Number.isInteger(n) || n < 0) return setErr("0 이상의 정수를 입력해 주세요.");
       j.setStock(n);
     }
+    celebrateSave();
     toast.success(t("toast.saved"), { action: { label: t("toast.undo"), onClick: () => j.restoreSnapshot(before) } });
     onDone();
   };
@@ -204,7 +207,7 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
   const showTime = ["weight", "injection", "condition", "memory", "measure"].includes(kind);
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-5">
+    <form onSubmit={(e) => { e.preventDefault(); save(); }} className="feel-form space-y-5">
       <DrawerTitle className="text-[24px] font-bold">{titles[kind]}{editing && " 수정"}</DrawerTitle>
       <DrawerDescription className="sr-only">{titles[kind]}</DrawerDescription>
 
@@ -233,7 +236,7 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
           <div>
             <span className="mb-1.5 block text-sm font-medium">{t("f.site")} <span className="text-muted-foreground">({t("f.optional")})</span></span>
             <div className="flex flex-wrap gap-2">
-              {SITES.map((s) => <button type="button" key={s} className={chipCls(site === s)} onClick={() => setSite(site === s ? null : s)}>{s}</button>)}
+              {SITES.map((s) => <Button variant="unstyled" size="unstyled" type="button" key={s} aria-pressed={site === s} className={chipCls(site === s)} onClick={() => setSite(site === s ? null : s)}>{s}</Button>)}
             </div>
           </div>
           <label className="flex min-h-11 items-center gap-3">
@@ -246,7 +249,7 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
       {kind === "condition" && (
         <>
           <div className="flex flex-wrap gap-2">
-            {FEELINGS.map((k) => <button type="button" key={k} className={chipCls(feel === t(k))} onClick={() => setFeel(t(k))}>{t(k)}</button>)}
+            {FEELINGS.map((k) => <Button variant="unstyled" size="unstyled" type="button" key={k} aria-pressed={feel === t(k)} className={chipCls(feel === t(k))} onClick={() => setFeel(t(k))}>{t(k)}</Button>)}
           </div>
           <Field label={t("f.note")} optional>
             <textarea className={cn(inputCls, "h-24 py-3")} value={note} onChange={(e) => setNote(e.target.value)} />
@@ -317,13 +320,13 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
         </label>
       )}
 
-      {err && <p role="alert" className="text-sm text-destructive">{err}</p>}
+      {err && <p role="alert" className="feel-error text-sm text-destructive">{err}</p>}
 
       <div className="flex gap-3 pt-2">
         {(editing || (kind === "reminder" && j.reminder)) && (
-          <button type="button" onClick={remove} className="press h-12 rounded-full border border-destructive/40 px-5 text-destructive">{t("f.delete")}</button>
+          <Button variant="unstyled" size="unstyled" type="button" onClick={remove} className="press h-12 rounded-full border border-destructive/40 px-5 text-destructive">{t("f.delete")}</Button>
         )}
-        <button type="submit" className="press h-12 flex-1 rounded-full bg-primary font-semibold text-primary-foreground">{t("f.save")}</button>
+        <Button variant="unstyled" size="unstyled" type="submit" className="press h-12 flex-1 rounded-full bg-primary font-semibold text-primary-foreground">{t("f.save")}</Button>
       </div>
     </form>
   );

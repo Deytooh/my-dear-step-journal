@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { PhotoImg } from "@/components/app/PhotoImg";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
@@ -8,6 +9,7 @@ import { t, fmtNumber } from "@/lib/i18n";
 import { addDays, fmtMonthDay, fmtTime, todayLocal } from "@/lib/dates";
 import { sortByTime, useJournal, type InjectionRec, type MeasureRec, type MemoryRec, type WeightRec } from "@/lib/journal";
 import { useQuickAdd } from "@/components/app/AppShell";
+import { AnimatedValue, useReducedMotion } from "@/components/app/AppFeel";
 import { Card, DemoTag, IconBubble, measureSummary, PageTitle, recordValue, SectionHeader, Segmented } from "@/components/app/ui";
 
 export const Route = createFileRoute("/progress")({
@@ -26,6 +28,7 @@ export const Route = createFileRoute("/progress")({
 
 function Progress() {
   const j = useJournal();
+  const reducedMotion = useReducedMotion();
   const open = useQuickAdd();
   const [metric, setMetric] = useState<"weight" | "measure" | "photo">("weight");
   const [range, setRange] = useState<"1m" | "3m" | "all">("1m");
@@ -62,10 +65,10 @@ function Progress() {
         <IconBubble><Scale className="size-7" /></IconBubble>
         <div className="min-w-0 flex-1">
           <div className="text-sm text-muted-foreground">{t("prog.latest")}<DemoTag show={latest?.demo} /></div>
-          <div className="text-[32px] font-bold leading-tight">{latest ? <>{fmtNumber(latest.value)} <span className="text-[20px]">kg</span></> : "—"}</div>
+          <div className="text-[32px] font-bold leading-tight">{latest ? <><AnimatedValue value={latest.value} /> <span className="text-[20px]">kg</span></> : "—"}</div>
           {latest && <div className="text-sm text-muted-foreground">{fmtMonthDay(latest.localDate)}{latest.at ? ` ${fmtTime(latest.at, j.tz)}` : ""} · {t("prog.mine")}</div>}
         </div>
-        <button onClick={() => open("weight")} className="press flex h-11 items-center gap-1 rounded-full border border-primary px-4 font-semibold"><Plus className="size-4" />{t("type.weight")}</button>
+        <Button variant="unstyled" size="unstyled" onClick={() => open("weight")} className="press flex h-11 items-center gap-1 rounded-full border border-primary px-4 font-semibold"><Plus className="size-4" />{t("type.weight")}</Button>
       </Card>
 
       <Link to="/journey" className="press mt-4 flex w-full items-center gap-4 rounded-[24px] bg-card p-4 text-left shadow-soft">
@@ -79,7 +82,7 @@ function Progress() {
       <div className="mt-5"><Segmented value={metric} onChange={setMetric} options={[{ value: "weight", label: t("prog.tWeight") }, { value: "measure", label: t("prog.tMeasure") }, { value: "photo", label: t("prog.tPhoto") }]} /></div>
 
       {metric === "weight" && (
-        <>
+        <div key={metric} className="feel-panel">
           <div className="mt-3"><Segmented size="sm" value={range} onChange={setRange} options={[{ value: "1m", label: t("prog.1m") }, { value: "3m", label: t("prog.3m") }, { value: "all", label: t("prog.all") }]} /></div>
           <Card className="mt-3 p-4">
             {data.length < 2 ? <p className="py-10 text-center text-muted-foreground">{t("prog.noData")}</p> : (
@@ -90,10 +93,12 @@ function Progress() {
                     <XAxis dataKey="d" tickFormatter={(d) => fmtMonthDay(d)} tick={{ fontSize: 12, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} minTickGap={40} />
                     <YAxis hide domain={["dataMin - 0.5", "dataMax + 0.5"]} />
                     <Tooltip formatter={(v: number) => [`${fmtNumber(v)} kg`, t("type.weight")]} labelFormatter={(d) => fmtMonthDay(String(d))} contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)" }} />
-                    <Area type="monotone" dataKey="v" stroke="var(--color-primary)" strokeWidth={2} fill="url(#wf)" dot={{ r: 3.5, fill: "var(--color-primary)" }} isAnimationActive={false} />
-                    {injDays.filter((i) => dataDays.has(i.localDate)).map((i) => (
-                      <ReferenceDot key={i.id} x={i.localDate} y={data.find((p) => p.d === i.localDate)!.v} r={6} fill="var(--color-peach-accent)" stroke="var(--color-card)" />
-                    ))}
+                    <Area type="monotone" dataKey="v" stroke="var(--color-primary)" strokeWidth={2} fill="url(#wf)" dot={{ r: 3.5, fill: "var(--color-primary)" }} isAnimationActive={!reducedMotion} animationDuration={700} animationEasing="ease-out" />
+                    {injDays.filter((i) => dataDays.has(i.localDate)).map((i) => {
+                      const point = data.find((p) => p.d === i.localDate);
+                      if (!point) return null;
+                      return <ReferenceDot key={i.id} x={i.localDate} y={point.v} r={6} fill="var(--color-peach-accent)" stroke="var(--color-card)" />;
+                    })}
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -108,35 +113,35 @@ function Progress() {
           <SectionHeader title={t("prog.recent")} action={<Link to="/history" className="text-sm font-medium text-primary">{t("hist.open")}</Link>} />
           <div className="divide-y">
             {weights.slice(0, 5).map((w) => (
-              <button key={w.id} onClick={() => open("weight", w)} className="press flex w-full items-center gap-4 py-3 text-left">
+              <Button variant="unstyled" size="unstyled" key={w.id} onClick={() => open("weight", w)} className="press flex w-full items-center gap-4 py-3 text-left">
                 <IconBubble size="sm"><Scale className="size-5" /></IconBubble>
                 <span className="w-20 text-muted-foreground">{fmtMonthDay(w.localDate)}</span>
                 <span className="flex-1 text-[20px] font-bold">{fmtNumber(w.value)} kg<DemoTag show={w.demo} /></span>
                 <span className="text-sm text-muted-foreground">{t("prog.manual")}</span>
                 <ChevronRight className="size-5 text-muted-foreground" />
-              </button>
+              </Button>
             ))}
           </div>
-        </>
+        </div>
       )}
 
       {metric === "measure" && (
-        <div className="mt-4">
-          <button onClick={() => open("measure")} className="press flex h-11 w-full items-center justify-center gap-1 rounded-full border border-primary font-semibold"><Plus className="size-4" />{t("meas.add")}</button>
+        <div key={metric} className="feel-panel mt-4">
+          <Button variant="unstyled" size="unstyled" onClick={() => open("measure")} className="press flex h-11 w-full items-center justify-center gap-1 rounded-full border border-primary font-semibold"><Plus className="size-4" />{t("meas.add")}</Button>
           {measures.length === 0 ? <Card className="mt-3 p-8 text-center text-muted-foreground">{t("meas.empty")}</Card> : (
             <div className="mt-2 divide-y">
               {measures.map((m, i) => {
                 const prev = measures[i + 1];
                 const dw = m.waist != null && prev?.waist != null ? m.waist - prev.waist : null;
                 return (
-                  <button key={m.id} onClick={() => open("measure", m)} className="press flex w-full items-center gap-4 py-3 text-left">
+                  <Button variant="unstyled" size="unstyled" key={m.id} onClick={() => open("measure", m)} className="press flex w-full items-center gap-4 py-3 text-left">
                     <IconBubble size="sm"><Ruler className="size-5" /></IconBubble>
                     <span className="w-16 text-muted-foreground">{fmtMonthDay(m.localDate)}</span>
                     <span className="flex-1 font-semibold">{measureSummary(m)}<DemoTag show={m.demo} />
                       {dw != null && dw !== 0 && <span className="block text-xs font-normal text-muted-foreground">허리 {dw > 0 ? "+" : ""}{fmtNumber(dw)} cm</span>}
                     </span>
                     <ChevronRight className="size-5 text-muted-foreground" />
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -145,30 +150,30 @@ function Progress() {
       )}
 
       {metric === "photo" && (
-        <div className="mt-4">
+        <div key={metric} className="feel-panel mt-4">
           {memories.length === 0 ? (
             <Card className="p-8 text-center">
               <p className="text-muted-foreground">아직 남긴 순간이 없어요.</p>
-              <button onClick={() => open("memory")} className="press mt-4 h-11 rounded-full bg-primary px-5 text-primary-foreground">{t("type.memory")} 남기기</button>
+              <Button variant="unstyled" size="unstyled" onClick={() => open("memory")} className="press mt-4 h-11 rounded-full bg-primary px-5 text-primary-foreground">{t("type.memory")} 남기기</Button>
             </Card>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {memories.map((m) => (
-                <button key={m.id} onClick={() => open("memory", m)} className="press overflow-hidden rounded-[20px] bg-card text-left shadow-soft">
+                <Button variant="unstyled" size="unstyled" key={m.id} onClick={() => open("memory", m)} className="press overflow-hidden rounded-[20px] bg-card text-left shadow-soft">
                   {m.photo && <PhotoImg src={m.photo} className="aspect-square w-full object-cover" />}
                   <div className="p-3"><div className="text-xs text-muted-foreground">{fmtMonthDay(m.localDate)}</div><div className="line-clamp-2 text-sm">{m.note}</div></div>
-                </button>
+                </Button>
               ))}
             </div>
           )}
         </div>
       )}
 
-      <button onClick={exportCsv} className="press mt-4 flex w-full items-center gap-4 border-t py-4 text-left">
+      <Button variant="unstyled" size="unstyled" onClick={exportCsv} className="press mt-4 flex w-full items-center gap-4 border-t py-4 text-left">
         <IconBubble tone="peach" size="sm"><Download className="size-5" /></IconBubble>
         <span className="flex-1 text-[17px]">{t("prog.export")}</span>
         <ChevronRight className="size-5 text-muted-foreground" />
-      </button>
+      </Button>
     </div>
   );
 }

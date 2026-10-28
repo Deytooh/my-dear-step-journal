@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Bell, ChevronLeft, ChevronRight } from "lucide-react";
@@ -16,6 +17,8 @@ export const Route = createFileRoute("/calendar")({
       { name: "description", content: "남긴 기록과 예정된 주사 알림을 달력으로 확인하세요." },
       { property: "og:title", content: "캘린더 · my dear step" },
       { property: "og:description", content: "기록과 알림을 한눈에 보는 달력." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: CalendarPage,
@@ -41,19 +44,19 @@ function CalendarPage() {
       <Card className="overflow-hidden">
         <div className="bg-peach/60 px-4 pt-4">
           <div className="flex items-center justify-between">
-            <button onClick={() => shift(-1)} className="press flex size-11 items-center justify-center" aria-label="이전 달"><ChevronLeft /></button>
+            <Button variant="unstyled" size="unstyled" onClick={() => shift(-1)} className="press flex size-11 items-center justify-center" aria-label="이전 달"><ChevronLeft /></Button>
             <h2 className="text-[20px] font-bold" aria-live="polite">{fmtYearMonth(ym.y, ym.m)}</h2>
-            <button onClick={() => shift(1)} className="press flex size-11 items-center justify-center" aria-label="다음 달"><ChevronRight /></button>
+            <Button variant="unstyled" size="unstyled" onClick={() => shift(1)} className="press flex size-11 items-center justify-center" aria-label="다음 달"><ChevronRight /></Button>
           </div>
           <div className="grid grid-cols-7 py-2 text-center text-[15px]">
             {WD.map((w, i) => <span key={w} className={cn(i === 5 && "text-weekend-sat", i === 6 && "text-peach-accent")}>{w}</span>)}
           </div>
         </div>
-        <div className="grid grid-cols-7 gap-y-1 px-2 py-2 text-center" role="grid">
+        <div key={`${ym.y}-${ym.m}`} className="feel-panel grid grid-cols-7 gap-y-1 px-2 py-2 text-center" role="grid">
           {grid.map((c) => {
             const isSel = c.date === sel;
             return (
-              <button key={c.date} onClick={() => setSel(c.date)} aria-label={fmtMonthDayWeekday(c.date)} aria-pressed={isSel}
+              <Button variant="unstyled" size="unstyled" key={c.date} onClick={() => setSel(c.date)} aria-label={fmtMonthDayWeekday(c.date)} aria-pressed={isSel}
                 className="press flex h-14 flex-col items-center justify-center">
                 <span className={cn("flex size-11 flex-col items-center justify-center rounded-full text-[16px]",
                   !c.inMonth && "text-muted-foreground/50",
@@ -67,7 +70,7 @@ function CalendarPage() {
                     {reminderDay === c.date && <Bell className="size-3 text-peach-accent" />}
                   </span>
                 </span>
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -78,7 +81,7 @@ function CalendarPage() {
       </Card>
 
       <h2 className="mt-7 mb-1 text-[22px] font-bold">{fmtMonthDayWeekday(sel)}</h2>
-      <div className="divide-y">
+      <div key={sel} className="feel-list divide-y">
         {dayRecords.map((r) => <RecordRow key={r.id} r={r} trailing="chevron" onEdit={() => open(r.type, r)} />)}
         {dayRecords.length === 0 && <p className="py-5 text-muted-foreground">{t("cal.empty")}</p>}
         {reminderDay && (reminderDay === sel || sel === today) && <div className="py-4"><NextReminder variant="plain" /></div>}

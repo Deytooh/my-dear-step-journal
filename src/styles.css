@@ -43,6 +43,7 @@
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
   --ease-calm: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.22, 1.35, 0.36, 1);
 }
 
 :root {
@@ -77,6 +78,10 @@
   --chart-4: oklch(0.6 0.05 160);
   --chart-5: oklch(0.8 0.05 90);
   --shadow-soft: 0 1px 2px oklch(0.335 0.045 170 / 4%), 0 6px 20px -12px oklch(0.335 0.045 170 / 14%);
+  --shadow-lift: 0 8px 24px -10px color-mix(in oklab, var(--primary) 25%, transparent);
+  --shadow-focus: 0 0 0 4px color-mix(in oklab, var(--primary) 12%, transparent);
+  --touch-feedback: color-mix(in oklab, var(--peach-accent) 65%, transparent);
+  --voice-bubble: color-mix(in oklab, var(--chart-4) 25%, transparent);
 }
 
 @layer base {
@@ -94,10 +99,77 @@
 
 @utility shadow-soft { box-shadow: var(--shadow-soft); }
 @utility press {
-  transition: transform 130ms var(--ease-calm), background-color 160ms var(--ease-calm);
-  &:active { transform: scale(0.97); transition-duration: 90ms; }
+  transition: transform 320ms var(--ease-spring), background-color 180ms var(--ease-calm), box-shadow 220ms var(--ease-calm);
+  &:active { transform: scale(0.94); transition-duration: 65ms; }
 }
 
+@keyframes feel-enter {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes feel-pop {
+  0% { opacity: 0; transform: translateY(7px) scale(0.85); }
+  65% { opacity: 1; transform: translateY(-1px) scale(1.05); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes feel-ring {
+  from { opacity: 0.8; transform: translate(-50%, -50%) scale(0.25); }
+  to { opacity: 0; transform: translate(-50%, -50%) scale(1.8); }
+}
+@keyframes feel-stamp {
+  0% { opacity: 0; transform: translateY(18px) scale(0.65) rotate(-12deg); }
+  30% { opacity: 1; transform: translateY(0) scale(1.08) rotate(4deg); }
+  45%, 75% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-12px) scale(0.96); }
+}
+@keyframes feel-petal { from { opacity: 1; translate: 0 0; } to { opacity: 0; translate: 0 -64px; } }
+@keyframes feel-shake { 0%, 100% { translate: 0; } 25% { translate: -4px; } 60% { translate: 3px; } }
+@keyframes feel-breathe { 50% { opacity: 0.5; transform: scale(0.9); } }
+@keyframes feel-travel { from { translate: -100% 0; } to { translate: 300% 0; } }
+.feel-indeterminate { animation: feel-travel 1400ms var(--ease-calm) infinite; }
+
+.feel-page > div > :nth-child(-n+8), .feel-form > :nth-child(-n+8), .feel-menu > li,
+.feel-panel, .feel-list > :nth-child(-n+12) { animation: feel-enter 420ms var(--ease-calm) both; }
+.feel-page > div > :nth-child(2), .feel-form > :nth-child(2), .feel-menu > li:nth-child(2) { animation-delay: 35ms; }
+.feel-page > div > :nth-child(3), .feel-form > :nth-child(3), .feel-menu > li:nth-child(3) { animation-delay: 65ms; }
+.feel-page > div > :nth-child(4), .feel-form > :nth-child(4), .feel-menu > li:nth-child(4) { animation-delay: 95ms; }
+.feel-menu > li:nth-child(5) { animation-delay: 125ms; }
+.feel-menu > li:nth-child(6) { animation-delay: 155ms; }
+.feel-value { animation: feel-pop 440ms var(--ease-spring) both; }
+.feel-nav-icon { transition: background-color 200ms, transform 320ms var(--ease-spring); }
+a[aria-current=page] .feel-nav-icon { background: var(--secondary); animation: feel-pop 350ms var(--ease-spring); }
+.feel-add { box-shadow: var(--shadow-lift); transition: transform 340ms var(--ease-spring), box-shadow 200ms; }
+.feel-add[aria-expanded=true] svg { transform: rotate(45deg); }
+.feel-add svg { transition: transform 350ms var(--ease-spring); }
+.feel-touch { position: fixed; z-index: 100; width: 36px; height: 36px; border: 2px solid var(--touch-feedback); border-radius: 50%; pointer-events: none; animation: feel-ring 420ms ease-out forwards; }
+.feel-celebration { position: fixed; bottom: calc(112px + env(safe-area-inset-bottom)); left: 50%; translate: -50% 0; z-index: 60; display: flex; align-items: center; gap: 10px; pointer-events: none; animation: feel-stamp 950ms var(--ease-calm) both; }
+.feel-stamp { width: 48px; height: 48px; border-radius: 50%; background: var(--primary); color: var(--primary-foreground); display: grid; place-items: center; box-shadow: var(--shadow-lift); }
+.feel-saved-label { background: var(--card); color: var(--foreground); padding: 8px 14px; border-radius: 20px; box-shadow: var(--shadow-lift); font-weight: 600; white-space: nowrap; }
+.feel-petals { position: absolute; inset: -10px; pointer-events: none; }
+.feel-petals i { position: absolute; left: 25%; top: 10%; width: 5px; height: 10px; border-radius: 2px; background: var(--peach-accent); transform: rotate(30deg); animation: feel-petal 750ms ease-out both; }
+.feel-petals i:nth-child(2n) { left: 75%; top: 80%; background: var(--chart-4); animation-delay: 80ms; }
+.feel-petals i:nth-child(3n) { left: 0; top: 90%; rotate: -35deg; animation-delay: 45ms; }
+.feel-petals i:nth-child(4n) { left: 100%; top: 30%; rotate: 70deg; }
+.feel-form label > span { transition: color 180ms; }
+.feel-form label:focus-within > span { color: var(--primary); }
+input:not([type=checkbox]):not([type=radio]), textarea, select { transition: border-color 180ms, box-shadow 200ms, background-color 180ms; }
+input:not([type=checkbox]):not([type=radio]):focus, textarea:focus, select:focus { border-color: var(--primary); box-shadow: var(--shadow-focus); outline: none; }
+input[type=checkbox] { accent-color: var(--primary); transition: transform 260ms var(--ease-spring); }
+input[type=checkbox]:checked { animation: feel-pop 250ms var(--ease-spring); }
+.feel-chip[aria-pressed=true], [role=tab][aria-selected=true] { animation: feel-pop 280ms var(--ease-spring); }
+.feel-error { animation: feel-shake 280ms ease-out; border-left: 3px solid var(--destructive); padding: 8px 12px; background: color-mix(in oklab, var(--destructive) 7%, var(--card)); border-radius: 8px; }
+.feel-busy { animation: feel-breathe 900ms ease-in-out infinite; }
+.feel-progress { overflow: hidden; border-radius: 999px; background: var(--secondary); }
+.feel-progress-fill { height: 100%; background: var(--primary); border-radius: inherit; transform-origin: left; transition: transform 600ms var(--ease-calm); }
+@media (hover: hover) {
+  .press:hover:not(:disabled) { transform: translateY(-2px); }
+  .press:active:not(:disabled) { transform: scale(0.94); }
+  .press:hover .feel-icon { transform: rotate(-6deg) scale(1.08); }
+}
+.feel-icon { transition: transform 320ms var(--ease-spring); }
+
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  .press:active, .press:hover, .feel-icon { transform: none !important; }
+  .feel-touch, .feel-celebration { display: none; }
 }
