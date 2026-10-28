@@ -16,3 +16,4 @@
 - UI strings go through `t()` in `src/lib/i18n.ts`; Korean is the complete source dictionary.
 - Demo records carry `demo: true` and are labelled in UI; inventory is derived from purchases minus stock-using injections plus a manual adjustment.
 - Spec source documents are the user's uploaded master prompt / tokens; root `roadmap.md` tracks phases.
+- Journal data syncs via src/lib/cloud-sync.ts: journal.tsx keeps local state and diffs it to Lovable Cloud when signed in, so page code stays storage-agnostic.
