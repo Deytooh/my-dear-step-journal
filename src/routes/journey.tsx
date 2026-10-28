@@ -1,3 +1,4 @@
+import { PhotoImg } from "@/components/app/PhotoImg";
 import { createFileRoute } from "@tanstack/react-router";
 import { Flag, Image as ImageIcon, Scale } from "lucide-react";
 import { t, fmtNumber } from "@/lib/i18n";
@@ -46,7 +47,7 @@ function Journey() {
             <li key={m.id} className="mb-6">
               <span className="absolute -left-[9px] mt-1 size-4 rounded-full bg-peach-accent" aria-hidden />
               <button onClick={() => open("memory", m)} className="press w-full overflow-hidden rounded-[20px] bg-card text-left shadow-soft">
-                {m.photo ? <img src={m.photo} alt="" className="max-h-72 w-full object-cover" /> : <div className="flex h-20 items-center justify-center bg-peach"><ImageIcon className="size-6" /></div>}
+                {m.photo ? <PhotoImg src={m.photo} className="max-h-72 w-full object-cover" /> : <div className="flex h-20 items-center justify-center bg-peach"><ImageIcon className="size-6" /></div>}
                 <div className="p-4">
                   <div className="text-sm text-muted-foreground">{fmtMonthDay(m.localDate)}<DemoTag show={m.demo} /></div>
                   {m.note && <p className="mt-1 text-[16px]">{m.note}</p>}
