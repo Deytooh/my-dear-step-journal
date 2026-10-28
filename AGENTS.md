@@ -8,3 +8,11 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+# Project rules
+- App shell (header, 4-tab bottom nav, central Quick Add sheet) lives in `src/components/app/AppShell.tsx`, mounted once in `__root.tsx`; pages open forms via `useQuickAdd()` so every entry point shares one form implementation.
+- Journal data goes through `src/lib/journal.tsx` (currently localStorage, Phase 1); swap its internals for Lovable Cloud in Phase 3 without changing page code.
+- Instants are stored as ISO UTC plus `localDate` and `precision`; all date math/formatting goes through `src/lib/dates.ts` with the user's timezone, never `new Date().getDate()`.
+- UI strings go through `t()` in `src/lib/i18n.ts`; Korean is the complete source dictionary.
+- Demo records carry `demo: true` and are labelled in UI; inventory is derived from purchases minus stock-using injections plus a manual adjustment.
+- Spec source documents are the user's uploaded master prompt / tokens; root `roadmap.md` tracks phases.
