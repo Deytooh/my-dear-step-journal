@@ -104,7 +104,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     setReady(true);
     supabase.auth.getUser().then(({ data }) => data.user && setUser({ id: data.user.id, email: data.user.email ?? null }));
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT") { setUser(null); synced.current = null; setSync("local"); return; }
+      if (event === "SIGNED_OUT") { setUser(null); synced.current = null; setSync("local"); setState(demoState()); return; }
       if (event === "SIGNED_IN" || event === "USER_UPDATED") {
         const u = session?.user; if (u) setUser((p) => (p?.id === u.id ? p : { id: u.id, email: u.email ?? null }));
       }
