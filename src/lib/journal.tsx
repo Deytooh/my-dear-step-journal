@@ -70,7 +70,11 @@ type Ctx = State & {
   setSetting: <K extends keyof State["settings"]>(k: K, v: State["settings"][K]) => void;
   clearDemo: () => void;
   newId: () => string;
+  /** Capture the whole journal so any change can be undone with restoreSnapshot. */
+  snapshot: () => State;
+  restoreSnapshot: (s: State) => void;
 };
+export type JournalSnapshot = State;
 
 const JournalCtx = createContext<Ctx | null>(null);
 
@@ -119,6 +123,8 @@ export function JournalProvider({ children }: { children: ReactNode }) {
       reminder: s.reminder?.demo ? null : s.reminder, stockAdjust: 0,
     })),
     newId: uid,
+    snapshot: () => state,
+    restoreSnapshot: (s) => setState(s),
   };
   return <JournalCtx.Provider value={value}>{children}</JournalCtx.Provider>;
 }
