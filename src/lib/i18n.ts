@@ -38,6 +38,10 @@ const ko = {
   "set.momo": "모모 그림 표시", "set.settings": "설정",
   "feel.good": "편안해요", "feel.ok": "괜찮아요", "feel.tired": "피곤해요", "feel.nausea": "속이 불편해요", "feel.low": "기운 없어요",
   "today": "오늘", "dDay": "D-{n}",
+  "type.measure": "치수", "qa.measure": "허리 · 엉덩이 · 가슴 · 허벅지", "f.waist": "허리 (cm)", "f.hip": "엉덩이 (cm)", "f.chest": "가슴 (cm)", "f.thigh": "허벅지 (cm)",
+  "hist.title": "모든 기록", "hist.sub": "남긴 기록을 날짜별로 모아봤어요.", "hist.all": "전체", "hist.empty": "아직 기록이 없어요.", "hist.open": "전체 기록 보기",
+  "journey.title": "내 사진과 작은 여정", "journey.sub": "내가 남긴 순간과 변화를 시간순으로 돌아봐요.", "journey.start": "시작", "journey.change": "시작 대비 {v} kg", "journey.empty": "아직 남긴 순간이 없어요.",
+  "toast.demoCleared": "예시를 지웠어요", "meas.empty": "아직 치수 기록이 없어요.", "meas.add": "치수 남기기",
 };
 export type Key = keyof typeof ko;
 const dicts: Record<Locale, Partial<Record<Key, string>>> = { ko, en: {}, fr: {} };

@@ -13,7 +13,8 @@ export type WeightRec = Base & { type: "weight"; value: number; unit: "kg" };
 export type InjectionRec = Base & { type: "injection"; medication: string | null; doseValue: number | null; doseUnit: string | null; site: string | null; usedStock: boolean };
 export type ConditionRec = Base & { type: "condition"; label: string; note?: string };
 export type MemoryRec = Base & { type: "memory"; note: string; photo?: string | null };
-export type JournalRecord = WeightRec | InjectionRec | ConditionRec | MemoryRec;
+export type MeasureRec = Base & { type: "measure"; waist: number | null; hip: number | null; chest: number | null; thigh: number | null; unit: "cm" };
+export type JournalRecord = WeightRec | InjectionRec | ConditionRec | MemoryRec | MeasureRec;
 
 export type Reminder = { id: string; at: string; demo?: boolean };
 export type Purchase = { id: string; localDate: string; amount: number; currency: "KRW"; doses: number; medication: string | null; demo?: boolean };
