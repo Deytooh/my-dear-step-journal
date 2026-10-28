@@ -6,6 +6,7 @@ import { useJournal } from "@/lib/journal";
 import { QuickAddSheet, type EntryKind } from "./QuickAddSheet";
 import type { JournalRecord, Purchase } from "@/lib/journal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 
 type Opener = (kind?: EntryKind, editing?: JournalRecord | Purchase) => void;
@@ -56,7 +57,7 @@ function Header() {
           </label>
           <p className="mt-2 text-xs text-muted-foreground">시간대: {j.tz}</p>
           {j.hasDemo && (
-            <button onClick={j.clearDemo} className="mt-3 h-11 w-full rounded-full border text-sm">
+            <button onClick={() => { const before = j.snapshot(); j.clearDemo(); toast(t("toast.demoCleared"), { action: { label: t("toast.undo"), onClick: () => j.restoreSnapshot(before) } }); }} className="mt-3 h-11 w-full rounded-full border text-sm">
               {t("demo.clear")}
             </button>
           )}

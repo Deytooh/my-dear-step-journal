@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
-import { ChevronRight, Pencil, Scale, Smile, Syringe, Image as ImageIcon } from "lucide-react";
+import { ChevronRight, Pencil, Ruler, Scale, Smile, Syringe, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { t, fmtNumber } from "@/lib/i18n";
 import { fmtMonthDay, fmtTime, todayLocal } from "@/lib/dates";
-import type { JournalRecord } from "@/lib/journal";
+import type { JournalRecord, MeasureRec } from "@/lib/journal";
 import momo from "@/assets/momo.png";
 import { useJournal } from "@/lib/journal";
 
