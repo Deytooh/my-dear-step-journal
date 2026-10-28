@@ -23,7 +23,7 @@ export function NextReminder({ variant = "today" }: { variant?: "today" | "plain
         <div className="text-sm text-muted-foreground">{variant === "today" ? t("reminder.next") : t("reminder.nextShort")}<DemoTag show={r?.demo} /></div>
         {r ? (
           <>
-            <div className="text-[22px] font-bold leading-snug">{reminderText(r.at, j.tz, variant !== "today")}</div>
+            <div className="text-[20px] font-bold leading-snug tracking-tight">{reminderText(r.at, j.tz, variant !== "today")}</div>
             <div className="text-sm text-muted-foreground">
               {d != null && d >= 0 && variant === "today" ? `${d === 0 ? "D-Day" : t("dDay", { n: d })} · ` : ""}{t("reminder.userSet")}
             </div>
