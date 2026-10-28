@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { extractWithMomo, type MomoCandidate } from "@/lib/momo.functions";
 import { useJournal, type JournalRecord } from "@/lib/journal";
-import { instantFromLocal, todayLocal } from "@/lib/dates";
+import { fmtMonthDay, fmtTime, instantFromLocal, todayLocal } from "@/lib/dates";
 import { t, getLocale } from "@/lib/i18n";
 
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -26,8 +26,8 @@ export function candidateToRecord(c: MomoCandidate, id: string, tz: string, toda
   return null;
 }
 
-function describe(r: JournalRecord) {
-  const when = r.localDate + (r.at ? " · " + new Date(r.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
+function describe(r: JournalRecord, tz: string) {
+  const when = fmtMonthDay(r.localDate) + (r.at ? " · " + fmtTime(r.at, tz) : "");
   const what = r.type === "weight" ? `${t("type.weight")} ${r.value} kg`
     : r.type === "injection" ? `${t("type.injection")} ${[r.medication, r.doseValue != null ? `${r.doseValue}${r.doseUnit ?? ""}` : null, r.site].filter(Boolean).join(" · ")}`
     : r.type === "condition" ? `${t("type.condition")} ${r.label}${r.note ? ` — ${r.note}` : ""}`
@@ -106,7 +106,7 @@ export function MomoSheet({ onDone }: { onDone: () => void }) {
           <p className="text-sm font-medium">{t("momo.review")}</p>
           {drafts.length === 0 && <p className="text-sm text-muted-foreground">{t("momo.none")}</p>}
           <ul className="space-y-2">
-            {drafts.map((d, i) => { const { what, when } = describe(d.rec); return (
+            {drafts.map((d, i) => { const { what, when } = describe(d.rec, j.tz); return (
               <li key={d.rec.id}>
                 <button type="button" aria-pressed={d.on} onClick={() => setDrafts(drafts.map((x, k) => (k === i ? { ...x, on: !x.on } : x)))}
                   className={`press flex w-full items-center gap-3 rounded-[20px] border p-4 text-left ${d.on ? "border-primary bg-secondary" : "opacity-60"}`}>

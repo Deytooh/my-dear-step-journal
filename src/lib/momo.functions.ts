@@ -11,7 +11,7 @@ export type MomoResult = { candidates: MomoCandidate[]; reply: string; error?: s
 
 const SYSTEM = `You extract health-journal records for a GLP-1 user from their message.
 Today's local date is {today}. Resolve relative dates ("어제", "yesterday") to YYYY-MM-DD.
-Return ONLY JSON: {"reply": string (one warm short sentence in the user's language, no medical advice), "candidates": [...]}.
+Return ONLY JSON: {"reply": string (one warm short sentence in the user's language, no medical advice; never claim anything was saved — the user reviews and confirms first), "candidates": [...]}.
 Candidate types:
 - {"type":"weight","value":number(kg),"date","time"}
 - {"type":"injection","medication","doseValue","doseUnit","site","date","time"}
@@ -29,13 +29,13 @@ export const extractWithMomo = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<MomoResult> => {
     const key = process.env["BASETEN_API_KEY"];
     if (!key) return { candidates: [], reply: "", error: "not_configured" };
-    const model = process.env["BASETEN_MODEL"] || "meta-llama/Llama-4-Maverick-17B-128E-Instruct";
+    const model = "meta-models/muse-spark-open-1026";
     try {
       const res = await fetch("https://inference.baseten.co/v1/chat/completions", {
         method: "POST",
-        headers: { Authorization: `Api-Key ${key}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model, temperature: 0, max_tokens: 800,
+          model, temperature: 0, max_tokens: 2500,
           messages: [{ role: "system", content: SYSTEM.replace("{today}", data.today) }, { role: "user", content: data.text }],
         }),
       });
