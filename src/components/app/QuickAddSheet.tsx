@@ -7,6 +7,7 @@ import { instantFromLocal, localDateOf, timeOf, todayLocal } from "@/lib/dates";
 import { useJournal, type JournalRecord, type Purchase, type PartOfDay } from "@/lib/journal";
 import { IconBubble } from "./ui";
 import momo from "@/assets/momo.png";
+import { MomoSheet } from "./MomoSheet";
 import { cn } from "@/lib/utils";
 
 export type EntryKind = "menu" | "weight" | "injection" | "condition" | "memory" | "purchase" | "reminder" | "stock" | "voice" | "measure";
@@ -196,15 +197,7 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
     onDone();
   };
 
-  if (kind === "voice") {
-    return (
-      <div>
-        <DrawerTitle className="text-[24px] font-bold">{titles.voice}</DrawerTitle>
-        <DrawerDescription className="mt-3 rounded-[20px] bg-accent p-4 text-[15px] leading-relaxed">{t("voice.unavailable")}</DrawerDescription>
-        <button onClick={onDone} className="press mt-6 h-12 w-full rounded-full bg-primary font-semibold text-primary-foreground">확인</button>
-      </div>
-    );
-  }
+  if (kind === "voice") return <MomoSheet onDone={onDone} />;
 
   const showDate = ["weight", "injection", "condition", "memory", "purchase", "measure"].includes(kind);
   const showTime = ["weight", "injection", "condition", "memory", "measure"].includes(kind);
