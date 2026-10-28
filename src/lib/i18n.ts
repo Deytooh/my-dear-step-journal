@@ -2,6 +2,13 @@
 export type Locale = "ko" | "en" | "fr";
 
 const ko = {
+  "auth.title": "내 기록을 안전하게 보관해요", "auth.sub": "로그인하면 기록과 사진이 내 계정에만 저장되고, 다른 기기에서도 이어서 볼 수 있어요.",
+  "auth.email": "이메일", "auth.password": "비밀번호", "auth.signin": "로그인", "auth.signup": "가입하기",
+  "auth.toSignup": "처음이신가요? 가입하기", "auth.toSignin": "이미 계정이 있어요", "auth.google": "Google로 계속하기", "auth.lovable": "Lovable로 계속하기",
+  "auth.or": "또는", "auth.check": "확인 메일을 보냈어요. 메일의 링크를 누르면 로그인돼요.", "auth.fail": "로그인하지 못했어요. 이메일과 비밀번호를 확인해 주세요.",
+  "auth.short": "비밀번호는 8자 이상이어야 해요.", "auth.later": "로그인 없이 이 기기에서만 쓰기", "auth.first": "이 기기의 기록은 처음 로그인할 때 계정으로 옮겨져요.",
+  "sync.local": "이 기기에만 저장 중", "sync.syncing": "저장 중…", "sync.synced": "계정에 저장됨", "sync.error": "저장하지 못했어요. 잠시 후 다시 시도해요.",
+  "sync.signin": "로그인하고 기록 보관하기", "sync.signout": "로그아웃",
   "nav.today": "오늘", "nav.calendar": "캘린더", "nav.add": "기록추가", "nav.injections": "주사", "nav.progress": "변화",
   "today.title": "오늘도, 한 걸음씩.", "today.records": "오늘의 기록", "today.seeAll": "전체 보기",
   "today.addOther": "다른 기록 추가", "today.empty": "아직 오늘 남긴 기록이 없어요.",
