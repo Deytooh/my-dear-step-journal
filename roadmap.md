@@ -1,4 +1,5 @@
 # My Dear Step roadmap
+- [ ] App-feel pass: tactile controls, smooth reveals, animated values/charts, save feedback, reduced-motion and interaction verification
 - [x] Phase 1: design system, app shell, Today / Calendar / Injections / Progress, Quick Add with working manual forms (local storage)
 - [x] Phase 2: undo everywhere, measurements, history view, journey detail
 - [x] Phase 3: Lovable Cloud persistence, accounts (email, Google, Lovable), owner-only rules, private photo storage (signed-in save not yet verified with a real account)
