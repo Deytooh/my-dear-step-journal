@@ -1,3 +1,4 @@
+import { intlLocale } from "./i18n";
 // Date helpers. All instants are stored as ISO UTC strings; display uses the user's timezone.
 export const DEFAULT_TZ = "Asia/Seoul";
 
@@ -31,16 +32,16 @@ export function timeOf(iso: string, tz = DEFAULT_TZ) {
 
 const ld = (s: string) => new Date(s + "T12:00:00Z");
 
-export function fmtMonthDay(localDate: string, locale = "ko-KR") {
+export function fmtMonthDay(localDate: string, locale = intlLocale()) {
   return new Intl.DateTimeFormat(locale, { month: "long", day: "numeric", timeZone: "UTC" }).format(ld(localDate));
 }
-export function fmtMonthDayWeekday(localDate: string, locale = "ko-KR") {
+export function fmtMonthDayWeekday(localDate: string, locale = intlLocale()) {
   return new Intl.DateTimeFormat(locale, { month: "long", day: "numeric", weekday: "long", timeZone: "UTC" }).format(ld(localDate));
 }
-export function fmtTime(iso: string, tz = DEFAULT_TZ, locale = "ko-KR", minutes = true) {
+export function fmtTime(iso: string, tz = DEFAULT_TZ, locale = intlLocale(), minutes = true) {
   return new Intl.DateTimeFormat(locale, { timeZone: tz, hour: "numeric", ...(minutes ? { minute: "2-digit" } : {}) }).format(new Date(iso));
 }
-export function fmtYearMonth(y: number, m: number, locale = "ko-KR") {
+export function fmtYearMonth(y: number, m: number, locale = intlLocale()) {
   return new Intl.DateTimeFormat(locale, { year: "numeric", month: "long", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, 15)));
 }
 
