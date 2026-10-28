@@ -35,7 +35,7 @@ export const extractWithMomo = createServerFn({ method: "POST" })
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model, temperature: 0, max_tokens: 800,
+          model, temperature: 0, max_tokens: 2500,
           messages: [{ role: "system", content: SYSTEM.replace("{today}", data.today) }, { role: "user", content: data.text }],
         }),
       });
