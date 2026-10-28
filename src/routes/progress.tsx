@@ -1,13 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ChevronRight, Download, Plus, Scale, Image as ImageIcon } from "lucide-react";
+import { ChevronRight, Download, Plus, Ruler, Scale, Image as ImageIcon } from "lucide-react";
 import { Area, AreaChart, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { t, fmtNumber } from "@/lib/i18n";
 import { addDays, fmtMonthDay, fmtTime, todayLocal } from "@/lib/dates";
-import { sortByTime, useJournal, type InjectionRec, type MemoryRec, type WeightRec } from "@/lib/journal";
+import { sortByTime, useJournal, type InjectionRec, type MeasureRec, type MemoryRec, type WeightRec } from "@/lib/journal";
 import { useQuickAdd } from "@/components/app/AppShell";
-import { Card, DemoTag, IconBubble, PageTitle, recordValue, SectionHeader, Segmented } from "@/components/app/ui";
+import { Card, DemoTag, IconBubble, measureSummary, PageTitle, recordValue, SectionHeader, Segmented } from "@/components/app/ui";
 
 export const Route = createFileRoute("/progress")({
   head: () => ({
@@ -16,6 +16,8 @@ export const Route = createFileRoute("/progress")({
       { name: "description", content: "체중 변화와 주사 기록, 내가 남긴 순간을 함께 돌아보세요." },
       { property: "og:title", content: "나의 변화 · my dear step" },
       { property: "og:description", content: "숫자와 순간을 함께 돌아보는 나의 여정." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Progress,
@@ -29,6 +31,7 @@ function Progress() {
   const today = todayLocal(j.tz);
   const weights = j.records.filter((r): r is WeightRec => r.type === "weight").sort(sortByTime);
   const memories = j.records.filter((r): r is MemoryRec => r.type === "memory").sort(sortByTime);
+  const measures = j.records.filter((r): r is MeasureRec => r.type === "measure").sort(sortByTime);
   const latest = weights[0];
   const from = range === "1m" ? addDays(today, -30) : range === "3m" ? addDays(today, -91) : "0000";
 
@@ -64,13 +67,13 @@ function Progress() {
         <button onClick={() => open("weight")} className="press flex h-11 items-center gap-1 rounded-full border border-primary px-4 font-semibold"><Plus className="size-4" />{t("type.weight")}</button>
       </Card>
 
-      <button onClick={() => setMetric("photo")} className="press mt-4 flex w-full items-center gap-4 rounded-[24px] bg-card p-4 text-left shadow-soft">
+      <Link to="/journey" className="press mt-4 flex w-full items-center gap-4 rounded-[24px] bg-card p-4 text-left shadow-soft">
         <span className="flex size-16 items-center justify-center overflow-hidden rounded-[16px] bg-peach">
           {memories[0]?.photo ? <img src={memories[0].photo} alt="" className="size-full object-cover" /> : <ImageIcon className="size-6" />}
         </span>
         <span className="flex-1"><span className="block font-bold">{t("prog.journey")}</span><span className="block text-sm text-muted-foreground">{t("prog.journeySub")}</span></span>
         <ChevronRight className="size-5 text-muted-foreground" />
-      </button>
+      </Link>
 
       <div className="mt-5"><Segmented value={metric} onChange={setMetric} options={[{ value: "weight", label: t("prog.tWeight") }, { value: "measure", label: t("prog.tMeasure") }, { value: "photo", label: t("prog.tPhoto") }]} /></div>
 
@@ -101,7 +104,7 @@ function Progress() {
             <p className="mt-2 text-center text-xs text-muted-foreground">주사 표시는 같은 날 체중 기록이 있을 때만 그래프에 나타나요.</p>
           </Card>
 
-          <SectionHeader title={t("prog.recent")} />
+          <SectionHeader title={t("prog.recent")} action={<Link to="/history" className="text-sm font-medium text-primary">{t("hist.open")}</Link>} />
           <div className="divide-y">
             {weights.slice(0, 5).map((w) => (
               <button key={w.id} onClick={() => open("weight", w)} className="press flex w-full items-center gap-4 py-3 text-left">
@@ -116,7 +119,29 @@ function Progress() {
         </>
       )}
 
-      {metric === "measure" && <Card className="mt-4 p-8 text-center text-muted-foreground">{t("prog.comingSoon")}</Card>}
+      {metric === "measure" && (
+        <div className="mt-4">
+          <button onClick={() => open("measure")} className="press flex h-11 w-full items-center justify-center gap-1 rounded-full border border-primary font-semibold"><Plus className="size-4" />{t("meas.add")}</button>
+          {measures.length === 0 ? <Card className="mt-3 p-8 text-center text-muted-foreground">{t("meas.empty")}</Card> : (
+            <div className="mt-2 divide-y">
+              {measures.map((m, i) => {
+                const prev = measures[i + 1];
+                const dw = m.waist != null && prev?.waist != null ? m.waist - prev.waist : null;
+                return (
+                  <button key={m.id} onClick={() => open("measure", m)} className="press flex w-full items-center gap-4 py-3 text-left">
+                    <IconBubble size="sm"><Ruler className="size-5" /></IconBubble>
+                    <span className="w-16 text-muted-foreground">{fmtMonthDay(m.localDate)}</span>
+                    <span className="flex-1 font-semibold">{measureSummary(m)}<DemoTag show={m.demo} />
+                      {dw != null && dw !== 0 && <span className="block text-xs font-normal text-muted-foreground">허리 {dw > 0 ? "+" : ""}{fmtNumber(dw)} cm</span>}
+                    </span>
+                    <ChevronRight className="size-5 text-muted-foreground" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {metric === "photo" && (
         <div className="mt-4">
