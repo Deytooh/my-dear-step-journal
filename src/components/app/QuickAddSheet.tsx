@@ -171,7 +171,7 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
         vals[k] = Math.round(v * 10) / 10;
       }
       if (Object.values(vals).every((v) => v == null)) return setErr("최소 한 가지 치수를 입력해 주세요.");
-      j.saveRecord({ ...base(), type: "measure", unit: "cm", waist: vals.waist ?? null, hip: vals.hip ?? null, chest: vals.chest ?? null, thigh: vals.thigh ?? null });
+      j.saveRecord({ ...base(), type: "measure", unit: "cm", waist: vals["waist"] ?? null, hip: vals["hip"] ?? null, chest: vals["chest"] ?? null, thigh: vals["thigh"] ?? null });
     } else if (kind === "purchase") {
       const a = Number(amount.replace(/[^\d]/g, "")); const n = Number(doses);
       if (!a || !Number.isInteger(n) || n < 0) return setErr("금액과 수량을 확인해 주세요.");
