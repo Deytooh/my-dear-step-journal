@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Calendar, ChevronRight, Info, Package, Plus, Wallet } from "lucide-react";
@@ -7,6 +8,7 @@ import { sortByTime, useJournal, type InjectionRec } from "@/lib/journal";
 import { useQuickAdd } from "@/components/app/AppShell";
 import { Card, DemoTag, IconBubble, PageTitle, recordValue, SectionHeader, Segmented } from "@/components/app/ui";
 import { NextReminder } from "@/components/app/ReminderCard";
+import { AnimatedValue } from "@/components/app/AppFeel";
 import { Syringe, Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/injections")({
@@ -39,9 +41,9 @@ function Injections() {
           <IconBubble><Package className="size-6" /></IconBubble>
           <div className="flex-1">
             <div className="text-sm text-muted-foreground">{t("inv.left")}</div>
-            <div className="text-[32px] font-bold leading-none">{j.stock}{t("inv.unit")}</div>
+            <div className="text-[32px] font-bold leading-none"><AnimatedValue value={j.stock} digits={0} />{t("inv.unit")}</div>
           </div>
-          <button onClick={() => open("stock")} className="press h-11 rounded-full border border-primary px-4 text-[15px]">{t("inv.edit")}</button>
+          <Button variant="unstyled" size="unstyled" onClick={() => open("stock")} className="press h-11 rounded-full border border-primary px-4 text-[15px]">{t("inv.edit")}</Button>
         </div>
         <div className="my-4 h-px bg-border" />
         <NextReminder variant="plain" />
@@ -60,21 +62,22 @@ function Injections() {
         </div>
         <div className="mt-3 flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{t("inj.basis")}</span>
-          <button onClick={() => setTab("stock")} className="flex min-h-11 items-center font-semibold">구매 내역 보기 <ChevronRight className="size-4" /></button>
+          <Button variant="unstyled" size="unstyled" onClick={() => setTab("stock")} className="flex min-h-11 items-center font-semibold">구매 내역 보기 <ChevronRight className="size-4" /></Button>
         </div>
       </Card>
 
       <div className="mt-6"><Segmented value={tab} onChange={setTab} options={[{ value: "records", label: t("inj.tabRecords") }, { value: "stock", label: t("inj.tabStock") }]} /></div>
 
+      <div key={tab} className="feel-panel">
       {tab === "records" ? (
         <>
           <SectionHeader title={t("inj.recent")} action={
-            <button onClick={() => open("injection")} className="press flex h-11 items-center gap-1 rounded-full border border-primary px-4 font-semibold"><Plus className="size-4" />{t("inj.add")}</button>
+            <Button variant="unstyled" size="unstyled" onClick={() => open("injection")} className="press flex h-11 items-center gap-1 rounded-full border border-primary px-4 font-semibold"><Plus className="size-4" />{t("inj.add")}</Button>
           } />
           <Card className="divide-y px-5">
             {injections.length === 0 && <p className="py-6 text-center text-muted-foreground">{t("inj.noRecords")}</p>}
             {injections.map((r) => (
-              <button key={r.id} onClick={() => open("injection", r)} className="press flex w-full items-center gap-4 py-4 text-left">
+              <Button variant="unstyled" size="unstyled" key={r.id} onClick={() => open("injection", r)} className="press flex w-full items-center gap-4 py-4 text-left">
                 <IconBubble><Syringe className="size-6" /></IconBubble>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm text-muted-foreground">{fmtMonthDayWeekday(r.localDate)}{r.at && r.precision === "exact" ? ` · ${fmtTime(r.at, j.tz)}` : ` · ${t("f.timeUnknown")}`}<DemoTag show={r.demo} /></div>
@@ -82,7 +85,7 @@ function Injections() {
                   <div className="text-sm text-muted-foreground">{r.site ?? "부위 미입력"}</div>
                 </div>
                 <Pencil className="size-5 text-muted-foreground" />
-              </button>
+              </Button>
             ))}
           </Card>
           <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground"><Info className="size-4" />{t("inj.editNote")}</p>
@@ -90,12 +93,12 @@ function Injections() {
       ) : (
         <>
           <SectionHeader title={t("type.purchase")} action={
-            <button onClick={() => open("purchase")} className="press flex h-11 items-center gap-1 rounded-full border border-primary px-4 font-semibold"><Plus className="size-4" />{t("inj.addPurchase")}</button>
+            <Button variant="unstyled" size="unstyled" onClick={() => open("purchase")} className="press flex h-11 items-center gap-1 rounded-full border border-primary px-4 font-semibold"><Plus className="size-4" />{t("inj.addPurchase")}</Button>
           } />
           <Card className="divide-y px-5">
             {purchases.length === 0 && <p className="py-6 text-center text-muted-foreground">{t("inj.noPurchases")}</p>}
             {purchases.map((p) => (
-              <button key={p.id} onClick={() => open("purchase", p)} className="press flex w-full items-center gap-4 py-4 text-left">
+              <Button variant="unstyled" size="unstyled" key={p.id} onClick={() => open("purchase", p)} className="press flex w-full items-center gap-4 py-4 text-left">
                 <IconBubble tone="peach"><Package className="size-6" /></IconBubble>
                 <div className="flex-1">
                   <div className="text-sm text-muted-foreground">{fmtMonthDayWeekday(p.localDate)}<DemoTag show={p.demo} /></div>
@@ -103,11 +106,12 @@ function Injections() {
                   <div className="text-sm text-muted-foreground">{p.medication ?? "약 이름 미입력"} · {p.doses}{t("inv.unit")}</div>
                 </div>
                 <Pencil className="size-5 text-muted-foreground" />
-              </button>
+              </Button>
             ))}
           </Card>
         </>
       )}
+      </div>
     </div>
   );
 }

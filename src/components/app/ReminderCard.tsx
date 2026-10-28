@@ -1,9 +1,11 @@
+import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { Bell, ChevronRight, Package, Pencil, Syringe } from "lucide-react";
 import { t , getLocale } from "@/lib/i18n";
 import { dayDiff, fmtMonthDay, fmtMonthDayWeekday, fmtTime, localDateOf, todayLocal } from "@/lib/dates";
 import { useJournal } from "@/lib/journal";
 import { useQuickAdd } from "./AppShell";
+import { AnimatedValue } from "./AppFeel";
 import { DemoTag, IconBubble } from "./ui";
 
 export function reminderText(at: string, tz: string, weekday = false) {
@@ -30,9 +32,9 @@ export function NextReminder({ variant = "today" }: { variant?: "today" | "plain
           </>
         ) : <div className="text-[17px] font-semibold">{t("reminder.none")}</div>}
       </div>
-      <button onClick={() => open("reminder")} className="press flex size-11 items-center justify-center" aria-label={t("reminder.set")}>
+      <Button variant="unstyled" size="unstyled" onClick={() => open("reminder")} className="press flex size-11 items-center justify-center" aria-label={t("reminder.set")}>
         <Pencil className="size-5 text-muted-foreground" />
-      </button>
+      </Button>
     </div>
   );
 }
@@ -43,7 +45,7 @@ export function StockLine() {
     <div className="flex items-center gap-3">
       <Package className="size-5 text-muted-foreground" />
       <span className="text-[15px] text-muted-foreground">{t("inv.left")}</span>
-      <span className="text-[18px] font-bold">{j.stock}{getLocale() === "ko" ? "" : " "}{t("inv.unit")}</span>
+      <span className="text-[18px] font-bold"><AnimatedValue value={j.stock} digits={0} />{getLocale() === "ko" ? "" : " "}{t("inv.unit")}</span>
       <Link to="/injections" className="press ml-auto flex min-h-11 items-center gap-1 text-[15px]">
         {t("inj.manage")} <ChevronRight className="size-4" />
       </Link>

@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, Plus } from "lucide-react";
 import { t } from "@/lib/i18n";
@@ -55,10 +56,10 @@ function Today() {
       <Card className="px-5 pb-5">
         {records.length === 0 && <p className="py-6 text-center text-muted-foreground">{t("today.empty")}</p>}
         <div className="divide-y">{records.map((r) => <RecordRow key={r.id} r={r} onEdit={() => open(r.type, r)} />)}</div>
-        <button onClick={() => open("menu")} className="press mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-full border border-primary/40 font-semibold">
+        <Button variant="unstyled" size="unstyled" onClick={() => open("menu")} className="press mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-full border border-primary/40 font-semibold">
           <span className="flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground"><Plus className="size-4" /></span>
           {t("today.addOther")}
-        </button>
+        </Button>
       </Card>
 
       <VoiceCard title={t("voice.title")} sub={t("voice.sub")} onClick={() => open("voice")} />

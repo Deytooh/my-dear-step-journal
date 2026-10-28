@@ -17,3 +17,5 @@
 - Demo records carry `demo: true` and are labelled in UI; inventory is derived from purchases minus stock-using injections plus a manual adjustment.
 - Spec source documents are the user's uploaded master prompt / tokens; root `roadmap.md` tracks phases.
 - Journal data syncs via src/lib/cloud-sync.ts: journal.tsx keeps local state and diffs it to Lovable Cloud when signed in, so page code stays storage-agnostic.
+
+- App feel is presentation-only: shared CSS motion profiles and AppFeel own transient input/save effects; use AnimatedValue for truthful numeric reveals and honor reduced motion, so feedback never changes journal rules or invents medical progress.
