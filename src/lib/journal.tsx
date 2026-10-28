@@ -84,6 +84,10 @@ const JournalCtx = createContext<Ctx | null>(null);
 export function JournalProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>(() => demoState());
   const [ready, setReady] = useState(false);
+  const [user, setUser] = useState<{ id: string; email: string | null } | null>(null);
+  const [sync, setSync] = useState<SyncStatus>("local");
+  const synced = useRef<State | null>(null); // last state known to be in the cloud
+  const pushing = useRef(false);
 
   useEffect(() => {
     try {
@@ -91,8 +95,61 @@ export function JournalProvider({ children }: { children: ReactNode }) {
       if (raw) setState(JSON.parse(raw));
     } catch { /* ignore */ }
     setReady(true);
+    supabase.auth.getUser().then(({ data }) => data.user && setUser({ id: data.user.id, email: data.user.email ?? null }));
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") { setUser(null); synced.current = null; setSync("local"); return; }
+      if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+        const u = session?.user; if (u) setUser((p) => (p?.id === u.id ? p : { id: u.id, email: u.email ?? null }));
+      }
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
   useEffect(() => { if (ready) localStorage.setItem(KEY, JSON.stringify(state)); }, [state, ready]);
+
+  // On sign-in: load the account's journal; a new account receives this device's records.
+  useEffect(() => {
+    if (!user || !ready) return;
+    let live = true;
+    setSync("syncing");
+    (async () => {
+      try {
+        const cloud = await loadCloud();
+        if (!live) return;
+        if (cloud) { synced.current = cloud; setState(cloud); }
+        else {
+          const local = JSON.parse(localStorage.getItem(KEY) ?? "null") as State | null ?? demoState();
+          const empty: State = { records: [], purchases: [], reminder: null, stockAdjust: 0, settings: local.settings };
+          await pushDiff(user.id, empty, local);
+          synced.current = local; setState(local);
+        }
+        setSync("synced");
+      } catch (e) { console.error(e); if (live) setSync("error"); }
+    })();
+    return () => { live = false; };
+  }, [user, ready]);
+
+  // Push every later change to the cloud (debounced).
+  useEffect(() => {
+    if (!user || !synced.current || synced.current === state || pushing.current) return;
+    const tm = setTimeout(async () => {
+      const prev = synced.current; if (!prev) return;
+      pushing.current = true; setSync("syncing");
+      const target = state;
+      try {
+        const replaced = await pushDiff(user.id, prev, target);
+        let next = target;
+        if (replaced.length) {
+          const m = new Map(replaced.map((r) => [r.id, r]));
+          next = { ...target, records: target.records.map((r) => m.get(r.id) ?? r) };
+        }
+        synced.current = next;
+        if (next !== target) setState((s) => (s === target ? next : s));
+        setSync("synced");
+      } catch (e) { console.error(e); setSync("error"); }
+      finally { pushing.current = false; setState((s) => ({ ...s })); }
+    }, 600);
+    return () => clearTimeout(tm);
+  }, [state, user]);
 
   const computedStock = useMemo(() => {
     const bought = state.purchases.reduce((s, p) => s + p.doses, 0);
