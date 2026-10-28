@@ -1,8 +1,10 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { loadCloud, pushDiff } from "./cloud-sync";
 import { setLocale } from "./i18n";
 import { addDays, DEFAULT_TZ, instantFromLocal, localDateOf, todayLocal } from "./dates";
 
-// Phase 1 local store (browser only). Will be replaced by Lovable Cloud persistence in Phase 3.
+// Journal store: works on-device when signed out; when signed in, mirrors every change to Lovable Cloud.
 export type Precision = "exact" | "date_only" | "part_of_day" | "unknown";
 export type PartOfDay = "morning" | "afternoon" | "evening" | "night";
 
@@ -58,8 +60,11 @@ function demoState(): State {
   };
 }
 
+export type SyncStatus = "local" | "syncing" | "synced" | "error";
 type Ctx = State & {
   ready: boolean;
+  user: { id: string; email: string | null } | null;
+  sync: SyncStatus;
   tz: string;
   stock: number;
   hasDemo: boolean;
@@ -88,6 +93,8 @@ export function JournalProvider({ children }: { children: ReactNode }) {
   const [sync, setSync] = useState<SyncStatus>("local");
   const synced = useRef<State | null>(null); // last state known to be in the cloud
   const pushing = useRef(false);
+  const latest = useRef(state); latest.current = state;
+  const [bump, setBump] = useState(0);
 
   useEffect(() => {
     try {
@@ -146,10 +153,10 @@ export function JournalProvider({ children }: { children: ReactNode }) {
         if (next !== target) setState((s) => (s === target ? next : s));
         setSync("synced");
       } catch (e) { console.error(e); setSync("error"); }
-      finally { pushing.current = false; setState((s) => ({ ...s })); }
+      finally { pushing.current = false; if (latest.current !== target) setBump((b) => b + 1); }
     }, 600);
     return () => clearTimeout(tm);
-  }, [state, user]);
+  }, [state, user, bump]);
 
   const computedStock = useMemo(() => {
     const bought = state.purchases.reduce((s, p) => s + p.doses, 0);
@@ -164,7 +171,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
 
   setLocale(state.settings.locale ?? "ko");
   const value: Ctx = {
-    ...state, ready, tz: state.settings.timezone,
+    ...state, ready, user, sync, tz: state.settings.timezone,
     stock: Math.max(0, computedStock + state.stockAdjust),
     hasDemo: state.records.some((r) => r.demo) || state.purchases.some((p) => p.demo) || !!state.reminder?.demo,
     saveRecord,
