@@ -1,3 +1,4 @@
+import { PhotoImg } from "@/components/app/PhotoImg";
 import { useEffect, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Image as ImageIcon, Mic, Package, Ruler, Scale, Smile, Syringe, X } from "lucide-react";
 import { toast } from "sonner";
@@ -262,7 +263,7 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
               const rd = new FileReader(); rd.onload = () => setPhoto(String(rd.result)); rd.readAsDataURL(f);
             }} />
           </Field>
-          {photo && <img src={photo} alt="선택한 사진" className="max-h-48 rounded-[16px] object-cover" />}
+          {photo && <PhotoImg src={photo} alt="선택한 사진" className="max-h-48 rounded-[16px] object-cover" />}
           <Field label={t("f.note")}>
             <textarea className={cn(inputCls, "h-24 py-3")} value={note} onChange={(e) => setNote(e.target.value)} placeholder="오늘 기억하고 싶은 순간" />
           </Field>

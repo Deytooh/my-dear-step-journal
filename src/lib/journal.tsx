@@ -1,8 +1,10 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { loadCloud, pushDiff } from "./cloud-sync";
 import { setLocale } from "./i18n";
 import { addDays, DEFAULT_TZ, instantFromLocal, localDateOf, todayLocal } from "./dates";
 
-// Phase 1 local store (browser only). Will be replaced by Lovable Cloud persistence in Phase 3.
+// Journal store: works on-device when signed out; when signed in, mirrors every change to Lovable Cloud.
 export type Precision = "exact" | "date_only" | "part_of_day" | "unknown";
 export type PartOfDay = "morning" | "afternoon" | "evening" | "night";
 
@@ -58,8 +60,11 @@ function demoState(): State {
   };
 }
 
+export type SyncStatus = "local" | "syncing" | "synced" | "error";
 type Ctx = State & {
   ready: boolean;
+  user: { id: string; email: string | null } | null;
+  sync: SyncStatus;
   tz: string;
   stock: number;
   hasDemo: boolean;
@@ -84,6 +89,12 @@ const JournalCtx = createContext<Ctx | null>(null);
 export function JournalProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>(() => demoState());
   const [ready, setReady] = useState(false);
+  const [user, setUser] = useState<{ id: string; email: string | null } | null>(null);
+  const [sync, setSync] = useState<SyncStatus>("local");
+  const synced = useRef<State | null>(null); // last state known to be in the cloud
+  const pushing = useRef(false);
+  const latest = useRef(state); latest.current = state;
+  const [bump, setBump] = useState(0);
 
   useEffect(() => {
     try {
@@ -91,8 +102,61 @@ export function JournalProvider({ children }: { children: ReactNode }) {
       if (raw) setState(JSON.parse(raw));
     } catch { /* ignore */ }
     setReady(true);
+    supabase.auth.getUser().then(({ data }) => data.user && setUser({ id: data.user.id, email: data.user.email ?? null }));
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") { setUser(null); synced.current = null; setSync("local"); setState(demoState()); return; }
+      if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+        const u = session?.user; if (u) setUser((p) => (p?.id === u.id ? p : { id: u.id, email: u.email ?? null }));
+      }
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
   useEffect(() => { if (ready) localStorage.setItem(KEY, JSON.stringify(state)); }, [state, ready]);
+
+  // On sign-in: load the account's journal; a new account receives this device's records.
+  useEffect(() => {
+    if (!user || !ready) return;
+    let live = true;
+    setSync("syncing");
+    (async () => {
+      try {
+        const cloud = await loadCloud();
+        if (!live) return;
+        if (cloud) { synced.current = cloud; setState(cloud); }
+        else {
+          const local = JSON.parse(localStorage.getItem(KEY) ?? "null") as State | null ?? demoState();
+          const empty: State = { records: [], purchases: [], reminder: null, stockAdjust: 0, settings: local.settings };
+          await pushDiff(user.id, empty, local);
+          synced.current = local; setState(local);
+        }
+        setSync("synced");
+      } catch (e) { console.error(e); if (live) setSync("error"); }
+    })();
+    return () => { live = false; };
+  }, [user, ready]);
+
+  // Push every later change to the cloud (debounced).
+  useEffect(() => {
+    if (!user || !synced.current || synced.current === state || pushing.current) return;
+    const tm = setTimeout(async () => {
+      const prev = synced.current; if (!prev) return;
+      pushing.current = true; setSync("syncing");
+      const target = state;
+      try {
+        const replaced = await pushDiff(user.id, prev, target);
+        let next = target;
+        if (replaced.length) {
+          const m = new Map(replaced.map((r) => [r.id, r]));
+          next = { ...target, records: target.records.map((r) => m.get(r.id) ?? r) };
+        }
+        synced.current = next;
+        if (next !== target) setState((s) => (s === target ? next : s));
+        setSync("synced");
+      } catch (e) { console.error(e); setSync("error"); }
+      finally { pushing.current = false; if (latest.current !== target) setBump((b) => b + 1); }
+    }, 600);
+    return () => clearTimeout(tm);
+  }, [state, user, bump]);
 
   const computedStock = useMemo(() => {
     const bought = state.purchases.reduce((s, p) => s + p.doses, 0);
@@ -107,7 +171,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
 
   setLocale(state.settings.locale ?? "ko");
   const value: Ctx = {
-    ...state, ready, tz: state.settings.timezone,
+    ...state, ready, user, sync, tz: state.settings.timezone,
     stock: Math.max(0, computedStock + state.stockAdjust),
     hasDemo: state.records.some((r) => r.demo) || state.purchases.some((p) => p.demo) || !!state.reminder?.demo,
     saveRecord,

@@ -1,5 +1,6 @@
+import { supabase } from "@/integrations/supabase/client";
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { CalendarDays, ChartNoAxesColumn, Home, Plus, Syringe, Settings2 } from "lucide-react";
 import { t, type Key } from "@/lib/i18n";
 import { useJournal } from "@/lib/journal";
@@ -41,6 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 function Header() {
   const j = useJournal();
+  const navigate = useNavigate();
   return (
     <header className="flex items-center justify-between px-5 pt-6 pb-2">
       <Link to="/today" className="flex items-end gap-1" aria-label="my dear step">
@@ -52,6 +54,15 @@ function Header() {
           <Settings2 className="size-5" />
         </PopoverTrigger>
         <PopoverContent align="end" className="w-64 rounded-[20px] p-4">
+          <div className="mb-3 rounded-[14px] bg-secondary p-3 text-xs">
+            <p className="font-medium">{t(`sync.${j.sync}`)}</p>
+            {j.user?.email && <p className="mt-0.5 truncate text-muted-foreground">{j.user.email}</p>}
+            {j.user ? (
+              <button onClick={async () => { await supabase.auth.signOut(); navigate({ to: "/auth", replace: true }); }} className="press mt-2 h-9 w-full rounded-full border bg-card">{t("sync.signout")}</button>
+            ) : (
+              <Link to="/auth" className="press mt-2 flex h-9 w-full items-center justify-center rounded-full bg-primary text-primary-foreground">{t("sync.signin")}</Link>
+            )}
+          </div>
           <label className="flex min-h-11 items-center justify-between gap-3 text-sm">
             {t("set.momo")}
             <Switch checked={j.settings.showMomo} onCheckedChange={(v) => j.setSetting("showMomo", v)} />

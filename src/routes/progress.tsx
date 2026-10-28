@@ -1,3 +1,4 @@
+import { PhotoImg } from "@/components/app/PhotoImg";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ChevronRight, Download, Plus, Ruler, Scale, Image as ImageIcon } from "lucide-react";
@@ -69,7 +70,7 @@ function Progress() {
 
       <Link to="/journey" className="press mt-4 flex w-full items-center gap-4 rounded-[24px] bg-card p-4 text-left shadow-soft">
         <span className="flex size-16 items-center justify-center overflow-hidden rounded-[16px] bg-peach">
-          {memories[0]?.photo ? <img src={memories[0].photo} alt="" className="size-full object-cover" /> : <ImageIcon className="size-6" />}
+          {memories[0]?.photo ? <PhotoImg src={memories[0].photo} className="size-full object-cover" /> : <ImageIcon className="size-6" />}
         </span>
         <span className="flex-1"><span className="block font-bold">{t("prog.journey")}</span><span className="block text-sm text-muted-foreground">{t("prog.journeySub")}</span></span>
         <ChevronRight className="size-5 text-muted-foreground" />
@@ -154,7 +155,7 @@ function Progress() {
             <div className="grid grid-cols-2 gap-3">
               {memories.map((m) => (
                 <button key={m.id} onClick={() => open("memory", m)} className="press overflow-hidden rounded-[20px] bg-card text-left shadow-soft">
-                  {m.photo && <img src={m.photo} alt="" className="aspect-square w-full object-cover" />}
+                  {m.photo && <PhotoImg src={m.photo} className="aspect-square w-full object-cover" />}
                   <div className="p-3"><div className="text-xs text-muted-foreground">{fmtMonthDay(m.localDate)}</div><div className="line-clamp-2 text-sm">{m.note}</div></div>
                 </button>
               ))}

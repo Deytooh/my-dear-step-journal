@@ -2,6 +2,13 @@
 type D = Record<string, string>;
 
 export const en: D = {
+  "auth.title": "Keep your journal safe", "auth.sub": "Sign in so your records and photos are stored in your own account and available on any device.",
+  "auth.email": "Email", "auth.password": "Password", "auth.signin": "Sign in", "auth.signup": "Create account",
+  "auth.toSignup": "New here? Create an account", "auth.toSignin": "I already have an account", "auth.google": "Continue with Google", "auth.lovable": "Continue with Lovable",
+  "auth.or": "or", "auth.check": "We sent a confirmation email. Open its link to sign in.", "auth.fail": "Couldn't sign in. Check your email and password.",
+  "auth.short": "Password must be at least 8 characters.", "auth.later": "Use on this device only, without an account", "auth.first": "This device's records move into your account the first time you sign in.",
+  "sync.local": "Saved on this device only", "sync.syncing": "Saving…", "sync.synced": "Saved to your account", "sync.error": "Couldn't save. We'll try again shortly.",
+  "sync.signin": "Sign in to keep your journal", "sync.signout": "Sign out",
   "nav.today": "Today", "nav.calendar": "Calendar", "nav.add": "Add", "nav.injections": "Shots", "nav.progress": "Progress",
   "today.title": "One small step today.", "today.records": "Today's entries", "today.seeAll": "See all",
   "today.addOther": "Add another entry", "today.empty": "Nothing logged yet today.",
@@ -50,6 +57,13 @@ export const en: D = {
 };
 
 export const fr: D = {
+  "auth.title": "Gardez votre journal en sécurité", "auth.sub": "Connectez-vous pour enregistrer vos données et photos dans votre compte, sur tous vos appareils.",
+  "auth.email": "E-mail", "auth.password": "Mot de passe", "auth.signin": "Se connecter", "auth.signup": "Créer un compte",
+  "auth.toSignup": "Nouveau ? Créer un compte", "auth.toSignin": "J'ai déjà un compte", "auth.google": "Continuer avec Google", "auth.lovable": "Continuer avec Lovable",
+  "auth.or": "ou", "auth.check": "E-mail de confirmation envoyé. Ouvrez le lien pour vous connecter.", "auth.fail": "Connexion impossible. Vérifiez e-mail et mot de passe.",
+  "auth.short": "Le mot de passe doit comporter au moins 8 caractères.", "auth.later": "Utiliser sur cet appareil seulement", "auth.first": "Les données de cet appareil rejoignent votre compte lors de la première connexion.",
+  "sync.local": "Enregistré sur cet appareil uniquement", "sync.syncing": "Enregistrement…", "sync.synced": "Enregistré dans votre compte", "sync.error": "Échec de l'enregistrement. Nouvel essai bientôt.",
+  "sync.signin": "Se connecter pour garder le journal", "sync.signout": "Se déconnecter",
   "nav.today": "Aujourd'hui", "nav.calendar": "Calendrier", "nav.add": "Ajouter", "nav.injections": "Injections", "nav.progress": "Évolution",
   "today.title": "Un petit pas aujourd'hui.", "today.records": "Entrées du jour", "today.seeAll": "Tout voir",
   "today.addOther": "Ajouter une autre entrée", "today.empty": "Rien d'enregistré aujourd'hui.",
