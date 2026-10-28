@@ -24,13 +24,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<EntryKind>("menu");
   const [editing, setEditing] = useState<JournalRecord | Purchase | undefined>();
+  const j = useJournal();
   const opener: Opener = (k = "menu", e) => { setKind(k); setEditing(e); setOpen(true); };
 
   return (
     <QuickAddCtx.Provider value={opener}>
       <div className="mx-auto min-h-screen max-w-md bg-background pb-28">
         <Header />
-        <main className="px-5">{children}</main>
+        <main key={j.settings.locale ?? "ko"} className="px-5 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">{children}</main>
       </div>
       <BottomNav onAdd={() => opener("menu")} />
       <QuickAddSheet open={open} onOpenChange={setOpen} kind={kind} setKind={setKind} editing={editing} />
