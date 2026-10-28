@@ -94,9 +94,11 @@ function Progress() {
                     <YAxis hide domain={["dataMin - 0.5", "dataMax + 0.5"]} />
                     <Tooltip formatter={(v: number) => [`${fmtNumber(v)} kg`, t("type.weight")]} labelFormatter={(d) => fmtMonthDay(String(d))} contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)" }} />
                     <Area type="monotone" dataKey="v" stroke="var(--color-primary)" strokeWidth={2} fill="url(#wf)" dot={{ r: 3.5, fill: "var(--color-primary)" }} isAnimationActive={!reducedMotion} animationDuration={700} animationEasing="ease-out" />
-                    {injDays.filter((i) => dataDays.has(i.localDate)).map((i) => (
-                      <ReferenceDot key={i.id} x={i.localDate} y={data.find((p) => p.d === i.localDate)?.v} r={6} fill="var(--color-peach-accent)" stroke="var(--color-card)" />
-                    ))}
+                    {injDays.filter((i) => dataDays.has(i.localDate)).map((i) => {
+                      const point = data.find((p) => p.d === i.localDate);
+                      if (!point) return null;
+                      return <ReferenceDot key={i.id} x={i.localDate} y={point.v} r={6} fill="var(--color-peach-accent)" stroke="var(--color-card)" />;
+                    })}
                   </AreaChart>
                 </ResponsiveContainer>
               </div>

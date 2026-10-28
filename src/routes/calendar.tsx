@@ -17,6 +17,8 @@ export const Route = createFileRoute("/calendar")({
       { name: "description", content: "남긴 기록과 예정된 주사 알림을 달력으로 확인하세요." },
       { property: "og:title", content: "캘린더 · my dear step" },
       { property: "og:description", content: "기록과 알림을 한눈에 보는 달력." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: CalendarPage,

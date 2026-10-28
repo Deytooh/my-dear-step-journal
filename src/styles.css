@@ -125,6 +125,8 @@
 @keyframes feel-petal { from { opacity: 1; translate: 0 0; } to { opacity: 0; translate: 0 -64px; } }
 @keyframes feel-shake { 0%, 100% { translate: 0; } 25% { translate: -4px; } 60% { translate: 3px; } }
 @keyframes feel-breathe { 50% { opacity: 0.5; transform: scale(0.9); } }
+@keyframes feel-travel { from { translate: -100% 0; } to { translate: 300% 0; } }
+.feel-indeterminate { animation: feel-travel 1400ms var(--ease-calm) infinite; }
 
 .feel-page > div > :nth-child(-n+8), .feel-form > :nth-child(-n+8), .feel-menu > li,
 .feel-panel, .feel-list > :nth-child(-n+12) { animation: feel-enter 420ms var(--ease-calm) both; }

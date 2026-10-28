@@ -103,6 +103,7 @@ export function MomoSheet({ onDone }: { onDone: () => void }) {
             {busy && <LoaderCircle className="feel-busy mr-2 size-5" />}
             {busy ? t("momo.thinking") : t("momo.extract")}
           </Button>
+          {busy && <div role="progressbar" aria-label={t("momo.thinking")} className="feel-progress h-1.5"><div className="feel-indeterminate h-full w-1/3 rounded-full bg-primary" /></div>}
         </>
       ) : (
         <>

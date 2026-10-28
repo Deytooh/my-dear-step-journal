@@ -18,6 +18,8 @@ export const Route = createFileRoute("/injections")({
       { name: "description", content: "주사 기록, 남은 재고, 구매와 지출을 직접 입력한 내역으로 관리하세요." },
       { property: "og:title", content: "주사 관리 · my dear step" },
       { property: "og:description", content: "일정부터 재고와 지출까지 한눈에." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Injections,

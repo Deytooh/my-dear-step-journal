@@ -6,6 +6,8 @@ import { lovable } from "@/integrations/lovable/index";
 import { t } from "@/lib/i18n";
 import { useJournal } from "@/lib/journal";
 import { Card } from "@/components/app/ui";
+import { Button } from "@/components/ui/button";
+import { LoaderCircle } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -58,10 +60,10 @@ function AuthPage() {
       <h1 className="font-brand text-[28px] leading-tight">{t("auth.title")}</h1>
       <p className="mt-2 text-sm text-muted-foreground">{t("auth.sub")}</p>
       <Card className="mt-6 p-5">
-        <button type="button" onClick={() => social("google")} className="press h-12 w-full rounded-full border bg-card text-sm font-medium">{t("auth.google")}</button>
-        <button type="button" onClick={() => social("lovable")} className="lovable-auth-button mt-2 w-full">{t("auth.lovable")}</button>
+        <Button variant="unstyled" size="unstyled" type="button" onClick={() => social("google")} className="press h-12 w-full rounded-full border bg-card text-sm font-medium">{t("auth.google")}</Button>
+        <Button variant="unstyled" size="unstyled" type="button" onClick={() => social("lovable")} className="lovable-auth-button mt-2 w-full">{t("auth.lovable")}</Button>
         <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" />{t("auth.or")}<span className="h-px flex-1 bg-border" /></div>
-        <form onSubmit={submit} className="space-y-3">
+        <form onSubmit={submit} className="feel-form space-y-3" aria-busy={busy}>
           <label className="block text-sm">{t("auth.email")}
             <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 h-12 w-full rounded-[14px] border bg-background px-4" />
           </label>
@@ -69,13 +71,14 @@ function AuthPage() {
             <input type="password" required minLength={8} autoComplete={mode === "up" ? "new-password" : "current-password"} value={pw} onChange={(e) => setPw(e.target.value)} className="mt-1 h-12 w-full rounded-[14px] border bg-background px-4" />
           </label>
           {msg && <p role="status" className={msg.kind === "err" ? "text-sm text-destructive" : "text-sm text-primary"}>{msg.text}</p>}
-          <button disabled={busy} className="press h-12 w-full rounded-full bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-60">
+          <Button variant="unstyled" size="unstyled" disabled={busy} className="press flex h-12 w-full items-center justify-center gap-2 rounded-full bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-60">
+            {busy && <LoaderCircle className="feel-busy size-5" />}
             {mode === "up" ? t("auth.signup") : t("auth.signin")}
-          </button>
+          </Button>
         </form>
-        <button type="button" onClick={() => { setMode(mode === "in" ? "up" : "in"); setMsg(null); }} className="mt-3 h-11 w-full text-sm text-primary underline-offset-4 hover:underline">
+        <Button variant="unstyled" size="unstyled" type="button" onClick={() => { setMode(mode === "in" ? "up" : "in"); setMsg(null); }} className="mt-3 h-11 w-full text-sm text-primary underline-offset-4 hover:underline">
           {mode === "in" ? t("auth.toSignup") : t("auth.toSignin")}
-        </button>
+        </Button>
       </Card>
       <p className="mt-4 text-xs text-muted-foreground">{t("auth.first")}</p>
       <Link to="/today" className="mt-3 inline-flex h-11 items-center text-sm text-muted-foreground underline underline-offset-4">{t("auth.later")}</Link>

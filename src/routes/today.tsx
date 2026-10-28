@@ -17,6 +17,8 @@ export const Route = createFileRoute("/today")({
       { name: "description", content: "오늘의 체중, 컨디션, 다음 주사 알림과 남은 재고를 한눈에." },
       { property: "og:title", content: "오늘 · my dear step" },
       { property: "og:description", content: "오늘의 기록과 다음 주사 알림을 한눈에 보는 GLP-1 저널." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Today,
