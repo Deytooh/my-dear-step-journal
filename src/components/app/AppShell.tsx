@@ -55,7 +55,31 @@ function Header() {
             {t("set.momo")}
             <Switch checked={j.settings.showMomo} onCheckedChange={(v) => j.setSetting("showMomo", v)} />
           </label>
-          <p className="mt-2 text-xs text-muted-foreground">시간대: {j.tz}</p>
+          <label className="mt-2 flex min-h-11 items-center justify-between gap-3 text-sm">
+            {t("set.lang")}
+            <select aria-label={t("set.lang")} value={j.settings.locale ?? "ko"} onChange={(e) => j.setSetting("locale", e.target.value as "ko" | "en" | "fr")} className="h-9 rounded-full border bg-card px-3">
+              <option value="ko">한국어</option><option value="en">English</option><option value="fr">Français</option>
+            </select>
+          </label>
+          <p className="mt-2 text-xs text-muted-foreground">{t("set.tz")}: {j.tz}</p>
+          <button onClick={() => {
+            const blob = new Blob([JSON.stringify({ app: "my-dear-step", version: 1, data: j.snapshot() }, null, 2)], { type: "application/json" });
+            const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `my-dear-step-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+            toast.success(t("toast.exported"));
+          }} className="press mt-3 h-11 w-full rounded-full border text-sm">{t("set.backup")}</button>
+          <label className="press mt-2 flex h-11 w-full cursor-pointer items-center justify-center rounded-full border text-sm">
+            {t("set.restore")}
+            <input type="file" accept="application/json,.json" className="sr-only" onChange={async (e) => {
+              const f = e.target.files?.[0]; e.target.value = ""; if (!f) return;
+              try {
+                const parsed = JSON.parse(await f.text());
+                const d = parsed?.data;
+                if (parsed?.app !== "my-dear-step" || !Array.isArray(d?.records) || !Array.isArray(d?.purchases) || !d?.settings) throw new Error("bad");
+                const before = j.snapshot(); j.restoreSnapshot(d);
+                toast.success(t("set.restored"), { action: { label: t("toast.undo"), onClick: () => j.restoreSnapshot(before) } });
+              } catch { toast.error(t("set.badFile")); }
+            }} />
+          </label>
           {j.hasDemo && (
             <button onClick={() => { const before = j.snapshot(); j.clearDemo(); toast(t("toast.demoCleared"), { action: { label: t("toast.undo"), onClick: () => j.restoreSnapshot(before) } }); }} className="mt-3 h-11 w-full rounded-full border text-sm">
               {t("demo.clear")}
