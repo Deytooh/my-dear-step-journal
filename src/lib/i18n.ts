@@ -1,4 +1,4 @@
-// Translation infrastructure. Korean is complete; en/fr fall back to Korean until translated.
+// Translation infrastructure. Korean is the source dictionary; en/fr live in i18n-extra.ts.
 export type Locale = "ko" | "en" | "fr";
 
 const ko = {
@@ -41,13 +41,20 @@ const ko = {
   "type.measure": "치수", "qa.measure": "허리 · 엉덩이 · 가슴 · 허벅지", "f.waist": "허리 (cm)", "f.hip": "엉덩이 (cm)", "f.chest": "가슴 (cm)", "f.thigh": "허벅지 (cm)",
   "hist.title": "모든 기록", "hist.sub": "남긴 기록을 날짜별로 모아봤어요.", "hist.all": "전체", "hist.empty": "아직 기록이 없어요.", "hist.open": "전체 기록 보기",
   "journey.title": "내 사진과 작은 여정", "journey.sub": "내가 남긴 순간과 변화를 시간순으로 돌아봐요.", "journey.start": "시작", "journey.change": "시작 대비 {v} kg", "journey.empty": "아직 남긴 순간이 없어요.",
+  "momo.hint": "말하거나 적어 주세요. 모모가 정리하면, 확인한 것만 저장해요.", "momo.input": "모모에게 남길 말", "momo.placeholder": "예: 오늘 아침 체중 78.2, 저녁 8시에 마운자로 2.5mg 복부 왼쪽",
+  "momo.speak": "말하기 시작", "momo.stop": "말하기 멈추기", "momo.noMic": "이 브라우저는 음성 입력을 지원하지 않아요. 글로 적어 주세요.",
+  "momo.extract": "모모에게 정리 부탁하기", "momo.thinking": "모모가 정리하는 중…", "momo.review": "저장할 기록을 확인해 주세요", "momo.none": "기록할 내용을 찾지 못했어요.",
+  "momo.back": "다시 적기", "momo.confirm": "선택한 기록 저장", "momo.saved": "{n}개 기록을 저장했어요", "momo.error": "모모가 지금 응답하지 않아요. 잠시 후 다시 시도해 주세요.",
+  "set.lang": "언어", "set.backup": "백업 (JSON) 내보내기", "set.restore": "백업 불러오기", "set.restored": "백업을 불러왔어요", "set.badFile": "올바른 백업 파일이 아니에요", "set.tz": "시간대",
   "toast.demoCleared": "예시를 지웠어요", "meas.empty": "아직 치수 기록이 없어요.", "meas.add": "치수 남기기",
 };
 export type Key = keyof typeof ko;
-const dicts: Record<Locale, Partial<Record<Key, string>>> = { ko, en: {}, fr: {} };
+import { en, fr } from "./i18n-extra";
+const dicts: Record<Locale, Partial<Record<Key, string>>> = { ko, en, fr };
 
 let current: Locale = "ko";
 export const setLocale = (l: Locale) => { current = l; };
+export const getLocale = () => current;
 export const intlLocale = () => ({ ko: "ko-KR", en: "en-US", fr: "fr-FR" })[current];
 
 export function t(key: Key, vars?: Record<string, string | number>) {
