@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { CalendarDays, ChartNoAxesColumn, Home, Plus, Syringe, Settings2 } from "lucide-react";
 import { t, type Key } from "@/lib/i18n";
 import { useJournal } from "@/lib/journal";
