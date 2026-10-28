@@ -13,7 +13,8 @@ export type WeightRec = Base & { type: "weight"; value: number; unit: "kg" };
 export type InjectionRec = Base & { type: "injection"; medication: string | null; doseValue: number | null; doseUnit: string | null; site: string | null; usedStock: boolean };
 export type ConditionRec = Base & { type: "condition"; label: string; note?: string };
 export type MemoryRec = Base & { type: "memory"; note: string; photo?: string | null };
-export type JournalRecord = WeightRec | InjectionRec | ConditionRec | MemoryRec;
+export type MeasureRec = Base & { type: "measure"; waist: number | null; hip: number | null; chest: number | null; thigh: number | null; unit: "cm" };
+export type JournalRecord = WeightRec | InjectionRec | ConditionRec | MemoryRec | MeasureRec;
 
 export type Reminder = { id: string; at: string; demo?: boolean };
 export type Purchase = { id: string; localDate: string; amount: number; currency: "KRW"; doses: number; medication: string | null; demo?: boolean };
@@ -45,6 +46,8 @@ function demoState(): State {
     records: [
       ...weights.map(([n, v]) => w(n, v)),
       inj(-5, "복부 왼쪽"), inj(-12, "복부 오른쪽"), inj(-19, "복부 왼쪽"),
+      { id: "demo-m1", type: "measure", unit: "cm", waist: 92, hip: 104, chest: 101, thigh: null, localDate: d(-21), precision: "date_only", at: null, demo: true, createdAt: now, source: "manual_text" },
+      { id: "demo-m2", type: "measure", unit: "cm", waist: 89.5, hip: 103, chest: 100, thigh: null, localDate: d(-2), precision: "date_only", at: null, demo: true, createdAt: now, source: "manual_text" },
       { id: "demo-c0", type: "condition", label: "편안해요", localDate: today, precision: "exact", at: instantFromLocal(today, "08:15", tz), demo: true, createdAt: now, source: "manual_text" },
     ],
     reminder: { id: "demo-r", at: instantFromLocal(d(2), "20:00", tz), demo: true },
@@ -69,7 +72,11 @@ type Ctx = State & {
   setSetting: <K extends keyof State["settings"]>(k: K, v: State["settings"][K]) => void;
   clearDemo: () => void;
   newId: () => string;
+  /** Capture the whole journal so any change can be undone with restoreSnapshot. */
+  snapshot: () => State;
+  restoreSnapshot: (s: State) => void;
 };
+export type JournalSnapshot = State;
 
 const JournalCtx = createContext<Ctx | null>(null);
 
@@ -118,6 +125,8 @@ export function JournalProvider({ children }: { children: ReactNode }) {
       reminder: s.reminder?.demo ? null : s.reminder, stockAdjust: 0,
     })),
     newId: uid,
+    snapshot: () => state,
+    restoreSnapshot: (s) => setState(s),
   };
   return <JournalCtx.Provider value={value}>{children}</JournalCtx.Provider>;
 }

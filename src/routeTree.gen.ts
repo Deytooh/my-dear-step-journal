@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as HistoryRouteImport } from './routes/history'
 import { Route as InjectionsRouteImport } from './routes/injections'
+import { Route as JourneyRouteImport } from './routes/journey'
 import { Route as ProgressRouteImport } from './routes/progress'
 import { Route as TodayRouteImport } from './routes/today'
 
@@ -25,9 +27,19 @@ const CalendarRoute = CalendarRouteImport.update({
   path: '/calendar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HistoryRoute = HistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InjectionsRoute = InjectionsRouteImport.update({
   id: '/injections',
   path: '/injections',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JourneyRoute = JourneyRouteImport.update({
+  id: '/journey',
+  path: '/journey',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProgressRoute = ProgressRouteImport.update({
@@ -44,14 +56,18 @@ const TodayRoute = TodayRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/calendar': typeof CalendarRoute
+  '/history': typeof HistoryRoute
   '/injections': typeof InjectionsRoute
+  '/journey': typeof JourneyRoute
   '/progress': typeof ProgressRoute
   '/today': typeof TodayRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/calendar': typeof CalendarRoute
+  '/history': typeof HistoryRoute
   '/injections': typeof InjectionsRoute
+  '/journey': typeof JourneyRoute
   '/progress': typeof ProgressRoute
   '/today': typeof TodayRoute
 }
@@ -59,22 +75,48 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/calendar': typeof CalendarRoute
+  '/history': typeof HistoryRoute
   '/injections': typeof InjectionsRoute
+  '/journey': typeof JourneyRoute
   '/progress': typeof ProgressRoute
   '/today': typeof TodayRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/calendar' | '/injections' | '/progress' | '/today'
+  fullPaths:
+    | '/'
+    | '/calendar'
+    | '/history'
+    | '/injections'
+    | '/journey'
+    | '/progress'
+    | '/today'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/calendar' | '/injections' | '/progress' | '/today'
-  id: '__root__' | '/' | '/calendar' | '/injections' | '/progress' | '/today'
+  to:
+    | '/'
+    | '/calendar'
+    | '/history'
+    | '/injections'
+    | '/journey'
+    | '/progress'
+    | '/today'
+  id:
+    | '__root__'
+    | '/'
+    | '/calendar'
+    | '/history'
+    | '/injections'
+    | '/journey'
+    | '/progress'
+    | '/today'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CalendarRoute: typeof CalendarRoute
+  HistoryRoute: typeof HistoryRoute
   InjectionsRoute: typeof InjectionsRoute
+  JourneyRoute: typeof JourneyRoute
   ProgressRoute: typeof ProgressRoute
   TodayRoute: typeof TodayRoute
 }
@@ -95,11 +137,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalendarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/history': {
+      id: '/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof HistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/injections': {
       id: '/injections'
       path: '/injections'
       fullPath: '/injections'
       preLoaderRoute: typeof InjectionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/journey': {
+      id: '/journey'
+      path: '/journey'
+      fullPath: '/journey'
+      preLoaderRoute: typeof JourneyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/progress': {
@@ -122,7 +178,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CalendarRoute: CalendarRoute,
+  HistoryRoute: HistoryRoute,
   InjectionsRoute: InjectionsRoute,
+  JourneyRoute: JourneyRoute,
   ProgressRoute: ProgressRoute,
   TodayRoute: TodayRoute,
 }

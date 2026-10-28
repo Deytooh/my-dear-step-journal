@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Image as ImageIcon, Mic, Package, Scale, Smile, Syringe, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Image as ImageIcon, Mic, Package, Ruler, Scale, Smile, Syringe, X } from "lucide-react";
 import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { t, type Key } from "@/lib/i18n";
@@ -9,12 +9,13 @@ import { IconBubble } from "./ui";
 import momo from "@/assets/momo.png";
 import { cn } from "@/lib/utils";
 
-export type EntryKind = "menu" | "weight" | "injection" | "condition" | "memory" | "purchase" | "reminder" | "stock" | "voice";
+export type EntryKind = "menu" | "weight" | "injection" | "condition" | "memory" | "purchase" | "reminder" | "stock" | "voice" | "measure";
 
 type Props = { open: boolean; onOpenChange: (v: boolean) => void; kind: EntryKind; setKind: (k: EntryKind) => void; editing?: JournalRecord | Purchase | undefined };
 
 export function QuickAddSheet({ open, onOpenChange, kind, setKind, editing }: Props) {
   const { settings } = useJournal();
+  // edits are keyed by record id so the form remounts with fresh values
   const close = () => onOpenChange(false);
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -45,6 +46,7 @@ function Menu({ setKind, showMomo }: { setKind: (k: EntryKind) => void; showMomo
     { k: "injection", title: "type.injection", sub: "qa.injection", icon: <Syringe className="size-6" />, tone: "peach" },
     { k: "condition", title: "type.condition", sub: "qa.condition", icon: <Smile className="size-6" />, tone: "sage" },
     { k: "memory", title: "type.memory", sub: "qa.memory", icon: <ImageIcon className="size-6" />, tone: "peach" },
+    { k: "measure", title: "type.measure", sub: "qa.measure", icon: <Ruler className="size-6" />, tone: "sage" },
     { k: "purchase", title: "type.purchase", sub: "qa.purchase", icon: <Package className="size-6" />, tone: "sage" },
   ];
   return (
@@ -125,13 +127,18 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
   const [remDate, setRemDate] = useState(j.reminder ? localDateOf(j.reminder.at, tz) : todayLocal(tz));
   const [remTime, setRemTime] = useState(j.reminder ? timeOf(j.reminder.at, tz) : "20:00");
   const [stock, setStock] = useState(String(j.stock));
+  const [meas, setMeas] = useState(() => {
+    const m = rec?.type === "measure" ? rec : null;
+    const f = (v: number | null | undefined) => (v != null ? String(v) : "");
+    return { waist: f(m?.waist), hip: f(m?.hip), chest: f(m?.chest), thigh: f(m?.thigh) };
+  });
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => setErr(null), [weight, amount, doses]);
 
   const titles: Record<EntryKind, string> = {
     menu: "", weight: t("type.weight"), injection: t("type.injection"), condition: t("type.condition"), memory: t("type.memory"),
-    purchase: t("type.purchase"), reminder: t("reminder.set"), stock: t("inv.edit"), voice: t("voice.all"),
+    purchase: t("type.purchase"), reminder: t("reminder.set"), stock: t("inv.edit"), voice: t("voice.all"), measure: t("type.measure"),
   };
 
   const base = () => ({
@@ -141,6 +148,7 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
   });
 
   const save = () => {
+    const before = j.snapshot();
     if (kind === "weight") {
       const v = Number(weight.replace(",", "."));
       if (!weight || !Number.isFinite(v) || v < 20 || v > 400) return setErr("20–400 kg 사이 숫자를 입력해 주세요.");
@@ -154,6 +162,16 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
     } else if (kind === "memory") {
       if (!note.trim() && !photo) return setErr("메모나 사진 중 하나는 남겨 주세요.");
       j.saveRecord({ ...base(), type: "memory", note: note.trim(), photo });
+    } else if (kind === "measure") {
+      const vals: Record<string, number | null> = {};
+      for (const [k, raw] of Object.entries(meas)) {
+        if (!raw.trim()) { vals[k] = null; continue; }
+        const v = Number(raw.replace(",", "."));
+        if (!Number.isFinite(v) || v < 10 || v > 300) return setErr("10–300 cm 사이 숫자를 입력해 주세요.");
+        vals[k] = Math.round(v * 10) / 10;
+      }
+      if (Object.values(vals).every((v) => v == null)) return setErr("최소 한 가지 치수를 입력해 주세요.");
+      j.saveRecord({ ...base(), type: "measure", unit: "cm", waist: vals["waist"] ?? null, hip: vals["hip"] ?? null, chest: vals["chest"] ?? null, thigh: vals["thigh"] ?? null });
     } else if (kind === "purchase") {
       const a = Number(amount.replace(/[^\d]/g, "")); const n = Number(doses);
       if (!a || !Number.isInteger(n) || n < 0) return setErr("금액과 수량을 확인해 주세요.");
@@ -165,20 +183,16 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
       if (!Number.isInteger(n) || n < 0) return setErr("0 이상의 정수를 입력해 주세요.");
       j.setStock(n);
     }
-    toast.success(t("toast.saved"));
+    toast.success(t("toast.saved"), { action: { label: t("toast.undo"), onClick: () => j.restoreSnapshot(before) } });
     onDone();
   };
 
   const remove = () => {
-    if (rec) {
-      const removed = j.deleteRecord(rec.id);
-      toast(t("toast.deleted"), { action: removed ? { label: t("toast.undo"), onClick: () => j.restoreRecord(removed) } : undefined });
-    } else if (pur) {
-      j.deletePurchase(pur.id);
-      toast(t("toast.deleted"), { action: { label: t("toast.undo"), onClick: () => j.savePurchase(pur) } });
-    } else if (kind === "reminder") {
-      j.setReminder(null); toast(t("toast.deleted"));
-    }
+    const before = j.snapshot();
+    if (rec) j.deleteRecord(rec.id);
+    else if (pur) j.deletePurchase(pur.id);
+    else if (kind === "reminder") j.setReminder(null);
+    toast(t("toast.deleted"), { action: { label: t("toast.undo"), onClick: () => j.restoreSnapshot(before) } });
     onDone();
   };
 
@@ -192,8 +206,8 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
     );
   }
 
-  const showDate = ["weight", "injection", "condition", "memory", "purchase"].includes(kind);
-  const showTime = ["weight", "injection", "condition", "memory"].includes(kind);
+  const showDate = ["weight", "injection", "condition", "memory", "purchase", "measure"].includes(kind);
+  const showTime = ["weight", "injection", "condition", "memory", "measure"].includes(kind);
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-5">
@@ -260,6 +274,16 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
             <textarea className={cn(inputCls, "h-24 py-3")} value={note} onChange={(e) => setNote(e.target.value)} placeholder="오늘 기억하고 싶은 순간" />
           </Field>
         </>
+      )}
+
+      {kind === "measure" && (
+        <div className="grid grid-cols-2 gap-3">
+          {(["waist", "hip", "chest", "thigh"] as const).map((k) => (
+            <Field key={k} label={t(`f.${k}`)} optional>
+              <input inputMode="decimal" className={inputCls} value={meas[k]} onChange={(e) => setMeas({ ...meas, [k]: e.target.value })} />
+            </Field>
+          ))}
+        </div>
       )}
 
       {kind === "purchase" && (
