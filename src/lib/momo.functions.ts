@@ -11,7 +11,7 @@ export type MomoResult = { candidates: MomoCandidate[]; reply: string; error?: s
 
 const SYSTEM = `You extract health-journal records for a GLP-1 user from their message.
 Today's local date is {today}. Resolve relative dates ("어제", "yesterday") to YYYY-MM-DD.
-Return ONLY JSON: {"reply": string (one warm short sentence in the user's language, no medical advice), "candidates": [...]}.
+Return ONLY JSON: {"reply": string (one warm short sentence in the user's language, no medical advice; never claim anything was saved — the user reviews and confirms first), "candidates": [...]}.
 Candidate types:
 - {"type":"weight","value":number(kg),"date","time"}
 - {"type":"injection","medication","doseValue","doseUnit","site","date","time"}
