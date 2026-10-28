@@ -52,7 +52,13 @@ export function recordIcon(r: JournalRecord) {
     case "injection": return { icon: <Syringe className="size-6" />, tone: "sage" as const };
     case "condition": return { icon: <Smile className="size-6" />, tone: "peach" as const };
     case "memory": return { icon: <ImageIcon className="size-6" />, tone: "peach" as const };
+    case "measure": return { icon: <Ruler className="size-6" />, tone: "sage" as const };
   }
+}
+
+export function measureSummary(r: MeasureRec) {
+  const parts: [string, number | null][] = [["허리", r.waist], ["엉덩이", r.hip], ["가슴", r.chest], ["허벅지", r.thigh]];
+  return parts.filter(([, v]) => v != null).map(([k, v]) => `${k} ${fmtNumber(v!)}`).join(" · ") + " cm";
 }
 
 export function recordValue(r: JournalRecord) {
@@ -64,6 +70,7 @@ export function recordValue(r: JournalRecord) {
     }
     case "condition": return r.label;
     case "memory": return r.note || "사진 기록";
+    case "measure": return measureSummary(r);
   }
 }
 
