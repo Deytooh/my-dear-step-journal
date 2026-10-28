@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { setLocale } from "./i18n";
 import { addDays, DEFAULT_TZ, instantFromLocal, localDateOf, todayLocal } from "./dates";
 
 // Phase 1 local store (browser only). Will be replaced by Lovable Cloud persistence in Phase 3.
@@ -22,7 +23,7 @@ export type Purchase = { id: string; localDate: string; amount: number; currency
 type State = {
   records: JournalRecord[]; reminder: Reminder | null; purchases: Purchase[];
   stockAdjust: number; // manual adjustments to computed stock (in doses)
-  settings: { showMomo: boolean; timezone: string };
+  settings: { showMomo: boolean; timezone: string; locale?: "ko" | "en" | "fr" };
 };
 
 const KEY = "mds.journal.v1";
@@ -104,6 +105,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     return { ...s, records: exists ? s.records.map((x) => (x.id === r.id ? r : x)) : [...s.records, r] };
   }), []);
 
+  setLocale(state.settings.locale ?? "ko");
   const value: Ctx = {
     ...state, ready, tz: state.settings.timezone,
     stock: Math.max(0, computedStock + state.stockAdjust),

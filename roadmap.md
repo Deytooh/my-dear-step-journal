@@ -2,6 +2,6 @@
 - [x] Phase 1: design system, app shell, Today / Calendar / Injections / Progress, Quick Add with working manual forms (local storage)
 - [x] Phase 2: undo everywhere, measurements, history view, journey detail
 - [ ] Phase 3: Lovable Cloud persistence, accounts, owner-only rules, photo storage
-- [ ] Phase 4: Momo (Baseten Muse Spark Open) — needs BASETEN_API_KEY; draft review + explicit confirm
-- [ ] Phase 5: motion polish, accessibility pass, import, en/fr translations
-- [ ] Phase 6: end-to-end demo verification
+- [x] Phase 4: Momo text/voice intake + review-before-save (live once BASETEN_API_KEY secret is added; model via BASETEN_MODEL)
+- [x] Phase 5: en/fr translations, language switch, JSON backup export/import, page fade motion, aria labels
+- [x] Phase 6: end-to-end demo verification (Momo live call untested until key)

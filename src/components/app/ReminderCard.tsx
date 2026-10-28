@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Bell, ChevronRight, Package, Pencil, Syringe } from "lucide-react";
-import { t } from "@/lib/i18n";
+import { t , getLocale } from "@/lib/i18n";
 import { dayDiff, fmtMonthDay, fmtMonthDayWeekday, fmtTime, localDateOf, todayLocal } from "@/lib/dates";
 import { useJournal } from "@/lib/journal";
 import { useQuickAdd } from "./AppShell";
@@ -43,7 +43,7 @@ export function StockLine() {
     <div className="flex items-center gap-3">
       <Package className="size-5 text-muted-foreground" />
       <span className="text-[15px] text-muted-foreground">{t("inv.left")}</span>
-      <span className="text-[18px] font-bold">{j.stock}{t("inv.unit")}</span>
+      <span className="text-[18px] font-bold">{j.stock}{getLocale() === "ko" ? "" : " "}{t("inv.unit")}</span>
       <Link to="/injections" className="press ml-auto flex min-h-11 items-center gap-1 text-[15px]">
         {t("inj.manage")} <ChevronRight className="size-4" />
       </Link>
