@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import "@lovable.dev/cloud-auth-js/styles.css";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -32,7 +32,7 @@ function AuthPage() {
 
   useEffect(() => { if (j.user) navigate({ to: "/today", replace: true }); }, [j.user, navigate]);
 
-  async function submit(e: React.FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault(); setMsg(null);
     if (pw.length < 8) return setMsg({ kind: "err", text: t("auth.short") });
     setBusy(true);
