@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 export type EntryKind = "menu" | "weight" | "injection" | "condition" | "memory" | "purchase" | "reminder" | "stock" | "voice";
 
-type Props = { open: boolean; onOpenChange: (v: boolean) => void; kind: EntryKind; setKind: (k: EntryKind) => void; editing?: JournalRecord | Purchase };
+type Props = { open: boolean; onOpenChange: (v: boolean) => void; kind: EntryKind; setKind: (k: EntryKind) => void; editing?: JournalRecord | Purchase | undefined };
 
 export function QuickAddSheet({ open, onOpenChange, kind, setKind, editing }: Props) {
   const { settings } = useJournal();
@@ -102,7 +102,7 @@ function Field({ label, children, optional }: { label: string; children: ReactNo
 const inputCls = "h-12 w-full rounded-[12px] border bg-card px-4 text-[16px] outline-none focus:border-primary";
 const chipCls = (on: boolean) => cn("press min-h-11 rounded-full border px-4 text-[15px]", on ? "border-primary bg-primary text-primary-foreground" : "bg-card");
 
-function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: JournalRecord | Purchase; onDone: () => void }) {
+function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: JournalRecord | Purchase | undefined; onDone: () => void }) {
   const j = useJournal();
   const tz = j.tz;
   const rec = editing && "type" in editing ? editing : undefined;
@@ -150,7 +150,7 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
       if (dose && !Number.isFinite(dv)) return setErr("용량은 숫자로 입력해 주세요.");
       j.saveRecord({ ...base(), type: "injection", medication: med.trim() || null, doseValue: dv, doseUnit: dv != null ? doseUnit : null, site, usedStock: useStock });
     } else if (kind === "condition") {
-      j.saveRecord({ ...base(), type: "condition", label: feel, note: note.trim() || undefined });
+      j.saveRecord({ ...base(), type: "condition", label: feel, ...(note.trim() ? { note: note.trim() } : {}) });
     } else if (kind === "memory") {
       if (!note.trim() && !photo) return setErr("메모나 사진 중 하나는 남겨 주세요.");
       j.saveRecord({ ...base(), type: "memory", note: note.trim(), photo });

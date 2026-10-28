@@ -13,8 +13,8 @@ export function todayLocal(tz = DEFAULT_TZ) {
 
 /** Build an ISO instant from a local date + HH:mm in the timezone. */
 export function instantFromLocal(localDate: string, time: string, tz = DEFAULT_TZ): string {
-  const [y, m, d] = localDate.split("-").map(Number);
-  const [hh, mm] = time.split(":").map(Number);
+  const [y = 0, m = 1, d = 1] = localDate.split("-").map(Number);
+  const [hh = 0, mm = 0] = time.split(":").map(Number);
   const guess = Date.UTC(y, m - 1, d, hh, mm);
   // offset of tz at that moment
   const parts = new Intl.DateTimeFormat("en-US", {

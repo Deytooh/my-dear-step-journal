@@ -41,7 +41,7 @@ export function SectionHeader({ title, action }: { title: string; action?: React
   );
 }
 
-export function DemoTag({ show }: { show?: boolean }) {
+export function DemoTag({ show }: { show?: boolean | undefined }) {
   if (!show) return null;
   return <span className="ml-2 rounded-full bg-accent px-2 py-0.5 align-middle text-[11px] font-medium text-muted-foreground">{t("demo.badge")}</span>;
 }

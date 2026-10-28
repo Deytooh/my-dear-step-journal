@@ -10,7 +10,7 @@ describe("dates", () => {
   });
   it("October 2026 grid starts Monday Sep 28", () => {
     const g = monthGrid(2026, 10);
-    expect(g[0].date).toBe("2026-09-28");
+    expect(g[0]?.date).toBe("2026-09-28");
     expect(g.length).toBe(35);
   });
 });
