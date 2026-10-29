@@ -52,7 +52,7 @@ function Today() {
 
       <div className="mt-4 flex items-center rounded-full border bg-card shadow-soft">
         <Button variant="unstyled" size="unstyled" onClick={() => open("voice")} className="press flex min-h-14 flex-1 items-center gap-3 rounded-l-full pl-5 text-left text-[16px] text-muted-foreground">
-          <Mic className="size-6 shrink-0 text-foreground" />{t("momo.speak")}
+          <Mic className="size-6 shrink-0 text-foreground" />{t("momo.talk")}
         </Button>
         <span className="h-8 w-px bg-border" aria-hidden />
         <Button variant="unstyled" size="unstyled" onClick={() => open("voice")} aria-label={t("momo.photo")} className="press flex size-14 items-center justify-center rounded-r-full">
