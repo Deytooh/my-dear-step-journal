@@ -130,6 +130,7 @@
 
 .feel-page > div > :nth-child(-n+8), .feel-form > :nth-child(-n+8), .feel-menu > li,
 .feel-panel, .feel-list > :nth-child(-n+12) { animation: feel-enter 420ms var(--ease-calm) both; }
+.feel-pop { animation: feel-pop 180ms var(--ease-calm) both; }
 .feel-page > div > :nth-child(2), .feel-form > :nth-child(2), .feel-menu > li:nth-child(2) { animation-delay: 35ms; }
 .feel-page > div > :nth-child(3), .feel-form > :nth-child(3), .feel-menu > li:nth-child(3) { animation-delay: 65ms; }
 .feel-page > div > :nth-child(4), .feel-form > :nth-child(4), .feel-menu > li:nth-child(4) { animation-delay: 95ms; }
