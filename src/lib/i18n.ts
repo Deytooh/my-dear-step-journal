@@ -84,7 +84,7 @@ const ko = {
   "f.product": "제품 · 약 이름",
   "f.unit": "수량 단위",
   "unit.pen": "펜",
-  "unit.single": "1회용",
+  "unit.single": "개(1회용)",
   "unit.dose": "회분",
   "f.qty": "수량",
   "f.qtyHint": "모르면 비워 두세요",
