@@ -2,6 +2,29 @@
 export type Locale = "ko" | "en" | "fr";
 
 const ko = {
+  "validation.manual0": "20–400 kg 사이 숫자를 입력해 주세요.",
+  "validation.manual1": "용량은 숫자로 입력해 주세요.",
+  "validation.manual2": "메모나 사진 중 하나는 남겨 주세요.",
+  "validation.manual3": "10–300 cm 사이 숫자를 입력해 주세요.",
+  "validation.manual4": "최소 한 가지 치수를 입력해 주세요.",
+  "validation.manual5": "금액을 확인해 주세요.",
+  "validation.manual6": "수량은 1 이상의 정수로 입력하거나 비워 두세요.",
+  "validation.manual7": "0 이상의 정수를 입력해 주세요.",
+  "validation.manual8": "사진은 5MB 이하로 올려 주세요.",
+
+  "pr.skipped": "오늘은 건너뛰었어요",
+  "ui.back": "뒤로",
+  "ui.edit": "수정",
+  "ui.when": "날짜 · 시간",
+  "ui.injectionDetails": "용량 · 부위 · 재고 (선택)",
+  "ui.siteList": "부위 목록으로 선택",
+  "site.arm.left": "내 왼팔",
+  "site.arm.right": "내 오른팔",
+  "site.belly.left": "내 왼쪽 복부",
+  "site.belly.right": "내 오른쪽 복부",
+  "site.thigh.left": "내 왼쪽 허벅지",
+  "site.thigh.right": "내 오른쪽 허벅지",
+
   "evidence.currency": "통화 코드 (KRW, USD 등)", "evidence.corrected": "직접 수정", "evidence.suggested": "모모 제안",
   "evidence.stockLater": "차감하지 않아요. 저장 후 주사 수정에서 호환 재고를 직접 선택할 수 있어요.",
   "evidence.receiptLater": "구매 초안 · 재고 추가 안 함. 저장 후 구매 수정에서 약·단위·수량을 확인하고 재고 추가를 선택할 수 있어요.",

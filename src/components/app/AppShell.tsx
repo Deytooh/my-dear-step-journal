@@ -33,7 +33,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <QuickAddCtx.Provider value={opener}>
-      <div className="mx-auto min-h-screen max-w-md bg-background pb-28">
+      <div className="mx-auto min-h-screen max-w-md bg-background pb-[calc(8rem+env(safe-area-inset-bottom))]">
         <Header hero={pathname === "/today"} />
         <main key={`${pathname}-${j.settings.locale ?? "ko"}`} className="feel-page px-5">{children}</main>
       </div>
@@ -73,7 +73,7 @@ function Header({ hero = false }: { hero?: boolean }) {
           </label>
           <label className="flex min-h-11 items-center justify-between gap-3 text-sm">
             {t("pr.setting")}
-            <Switch checked={!j.settings.prompts?.hidden} onCheckedChange={(v) => j.setSetting("prompts", { ...(j.settings.prompts ?? {}), hidden: !v, ...(v ? { off: [] } : {}) })} />
+            <Switch checked={!j.settings.prompts?.hidden} onCheckedChange={(v) => j.setSetting("prompts", { ...(j.settings.prompts ?? {}), hidden: !v,  })} />
           </label>
           <label className="mt-2 flex min-h-11 items-center justify-between gap-3 text-sm">
             {t("set.lang")}

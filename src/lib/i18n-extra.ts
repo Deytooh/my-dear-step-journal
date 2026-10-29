@@ -2,6 +2,30 @@
 type D = Record<string, string>;
 
 export const en: D = {
+  "validation.manual0": "Enter a weight between 20 and 400 kg.",
+  "validation.manual1": "Enter a numeric dose.",
+  "validation.manual2": "Add a note or photo.",
+  "validation.manual3": "Enter a measurement between 10 and 300 cm.",
+  "validation.manual4": "Enter at least one measurement.",
+  "validation.manual5": "Check the amount.",
+  "validation.manual6": "Enter a whole quantity of at least one, or leave it blank.",
+  "validation.manual7": "Enter a whole number of zero or more.",
+  "validation.manual8": "Choose a photo up to 5 MB.",
+
+  "evidence.close": "Close",
+  "pr.skipped": "Skipped today",
+  "ui.back": "Back",
+  "ui.edit": "Edit",
+  "ui.when": "Date · time",
+  "ui.injectionDetails": "Dose · site · stock (optional)",
+  "ui.siteList": "Choose from a text list",
+  "site.arm.left": "My left arm",
+  "site.arm.right": "My right arm",
+  "site.belly.left": "My left abdomen",
+  "site.belly.right": "My right abdomen",
+  "site.thigh.left": "My left thigh",
+  "site.thigh.right": "My right thigh",
+
   "med.select": "Select medication", "med.search": "Search brand or ingredient", "med.other": "Other · enter name", "med.none": "Unknown · no selection", "med.noResults": "No matching medication", "med.injectable": "Injectable", "med.oral": "Oral", "med.combination": "Insulin combination", "med.custom": "Enter medication name", "med.regional": "Approval and availability vary by country.",
   "auth.title": "Keep your journal safe", "auth.sub": "Sign in so your records and photos are stored in your own account and available on any device.",
   "auth.email": "Email", "auth.password": "Password", "auth.signin": "Sign in", "auth.signup": "Create account",
@@ -148,6 +172,30 @@ export const en: D = {
 };
 
 export const fr: D = {
+  "validation.manual0": "Saisissez un poids entre 20 et 400 kg.",
+  "validation.manual1": "Saisissez une dose numérique.",
+  "validation.manual2": "Ajoutez une note ou une photo.",
+  "validation.manual3": "Saisissez une mesure entre 10 et 300 cm.",
+  "validation.manual4": "Saisissez au moins une mesure.",
+  "validation.manual5": "Vérifiez le montant.",
+  "validation.manual6": "Saisissez une quantité entière positive, ou laissez vide.",
+  "validation.manual7": "Saisissez un entier positif ou nul.",
+  "validation.manual8": "Choisissez une photo de 5 Mo maximum.",
+
+  "evidence.close": "Fermer",
+  "pr.skipped": "Passée pour aujourd’hui",
+  "ui.back": "Retour",
+  "ui.edit": "Modifier",
+  "ui.when": "Date · heure",
+  "ui.injectionDetails": "Dose · zone · stock (facultatif)",
+  "ui.siteList": "Choisir dans une liste",
+  "site.arm.left": "Mon bras gauche",
+  "site.arm.right": "Mon bras droit",
+  "site.belly.left": "Mon abdomen gauche",
+  "site.belly.right": "Mon abdomen droit",
+  "site.thigh.left": "Ma cuisse gauche",
+  "site.thigh.right": "Ma cuisse droite",
+
   "med.select": "Choisir un médicament", "med.search": "Chercher une marque ou une molécule", "med.other": "Autre · saisir le nom", "med.none": "Inconnu · aucun choix", "med.noResults": "Aucun médicament correspondant", "med.injectable": "Injectable", "med.oral": "Oral", "med.combination": "Association avec insuline", "med.custom": "Saisir le nom du médicament", "med.regional": "Autorisation et disponibilité variables selon le pays.",
   "auth.title": "Gardez votre journal en sécurité", "auth.sub": "Connectez-vous pour enregistrer vos données et photos dans votre compte, sur tous vos appareils.",
   "auth.email": "E-mail", "auth.password": "Mot de passe", "auth.signin": "Se connecter", "auth.signup": "Créer un compte",

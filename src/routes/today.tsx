@@ -87,7 +87,7 @@ function HomeHero() {
     <section className="-mx-5 rounded-b-[32px] bg-primary px-5 pb-5 text-primary-foreground">
       <div className="relative flex items-end justify-between gap-2">
         <div className="min-w-0 pt-1 pb-3">
-          <h1 className="text-[40px] font-bold leading-tight">{t("today")}</h1>
+          <h1 className={cn("font-bold leading-tight [overflow-wrap:anywhere]", getLocale() === "ko" ? "text-[40px]" : "text-[28px]")}>{t("today")}</h1>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-[17px] opacity-90">
             {fmtMonthDayWeekday(today)}
             {j.hasDemo && <span className="rounded-full bg-primary-foreground/15 px-2.5 py-0.5 text-sm">{t("home.example")}</span>}
@@ -99,8 +99,9 @@ function HomeHero() {
         className="press flex w-full items-center gap-3 rounded-[22px] border border-primary-foreground/15 bg-primary-foreground/10 p-3 text-left">
         <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-card text-foreground"><Syringe className="size-6" /></span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[15px] opacity-90">{t("home.nextShot")}</span>
-          <span className="block text-[19px] font-bold leading-snug">{r ? reminderText(r.at, j.tz) : t("reminder.set")}</span>
+          <span className="block text-[14px] opacity-90">{t("home.nextShot")}</span>
+          <span className="block text-[17px] font-bold leading-snug">{r ? reminderText(r.at, j.tz) : t("reminder.set")}</span>
+          {r && <span className="block text-sm opacity-90">{t("reminder.userSet")}</span>}
         </span>
         {left && <span className="shrink-0 rounded-full bg-accent px-3 py-1.5 text-[15px] font-semibold text-accent-foreground">{left}</span>}
         {!r && <ChevronRight className="size-5 shrink-0" />}
@@ -176,7 +177,7 @@ function StockTile() {
   const j = useJournal();
   const known = j.hasStock;
   return (
-    <Tile title={t("home.stock")} icon={<Package className="size-5" />} tone="sage" to="/injections">
+    <Tile title={t("home.stock")} icon={<Package className="size-5" />} tone="sage" to="/injections" demo={j.inventory.lots.length === 1 && j.inventory.lots[0]?.demo}>
       {known ? (
         <>
           <span className="mt-auto flex items-baseline gap-1 pt-3">
@@ -206,6 +207,7 @@ function MomentTile() {
         <span className="min-w-0 flex-1 break-keep text-[17px] font-bold leading-tight">{t("home.moment")}</span>
         <ChevronRight className="hidden size-5 shrink-0 text-muted-foreground min-[400px]:block" />
       </Link>
+      {withPhoto?.demo && <DemoTag show />}
       <div className="my-2 flex flex-1 items-center justify-center">
         {withPhoto?.photo ? <PhotoImg src={withPhoto.photo} className="h-16 w-24 rounded-[12px] object-cover" />
           : <span className="flex h-16 w-24 items-center justify-center rounded-[12px] bg-secondary text-primary/50"><ImageIcon className="size-8" /></span>}

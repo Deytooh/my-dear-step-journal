@@ -32,7 +32,7 @@ export type StockUnit = "pen" | "single" | "dose";
 export type Purchase = { id: string; localDate: string; amount: number; currency: string; doses: number; medication: string | null; demo?: boolean;
   evidence?: Evidence; quantity?: number | null; stockUnit?: StockUnit | null; addsStock?: boolean; merchant?: string | null; product?: string | null };
 export type PromptId = "feel" | "water" | "memory" | "weight";
-export type PromptSettings = { hidden?: boolean; off?: PromptId[]; done?: Partial<Record<PromptId, string>> };
+export type PromptSettings = { hidden?: boolean; off?: PromptId[]; answered?: Partial<Record<PromptId, string>>; skipped?: Partial<Record<PromptId, string>>; done?: Partial<Record<PromptId, string>> };
 
 /** A scalar is available only when there is exactly one confirmed lot. */
 export function computeStock(purchases: Purchase[], records: JournalRecord[]) {
@@ -82,6 +82,7 @@ function demoState(): State {
 
 export type SyncStatus = "local" | "syncing" | "synced" | "error";
 type Ctx = State & {
+  respondPrompt: (id: PromptId, day: string, record?: JournalRecord) => void;
   saveMomoBatch: (records: JournalRecord[], purchases: Purchase[]) => void;
   retrySync: () => void;
   ready: boolean;
@@ -207,6 +208,14 @@ export function JournalProvider({ children }: { children: ReactNode }) {
 
   setLocale(state.settings.locale ?? "ko");
   const value: Ctx = {
+    respondPrompt: (id, day, record) => {
+      const current = latest.current;
+      const prompts = current.settings.prompts ?? {};
+      const status = record ? "answered" : "skipped";
+      const next = { ...current, records: record ? [...current.records.filter((r) => r.id !== record.id), record] : current.records, settings: { ...current.settings, prompts: { ...prompts, [status]: { ...prompts[status], [id]: day } } } };
+      localStorage.setItem(KEY, JSON.stringify(next));
+      latest.current = next; setState(next);
+    },
     saveMomoBatch: (records, purchases) => {
       const current = latest.current;
       const next = { ...current, records: [...current.records, ...records.filter((r) => !current.records.some((x) => x.id === r.id))], purchases: [...current.purchases, ...purchases.filter((p) => !current.purchases.some((x) => x.id === p.id))] };

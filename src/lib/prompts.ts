@@ -13,7 +13,9 @@ export function pickPrompts(records: JournalRecord[], settings: PromptSettings |
   const done = settings?.done ?? {};
   const todays = records.filter((r) => r.localDate === today);
   return PROMPT_ORDER.filter((id) => {
-    if (off.has(id) || done[id] === today) return false;
+    if (off.has(id) || done[id] === today || settings?.answered?.[id] === today || settings?.skipped?.[id] === today) return false;
+    if (id === "feel" && todays.some((r) => r.type === "condition")) return false;
+    if (id === "water" && todays.some((r) => r.type === "water")) return false;
     if (id === "weight" && todays.some((r) => r.type === "weight")) return false;
     if (id === "memory" && todays.some((r) => r.type === "memory")) return false;
     return true;

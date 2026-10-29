@@ -26,15 +26,15 @@ export function QuickAddSheet({ open, onOpenChange, kind, setKind, editing }: Pr
   const close = () => onOpenChange(false);
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="mx-auto max-h-[92vh] max-w-md rounded-t-[28px] border-0 bg-background">
-        <div className="overflow-y-auto px-5 pb-8">
+      <DrawerContent className="mx-auto max-h-[92dvh] max-w-md rounded-t-[28px] border-0 bg-background">
+        <div className="min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="flex justify-between pt-2">
             {kind !== "menu" && !editing ? (
-              <Button variant="unstyled" size="unstyled" onClick={() => setKind("menu")} className="press -ml-2 flex size-11 items-center justify-center" aria-label="뒤로">
+              <Button variant="unstyled" size="unstyled" onClick={() => setKind("menu")} className="press -ml-2 flex size-11 items-center justify-center" aria-label={t("ui.back")}>
                 <ChevronLeft className="size-6" />
               </Button>
             ) : <span />}
-            <Button variant="unstyled" size="unstyled" onClick={close} className="press -mr-2 flex size-11 items-center justify-center" aria-label="닫기"><X className="size-6" /></Button>
+            <Button variant="unstyled" size="unstyled" onClick={close} className="press -mr-2 flex size-11 items-center justify-center" aria-label={t("evidence.close")}><X className="size-6" /></Button>
           </div>
           {kind === "menu" ? (
             <div key="menu" className="feel-panel"><Menu setKind={setKind} showMomo={settings.showMomo} /></div>
@@ -168,11 +168,11 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
     const before = j.snapshot();
     if (kind === "weight") {
       const v = Number(weight.replace(",", "."));
-      if (!weight || !Number.isFinite(v) || v < 20 || v > 400) return setErr("20–400 kg 사이 숫자를 입력해 주세요.");
+      if (!weight || !Number.isFinite(v) || v < 20 || v > 400) return setErr(t("validation.manual0"));
       j.saveRecord({ ...base(), type: "weight", value: Math.round(v * 10) / 10, unit: "kg" });
     } else if (kind === "injection") {
       const dv = dose ? Number(dose.replace(",", ".")) : null;
-      if (dose && !Number.isFinite(dv)) return setErr("용량은 숫자로 입력해 주세요.");
+      if (dose && !Number.isFinite(dv)) return setErr(t("validation.manual1"));
       if (useStock && !stockOk) return setErr(t("stock.choose"));
       j.saveRecord({ ...base(), type: "injection", medication: med.trim() || null, doseValue: dv, doseUnit: dv != null ? doseUnit : null, site, usedStock: useStock, stockPurchaseId: useStock ? lotId : null, stockIdentity: useStock && selectedLot ? lotIdentity(selectedLot) : null });
     } else if (kind === "water") {
@@ -180,22 +180,22 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
     } else if (kind === "condition") {
       j.saveRecord({ ...base(), type: "condition", label: feel, ...(note.trim() ? { note: note.trim() } : {}) });
     } else if (kind === "memory") {
-      if (!note.trim() && !photo) return setErr("메모나 사진 중 하나는 남겨 주세요.");
+      if (!note.trim() && !photo) return setErr(t("validation.manual2"));
       j.saveRecord({ ...base(), type: "memory", note: note.trim(), photo });
     } else if (kind === "measure") {
       const vals: Record<string, number | null> = {};
       for (const [k, raw] of Object.entries(meas)) {
         if (!raw.trim()) { vals[k] = null; continue; }
         const v = Number(raw.replace(",", "."));
-        if (!Number.isFinite(v) || v < 10 || v > 300) return setErr("10–300 cm 사이 숫자를 입력해 주세요.");
+        if (!Number.isFinite(v) || v < 10 || v > 300) return setErr(t("validation.manual3"));
         vals[k] = Math.round(v * 10) / 10;
       }
-      if (Object.values(vals).every((v) => v == null)) return setErr("최소 한 가지 치수를 입력해 주세요.");
+      if (Object.values(vals).every((v) => v == null)) return setErr(t("validation.manual4"));
       j.saveRecord({ ...base(), type: "measure", unit: "cm", waist: vals["waist"] ?? null, hip: vals["hip"] ?? null, chest: vals["chest"] ?? null, thigh: vals["thigh"] ?? null });
     } else if (kind === "purchase") {
       const a = Number(amount.replace(/[^\d]/g, "")); const hasQty = doses.trim() !== ""; const n = hasQty ? Number(doses) : 0;
-      if (!a) return setErr("금액을 확인해 주세요.");
-      if (hasQty && (!Number.isInteger(n) || n <= 0)) return setErr("수량은 1 이상의 정수로 입력하거나 비워 두세요.");
+      if (!a) return setErr(t("validation.manual5"));
+      if (hasQty && (!Number.isInteger(n) || n <= 0)) return setErr(t("validation.manual6"));
       const stockOn = hasQty && addsStock;
       j.savePurchase({ ...(pur?.evidence ? { evidence: pur.evidence } : {}), ...(pur?.quantity != null ? { quantity: pur.quantity } : {}), id: pur?.id ?? j.newId(), localDate: date, amount: a, currency: pur?.currency ?? "KRW", doses: stockOn ? n : 0, medication: med.trim() || null,
         product: product.trim() || null, stockUnit: hasQty ? unit || null : null, addsStock: stockOn, merchant: merchant.trim() || null, ...(pur?.demo ? { demo: true } : {}) });
@@ -203,7 +203,7 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
       j.setReminder(instantFromLocal(remDate, remTime, tz));
     } else if (kind === "stock") {
       const n = Number(stock);
-      if (!stock.trim() || !Number.isInteger(n) || n < 0) return setErr("0 이상의 정수를 입력해 주세요.");
+      if (!stock.trim() || !Number.isInteger(n) || n < 0) return setErr(t("validation.manual7"));
       if (!selectedLot) return setErr(t("stock.choose"));
       j.setStock(n, selectedLot.id);
     }
@@ -228,7 +228,7 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); save(); }} className="feel-form space-y-5">
-      <DrawerTitle className="text-[24px] font-bold">{titles[kind]}{editing && " 수정"}</DrawerTitle>
+      <DrawerTitle className="text-[24px] font-bold">{titles[kind]}{editing && ` · ${t("ui.edit")}`}</DrawerTitle>
       {(rec?.evidence ?? pur?.evidence) && <SourceEvidence evidence={(rec?.evidence ?? pur?.evidence)!} />}
       <DrawerDescription className="sr-only">{titles[kind]}</DrawerDescription>
 
@@ -246,10 +246,10 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
       )}
 
       {kind === "injection" && (
-        <>
+        <details open={!!editing} className="space-y-3"><summary className="min-h-11 cursor-pointer py-3 font-medium">{t("ui.injectionDetails")}</summary>
           <Field label={t("f.dose")} optional>
             <div className="flex gap-2">
-              <input inputMode="decimal" className={inputCls} value={dose} onChange={(e) => setDose(e.target.value)} placeholder="모르면 비워 두세요" />
+              <input inputMode="decimal" className={inputCls} value={dose} onChange={(e) => setDose(e.target.value)} placeholder={t("unknown")} />
               <select className={cn(inputCls, "w-24")} value={doseUnit} onChange={(e) => setDoseUnit(e.target.value)}>
                 <option>mg</option><option>mcg</option><option>mL</option>
               </select>
@@ -266,7 +266,7 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
           {rec?.type === "injection" && rec.usedStock && !rec.stockPurchaseId && <p className="text-sm">{t("stock.review")}</p>}
           <label className="flex min-h-11 items-center gap-3"><input type="checkbox" className="size-5" checked={useStock} onChange={(e) => setUseStock(e.target.checked)} />{t("stock.deduct", { u: selectedLot ? t(`unit.${selectedLot.unit}`) : "" })}</label>
           {stockOk && selectedLot && <p>{t("stock.before")} {selectedLot.balance + (rec?.type === "injection" && rec.usedStock && matchesLot(rec, selectedLot) ? 1 : 0)} → {t("stock.after")} {selectedLot.balance + (rec?.type === "injection" && rec.usedStock && matchesLot(rec, selectedLot) ? 1 : 0) - (useStock ? 1 : 0)}</p>}
-        </>
+        </details>
       )}
 
       {kind === "condition" && (
@@ -290,7 +290,7 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
                 <ImageIcon className="size-5" />{photo ? t("photo.change") : t("photo.pick")}
                 <input type="file" accept="image/*" className="sr-only" onChange={(e) => {
                   const f = e.target.files?.[0]; e.target.value = ""; if (!f) return;
-                  if (f.size > 5 * 1024 * 1024) return setErr("사진은 5MB 이하로 올려 주세요.");
+                  if (f.size > 5 * 1024 * 1024) return setErr(t("validation.manual8"));
                   const rd = new FileReader(); rd.onload = () => setPhoto(String(rd.result)); rd.readAsDataURL(f);
                 }} />
               </label>
@@ -299,7 +299,7 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
             {!photo && <p className="mt-1 text-sm text-muted-foreground">{t("photo.hint")}</p>}
           </div>
           <Field label={t("f.note")}>
-            <textarea className={cn(inputCls, "h-24 py-3")} value={note} onChange={(e) => setNote(e.target.value)} placeholder="오늘 기억하고 싶은 순간" />
+            <textarea className={cn(inputCls, "h-24 py-3")} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("pr.memoryQ")} />
           </Field>
         </>
       )}
@@ -359,6 +359,7 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
         </select></Field><Field label={t("f.stockCount")}><input inputMode="numeric" className={inputCls} value={stock} onChange={(e) => setStock(e.target.value)} /></Field></>
       )}
 
+      {(showDate || showTime) && <details open={!!editing} className="space-y-3"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">{t("ui.when")}</summary>
       {showDate && (
         <div className="grid grid-cols-2 gap-3">
           <Field label={t("f.date")}><input type="date" className={inputCls} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
@@ -376,9 +377,10 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
         </label>
       )}
 
+      </details>}
       {err && <p role="alert" className="feel-error text-sm text-destructive">{err}</p>}
 
-      <div className="flex gap-3 pt-2">
+      <div className="sticky bottom-0 z-10 flex gap-3 border-t bg-background pt-3 pb-[max(.75rem,env(safe-area-inset-bottom))]">
         {(editing || (kind === "reminder" && j.reminder)) && (
           <Button variant="unstyled" size="unstyled" type="button" onClick={remove} className="press h-12 rounded-full border border-destructive/40 px-5 text-destructive">{t("f.delete")}</Button>
         )}
