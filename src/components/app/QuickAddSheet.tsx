@@ -95,7 +95,7 @@ export function VoiceCard({ title, sub, onClick }: { title: string; sub: string;
 }
 
 const FEELINGS = ["feel.calm", "feel.meh", "feel.uncomf", "feel.ok", "feel.tired", "feel.nausea", "feel.low"] as const;
-const SITES = ["복부 왼쪽", "복부 오른쪽", "허벅지 왼쪽", "허벅지 오른쪽", "팔 왼쪽", "팔 오른쪽"];
+import { SitePicker } from "./SitePicker";
 
 function Field({ label, children, optional }: { label: string; children: ReactNode; optional?: boolean }) {
   return (
@@ -245,9 +245,7 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
           </Field>
           <div>
             <span className="mb-1.5 block text-sm font-medium">{t("f.site")} <span className="text-muted-foreground">({t("f.optional")})</span></span>
-            <div className="flex flex-wrap gap-2">
-              {SITES.map((s) => <Button variant="unstyled" size="unstyled" type="button" key={s} aria-pressed={site === s} className={chipCls(site === s)} onClick={() => setSite(site === s ? null : s)}>{s}</Button>)}
-            </div>
+            <SitePicker value={site} onChange={setSite} />
           </div>
           <StockMove med={med} on={useStock} setOn={setUseStock} ok={stockOk} wasUsed={rec?.type === "injection" && rec.usedStock} />
         </>
