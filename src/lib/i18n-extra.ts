@@ -139,6 +139,11 @@ export const en: D = {
   "chart.table": "Show values as a table",
   "chart.openInj": "Open injection entry",
   "toast.demoCleared": "Examples cleared", "meas.empty": "No measurements yet.", "meas.add": "Log measurements",
+  "home.weight": "Weight", "home.weightAdd": "Log weight", "home.cond": "Feeling", "home.condAsk": "How are you now?",
+  "home.stock": "Stock", "home.stockUnknown": "Not known yet", "home.stockAdd": "Add stock", "home.moment": "My moments", "home.photo": "Add a photo",
+  "home.nextShot": "Next injection", "home.inDays": "in {n} days", "home.inHours": "in {n} h", "home.soon": "soon", "home.past": "Past",
+  "home.example": "Example", "pr.later": "Later", "momo.speak": "Talk to Momo", "momo.photo": "Show Momo a photo",
+  "site.unknown": "Site unknown", "site.hint": "Your own left · right", "site.left": "Left", "site.right": "Right", "site.selected": "Selected",
 };
 
 export const fr: D = {
@@ -279,4 +284,9 @@ export const fr: D = {
   "chart.table": "Voir les valeurs en tableau",
   "chart.openInj": "Ouvrir l'injection",
   "toast.demoCleared": "Exemples effacés", "meas.empty": "Aucune mensuration.", "meas.add": "Noter des mensurations",
+  "home.weight": "Poids", "home.weightAdd": "Noter mon poids", "home.cond": "Ressenti", "home.condAsk": "Comment ça va ?",
+  "home.stock": "Stock", "home.stockUnknown": "Pas encore connu", "home.stockAdd": "Ajouter du stock", "home.moment": "Mes moments", "home.photo": "Ajouter une photo",
+  "home.nextShot": "Prochaine injection", "home.inDays": "dans {n} j", "home.inHours": "dans {n} h", "home.soon": "bientôt", "home.past": "Passée",
+  "home.example": "Exemple", "pr.later": "Plus tard", "momo.speak": "Parler à Momo", "momo.photo": "Montrer une photo à Momo",
+  "site.unknown": "Zone inconnue", "site.hint": "Votre gauche · votre droite", "site.left": "Gauche", "site.right": "Droite", "site.selected": "Sélectionnée",
 };
