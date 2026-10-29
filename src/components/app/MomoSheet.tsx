@@ -95,7 +95,7 @@ export function MomoSheet({ onDone, onManual }: { onDone: () => void; onManual: 
   const goFinal = () => {
     if (invalid.length) { toast.error(t("momo.invalid")); return; }
     // Pre-exclude likely duplicates; the user can include them again.
-    setDrafts((ds) => ds?.map((d) => (d.on && isDuplicate(draftToEntry(d, d.key, j.tz, today), j.records, j.purchases) ? { ...d, on: false, dup: true } as Draft : d)) ?? null);
+    setDrafts((ds) => ds?.map((d) => (d.on && isDuplicate(draftToEntry(d, d.key, j.tz, today), j.records, j.purchases) ? { ...d, on: false, dup: true } : d)) ?? null);
     setStep("final");
   };
 
@@ -191,7 +191,7 @@ export function MomoSheet({ onDone, onManual }: { onDone: () => void; onManual: 
         <>
           <ul className="space-y-2">
             {drafts.map((d) => {
-              const dup = (d as Draft & { dup?: boolean }).dup;
+              const dup = d.dup;
               if (!d.on && !dup) return null;
               return (
                 <li key={d.key} className={cn("rounded-[16px] border bg-card p-3", !d.on && "opacity-70")}>

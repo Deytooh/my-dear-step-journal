@@ -2,8 +2,9 @@ import { Button } from "@/components/ui/button";
 import { PhotoImg } from "@/components/app/PhotoImg";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ChevronRight, Download, Plus, Ruler, Scale, Image as ImageIcon } from "lucide-react";
-import { Area, AreaChart, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ChevronRight, Download, Plus, Ruler, Scale, Syringe, Image as ImageIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Area, AreaChart, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { t, fmtNumber } from "@/lib/i18n";
 import { addDays, fmtMonthDay, fmtTime, todayLocal } from "@/lib/dates";
@@ -11,6 +12,9 @@ import { sortByTime, useJournal, type InjectionRec, type MeasureRec, type Memory
 import { useQuickAdd } from "@/components/app/AppShell";
 import { AnimatedValue, useReducedMotion } from "@/components/app/AppFeel";
 import { Card, DemoTag, IconBubble, measureSummary, PageTitle, recordValue, SectionHeader, Segmented } from "@/components/app/ui";
+
+const ts = (d: string) => Date.parse(d + "T12:00:00Z");
+const CHART_L = 40, CHART_R = 12;
 
 export const Route = createFileRoute("/progress")({
   head: () => ({
@@ -40,12 +44,15 @@ function Progress() {
   const from = range === "1m" ? addDays(today, -30) : range === "3m" ? addDays(today, -91) : "0000";
 
   const data = useMemo(() => {
-    const byDay = new Map<string, number>();
-    [...weights].reverse().forEach((w) => byDay.set(w.localDate, w.value)); // latest per day wins
-    return [...byDay.entries()].filter(([d]) => d >= from).sort().map(([d, v]) => ({ d, v }));
+    const byDay = new Map<string, WeightRec>();
+    [...weights].reverse().forEach((w) => byDay.set(w.localDate, w)); // latest per day wins
+    return [...byDay.entries()].filter(([d]) => d >= from).sort(([a], [b]) => a.localeCompare(b)).map(([d, w]) => ({ d, ts: ts(d), v: w.value, demo: !!w.demo }));
   }, [weights, from]);
-  const injDays = j.records.filter((r): r is InjectionRec => r.type === "injection" && r.localDate >= from);
-  const dataDays = new Set(data.map((p) => p.d));
+  const injDays = j.records.filter((r): r is InjectionRec => r.type === "injection" && r.localDate >= from && r.localDate <= today);
+  const allDays = [...data.map((p) => p.d), ...injDays.map((i) => i.localDate)].sort();
+  const x0 = ts(range === "all" ? (allDays[0] ?? today) : from);
+  const x1 = ts(today);
+  const hasDemoPoints = data.some((p) => p.demo) || injDays.some((i) => i.demo);
 
   const exportCsv = () => {
     const rows = [["type", "local_date", "precision", "instant", "value", "demo"]];
@@ -85,29 +92,50 @@ function Progress() {
         <div key={metric} className="feel-panel">
           <div className="mt-3"><Segmented size="sm" value={range} onChange={setRange} options={[{ value: "1m", label: t("prog.1m") }, { value: "3m", label: t("prog.3m") }, { value: "all", label: t("prog.all") }]} /></div>
           <Card className="mt-3 p-4">
-            {data.length < 2 ? <p className="py-10 text-center text-muted-foreground">{t("prog.noData")}</p> : (
-              <div className="h-48" role="img" aria-label={`체중 그래프, ${data.length}개 기록`}>
-                <ResponsiveContainer>
-                  <AreaChart data={data} margin={{ top: 10, right: 8, left: 8, bottom: 0 }}>
-                    <defs><linearGradient id="wf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--color-chart-4)" stopOpacity={0.25} /><stop offset="1" stopColor="var(--color-chart-4)" stopOpacity={0} /></linearGradient></defs>
-                    <XAxis dataKey="d" tickFormatter={(d) => fmtMonthDay(d)} tick={{ fontSize: 12, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} minTickGap={40} />
-                    <YAxis hide domain={["dataMin - 0.5", "dataMax + 0.5"]} />
-                    <Tooltip formatter={(v: number) => [`${fmtNumber(v)} kg`, t("type.weight")]} labelFormatter={(d) => fmtMonthDay(String(d))} contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)" }} />
-                    <Area type="monotone" dataKey="v" stroke="var(--color-primary)" strokeWidth={2} fill="url(#wf)" dot={{ r: 3.5, fill: "var(--color-primary)" }} isAnimationActive={!reducedMotion} animationDuration={700} animationEasing="ease-out" />
-                    {injDays.filter((i) => dataDays.has(i.localDate)).map((i) => {
-                      const point = data.find((p) => p.d === i.localDate);
-                      if (!point) return null;
-                      return <ReferenceDot key={i.id} x={i.localDate} y={point.v} r={6} fill="var(--color-peach-accent)" stroke="var(--color-card)" />;
-                    })}
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+            {data.length === 0 && injDays.length === 0 ? <p className="py-10 text-center text-muted-foreground">{t("prog.noData")}</p> : (
+              <>
+                <p className="mb-1 text-sm font-medium text-muted-foreground">{t("chart.unit")}{hasDemoPoints && <DemoTag show />}</p>
+                <div className="h-52" aria-hidden>
+                  <ResponsiveContainer>
+                    <AreaChart data={data} margin={{ top: 18, right: CHART_R, left: 0, bottom: 0 }}>
+                      <defs><linearGradient id="wf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--color-chart-4)" stopOpacity={0.25} /><stop offset="1" stopColor="var(--color-chart-4)" stopOpacity={0} /></linearGradient></defs>
+                      <XAxis dataKey="ts" type="number" scale="time" domain={[x0, x1]} tickFormatter={(v: number) => fmtMonthDay(new Date(v).toISOString().slice(0, 10))} tick={{ fontSize: 13, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} minTickGap={40} />
+                      <YAxis width={CHART_L} domain={["dataMin - 0.5", "dataMax + 0.5"]} tickFormatter={(v: number) => fmtNumber(v)} tick={{ fontSize: 13, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} tickCount={4} />
+                      <Tooltip formatter={(v: number) => [`${fmtNumber(v)} kg`, t("type.weight")]} labelFormatter={(v) => fmtMonthDay(new Date(Number(v)).toISOString().slice(0, 10))} contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)" }} />
+                      <Area type="monotone" dataKey="v" stroke="var(--color-primary)" strokeWidth={2} fill="url(#wf)" dot={{ r: 3.5, fill: "var(--color-primary)" }} isAnimationActive={!reducedMotion} animationDuration={700} animationEasing="ease-out">
+                        {data.length <= 12 && <LabelList dataKey="v" position="top" formatter={(v: number) => fmtNumber(v)} style={{ fontSize: 12, fill: "var(--color-foreground)" }} />}
+                      </Area>
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+                {/* Injection band: same time axis as the chart, independent of weigh-ins. */}
+                <div className="relative mt-1 h-11 rounded-full bg-peach/60" style={{ marginLeft: CHART_L, marginRight: CHART_R }} role="group" aria-label={t("chart.injBand")}>
+                  {injDays.map((i) => {
+                    const pct = x1 === x0 ? 50 : ((ts(i.localDate) - x0) / (x1 - x0)) * 100;
+                    return (
+                      <Button variant="unstyled" size="unstyled" key={i.id} onClick={() => open("injection", i)} style={{ left: `${pct}%` }}
+                        aria-label={`${t("chart.openInj")}: ${fmtMonthDay(i.localDate)} · ${recordValue(i)}${i.demo ? ` (${t("demo.badge")})` : ""}`}
+                        className="press absolute top-0 flex size-11 -translate-x-1/2 items-center justify-center rounded-full">
+                        <span className={cn("flex size-6 items-center justify-center rounded-full border-2 border-card bg-peach-accent", i.demo && "opacity-70")}><Syringe className="size-3.5" /></span>
+                      </Button>
+                    );
+                  })}
+                </div>
+              </>
             )}
             <div className="mt-3 flex justify-center gap-6 rounded-full border py-2 text-sm">
               <span className="flex items-center gap-2"><span className="size-3 rounded-full bg-primary" />{t("prog.legendW")}</span>
               <span className="flex items-center gap-2"><span className="size-3 rounded-full bg-peach-accent" />{t("prog.legendI")}</span>
             </div>
-            <p className="mt-2 text-center text-xs text-muted-foreground">주사 표시는 같은 날 체중 기록이 있을 때만 그래프에 나타나요.</p>
+            {data.length > 0 && (
+              <details className="mt-3 text-[15px]">
+                <summary className="press flex min-h-11 cursor-pointer items-center font-medium">{t("chart.table")}</summary>
+                <table className="w-full text-left">
+                  <thead><tr className="text-sm text-muted-foreground"><th scope="col" className="py-1 font-medium">{t("f.date")}</th><th scope="col" className="py-1 font-medium">{t("chart.unit")}</th></tr></thead>
+                  <tbody>{[...data].reverse().map((p) => <tr key={p.d} className="border-t"><td className="py-1.5">{fmtMonthDay(p.d)}{p.demo && <DemoTag show />}</td><td className="py-1.5 font-semibold">{fmtNumber(p.v)}</td></tr>)}</tbody>
+                </table>
+              </details>
+            )}
           </Card>
 
           <SectionHeader title={t("prog.recent")} action={<Link to="/history" className="text-sm font-medium text-primary">{t("hist.open")}</Link>} />

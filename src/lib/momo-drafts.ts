@@ -6,7 +6,7 @@ import { instantFromLocal } from "./dates";
 export type DraftType = MomoCandidate["type"];
 export type FieldKind = "text" | "num" | "date" | "time";
 export type FieldDef = { k: string; label: string; kind: FieldKind; important?: boolean };
-export type Draft = { key: string; type: DraftType; on: boolean; quote: string | null; timeHint: string | null; f: Record<string, string> };
+export type Draft = { key: string; type: DraftType; on: boolean; dup?: boolean; quote: string | null; timeHint: string | null; f: Record<string, string> };
 
 export const FIELDS: Record<DraftType, FieldDef[]> = {
   weight: [{ k: "value", label: "f.value", kind: "num", important: true }, { k: "date", label: "f.date", kind: "date" }, { k: "time", label: "f.time", kind: "time", important: true }],
