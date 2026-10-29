@@ -30,7 +30,7 @@ export function MedicationPicker({ value, onChange }: { value: string; onChange:
         <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
       </Button>
       {open && (
-        <Command id={id} className="rounded-lg border" onKeyDown={(e) => {
+        <Command id={id} className="rounded-lg border" onKeyDownCapture={(e) => {
           if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); }
         }}>
           <CommandInput autoFocus aria-label={t("med.search")} placeholder={t("med.search")} className="h-12 text-[16px]" />

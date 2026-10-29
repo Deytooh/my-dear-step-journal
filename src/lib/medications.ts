@@ -22,6 +22,7 @@ export const MEDICATIONS: Medication[] = [
   med("eppe", "Eppe", "에페", "efpeglenatide", "에페글레나타이드", "injectable", "https://www.hanmi.co.kr/about/news-media/press/detail-5083.hm", ["에페오토인젝터주"]),
   med("mazdutide", "Mazdutide", "마즈두타이드", "mazdutide (GCG/GLP-1)", "마즈두타이드 (GCG/GLP-1)", "injectable", "https://en.innoventbio.com/InvestorsAndMedia/PressReleaseDetail?key=604"),
   med("ecnoglutide", "Ecnoglutide", "에크노글루타이드", "ecnoglutide", "에크노글루타이드", "injectable", "https://doi.org/10.1007/s40265-026-02350-w", ["Xianyida", "Xianweiying", "先颐达", "先维盈"]),
+  med("beinaglutide", "Beinaglutide", "베나글루타이드", "beinaglutide (benaglutide)", "베나글루타이드", "injectable", "https://www.benemae.com/product/introduce.html", ["benaglutide", "谊生泰", "菲塑美"]),
   med("rybelsus", "Rybelsus", "리벨서스", "semaglutide", "세마글루타이드", "oral", ema("rybelsus")),
   med("wegovy-tablet", "Wegovy (tablet)", "위고비 (정제)", "semaglutide", "세마글루타이드", "oral", "https://www.accessdata.fda.gov/drugsatfda_docs/label/2025/218316Orig1s000lbl.pdf"),
   med("foundayo", "Foundayo", "Foundayo", "orforglipron", "오르포글리프론", "oral", "https://www.accessdata.fda.gov/drugsatfda_docs/label/2026/220934s003lbl.pdf"),
