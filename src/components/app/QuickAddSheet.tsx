@@ -12,6 +12,7 @@ import momo from "@/assets/momo.png";
 import { MomoSheet } from "./MomoSheet";
 import { celebrateSave } from "./AppFeel";
 import { cn } from "@/lib/utils";
+import { MedicationPicker } from "./MedicationPicker";
 
 export type EntryKind = "menu" | "weight" | "injection" | "condition" | "memory" | "purchase" | "reminder" | "stock" | "voice" | "measure" | "water";
 
@@ -228,9 +229,10 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
       )}
 
       {(kind === "injection" || kind === "purchase") && (
-        <Field label={t("f.medication")} optional>
-          <input className={inputCls} value={med} onChange={(e) => setMed(e.target.value)} placeholder="예: 마운자로" />
-        </Field>
+        <div>
+          <span className="mb-1.5 block text-sm font-medium">{t("f.medication")} <span className="text-muted-foreground">({t("f.optional")})</span></span>
+          <MedicationPicker value={med} onChange={setMed} />
+        </div>
       )}
 
       {kind === "injection" && (

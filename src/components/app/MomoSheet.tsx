@@ -11,6 +11,7 @@ import { candidateToDraft, draftToEntry, FIELDS, isDuplicate, missingFields, typ
 import { celebrateSave } from "./AppFeel";
 import { t, getLocale, type Key } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { MedicationPicker } from "./MedicationPicker";
 
 type SR = { start: () => void; stop: () => void; abort: () => void; lang: string; interimResults: boolean; continuous: boolean;
   onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void; onend: () => void; onerror: () => void };
@@ -241,7 +242,10 @@ function DraftCard({ d, onChange, onRemove, error }: { d: Draft; onChange: (p: P
       {d.on && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           {FIELDS[d.type].map((f) => (
-            <label key={f.k} className={cn("block", (f.kind === "text" && f.k === "note") && "col-span-2")}>
+            f.k === "medication" ? <div key={f.k} className="col-span-2">
+              <span className="mb-1 block text-sm font-medium">{t(f.label as Key)}</span>
+              <MedicationPicker value={d.f[f.k] ?? ""} onChange={(value) => onChange({ f: { ...d.f, [f.k]: value } })} />
+            </div> : <label key={f.k} className={cn("block", (f.kind === "text" && f.k === "note") && "col-span-2")}>
               <span className="mb-1 block text-sm font-medium">{t(f.label as Key)}</span>
               <input className={inputCls} type={f.kind === "date" ? "date" : f.kind === "time" ? "time" : "text"} inputMode={f.kind === "num" ? "decimal" : undefined}
                 value={d.f[f.k] ?? ""} placeholder={f.kind === "time" ? t("unknown") : t("missing")} onChange={(e) => onChange({ f: { ...d.f, [f.k]: e.target.value } })} />
