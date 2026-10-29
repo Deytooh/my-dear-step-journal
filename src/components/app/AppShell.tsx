@@ -34,7 +34,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <QuickAddCtx.Provider value={opener}>
       <div className="mx-auto min-h-screen max-w-md bg-background pb-28">
-        <Header />
+        <Header hero={pathname === "/today"} />
         <main key={`${pathname}-${j.settings.locale ?? "ko"}`} className="feel-page px-5">{children}</main>
       </div>
       <AppFeel />
@@ -44,17 +44,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
-function Header() {
+function Header({ hero = false }: { hero?: boolean }) {
   const j = useJournal();
   const navigate = useNavigate();
   return (
-    <header className="flex items-center justify-between px-5 pt-6 pb-2">
+    <header className={`flex items-center justify-between px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-2 ${hero ? "bg-primary text-primary-foreground" : ""}`}>
       <Link to="/today" className="flex items-end gap-1" aria-label="my dear step">
         <span className="font-brand text-[26px] leading-none tracking-tight">my dear step</span>
-        <Sprout />
+        <Sprout hero={hero} />
       </Link>
       <Popover>
-        <PopoverTrigger aria-label={t("set.settings")} className="press flex size-11 items-center justify-center rounded-full bg-secondary">
+        <PopoverTrigger aria-label={t("set.settings")} className={`press flex size-11 items-center justify-center rounded-full ${hero ? "bg-primary-foreground/10" : "bg-secondary"}`}>
           <Settings2 className="size-5" />
         </PopoverTrigger>
         <PopoverContent align="end" className="w-64 rounded-[20px] p-4">
@@ -111,10 +111,10 @@ function Header() {
   );
 }
 
-function Sprout() {
+function Sprout({ hero = false }: { hero?: boolean }) {
   return (
     <svg width="22" height="28" viewBox="0 0 22 28" aria-hidden className="-mb-1">
-      <path d="M11 27 C11 18 10 12 12 6" stroke="var(--color-primary)" strokeWidth="2" fill="none" strokeLinecap="round" />
+      <path d="M11 27 C11 18 10 12 12 6" stroke={hero ? "currentColor" : "var(--color-primary)"} strokeWidth="2" fill="none" strokeLinecap="round" />
       <path d="M12 10 C14 4 19 2 21 3 C20 8 16 11 12 10Z" fill="var(--color-chart-4)" />
       <path d="M11 9 C8 4 4 3 2 4 C3 8 7 10 11 9Z" fill="var(--color-peach-accent)" />
     </svg>
