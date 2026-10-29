@@ -17,15 +17,36 @@ export type InjectionRec = Base & { type: "injection"; medication: string | null
 export type ConditionRec = Base & { type: "condition"; label: string; note?: string };
 export type MemoryRec = Base & { type: "memory"; note: string; photo?: string | null };
 export type MeasureRec = Base & { type: "measure"; waist: number | null; hip: number | null; chest: number | null; thigh: number | null; unit: "cm" };
-export type JournalRecord = WeightRec | InjectionRec | ConditionRec | MemoryRec | MeasureRec;
+/** A momentary answer to "did you drink water?" — no volume is ever implied. */
+export type WaterRec = Base & { type: "water"; answer: "yes" | "not_yet" };
+export type JournalRecord = WeightRec | InjectionRec | ConditionRec | MemoryRec | MeasureRec | WaterRec;
 
 export type Reminder = { id: string; at: string; demo?: boolean };
-export type Purchase = { id: string; localDate: string; amount: number; currency: "KRW"; doses: number; medication: string | null; demo?: boolean };
+export type StockUnit = "pen" | "single" | "dose";
+/** doses = quantity in stockUnit. addsStock false = expense only (never touches inventory). */
+export type Purchase = { id: string; localDate: string; amount: number; currency: "KRW"; doses: number; medication: string | null; demo?: boolean;
+  stockUnit?: StockUnit | null; addsStock?: boolean; merchant?: string | null; product?: string | null };
+export type PromptId = "feel" | "water" | "memory" | "weight";
+export type PromptSettings = { hidden?: boolean; off?: PromptId[]; done?: Partial<Record<PromptId, string>> };
+
+/** Inventory is derived, so editing an old injection never deducts twice. */
+export function computeStock(purchases: Purchase[], records: JournalRecord[]) {
+  const bought = purchases.filter((p) => p.addsStock !== false).reduce((s, p) => s + p.doses, 0);
+  const used = records.filter((r) => r.type === "injection" && r.usedStock).length;
+  return bought - used;
+}
+/** The unit of the most recent stock-adding purchase (legacy purchases count as doses). */
+export function stockInfo(purchases: Purchase[]) {
+  const last = [...purchases].filter((p) => p.addsStock !== false).sort((a, b) => b.localDate.localeCompare(a.localDate))[0];
+  return { unit: (last?.stockUnit ?? "dose") as StockUnit, medication: last?.medication ?? null, any: !!last };
+}
+/** Only per-injection units can be deducted one-for-one; pens are never converted. */
+export const canDeduct = (unit: StockUnit) => unit !== "pen";
 
 type State = {
   records: JournalRecord[]; reminder: Reminder | null; purchases: Purchase[];
   stockAdjust: number; // manual adjustments to computed stock (in doses)
-  settings: { showMomo: boolean; timezone: string; locale?: "ko" | "en" | "fr" };
+  settings: { showMomo: boolean; timezone: string; locale?: "ko" | "en" | "fr"; prompts?: PromptSettings };
 };
 
 const KEY = "mds.journal.v1";
@@ -51,10 +72,12 @@ function demoState(): State {
       inj(-5, "복부 왼쪽"), inj(-12, "복부 오른쪽"), inj(-19, "복부 왼쪽"),
       { id: "demo-m1", type: "measure", unit: "cm", waist: 92, hip: 104, chest: 101, thigh: null, localDate: d(-21), precision: "date_only", at: null, demo: true, createdAt: now, source: "manual_text" },
       { id: "demo-m2", type: "measure", unit: "cm", waist: 89.5, hip: 103, chest: 100, thigh: null, localDate: d(-2), precision: "date_only", at: null, demo: true, createdAt: now, source: "manual_text" },
+      { id: "demo-mem1", type: "memory", note: "예시 · 강가를 30분 산책했어요. 바람이 시원했어요.", photo: null, localDate: d(-6), precision: "part_of_day", partOfDay: "evening", at: null, demo: true, createdAt: now, source: "manual_text" },
+      { id: "demo-mem2", type: "memory", note: "예시 · 친구와 카페에서 오랜만에 이야기했어요.", photo: null, localDate: d(-13), precision: "date_only", at: null, demo: true, createdAt: now, source: "manual_text" },
       { id: "demo-c0", type: "condition", label: "편안해요", localDate: today, precision: "exact", at: instantFromLocal(today, "08:15", tz), demo: true, createdAt: now, source: "manual_text" },
     ],
     reminder: { id: "demo-r", at: instantFromLocal(d(2), "20:00", tz), demo: true },
-    purchases: [{ id: "demo-p1", localDate: d(-12), amount: 320000, currency: "KRW", doses: 4, medication: "마운자로", demo: true }],
+    purchases: [{ id: "demo-p1", localDate: d(-12), amount: 320000, currency: "KRW", doses: 4, medication: "마운자로", stockUnit: "single", addsStock: true, demo: true }],
     stockAdjust: 1,
     settings: { showMomo: true, timezone: tz },
   };
@@ -67,6 +90,9 @@ type Ctx = State & {
   sync: SyncStatus;
   tz: string;
   stock: number;
+  stockUnit: StockUnit;
+  stockMedication: string | null;
+  hasStock: boolean;
   hasDemo: boolean;
   saveRecord: (r: JournalRecord) => void;
   deleteRecord: (id: string) => JournalRecord | undefined;
@@ -158,11 +184,8 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(tm);
   }, [state, user, bump]);
 
-  const computedStock = useMemo(() => {
-    const bought = state.purchases.reduce((s, p) => s + p.doses, 0);
-    const used = state.records.filter((r) => r.type === "injection" && r.usedStock).length;
-    return bought - used;
-  }, [state.purchases, state.records]);
+  const computedStock = useMemo(() => computeStock(state.purchases, state.records), [state.purchases, state.records]);
+  const sInfo = useMemo(() => stockInfo(state.purchases), [state.purchases]);
 
   const saveRecord = useCallback((r: JournalRecord) => setState((s) => {
     const exists = s.records.some((x) => x.id === r.id);
@@ -173,6 +196,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
   const value: Ctx = {
     ...state, ready, user, sync, tz: state.settings.timezone,
     stock: Math.max(0, computedStock + state.stockAdjust),
+    stockUnit: sInfo.unit, stockMedication: sInfo.medication, hasStock: sInfo.any,
     hasDemo: state.records.some((r) => r.demo) || state.purchases.some((p) => p.demo) || !!state.reminder?.demo,
     saveRecord,
     deleteRecord: (id) => {

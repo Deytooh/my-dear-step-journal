@@ -8,6 +8,7 @@ import { useQuickAdd } from "@/components/app/AppShell";
 import { Card, RecordRow, SectionHeader } from "@/components/app/ui";
 import { NextReminder, StockLine } from "@/components/app/ReminderCard";
 import { VoiceCard } from "@/components/app/QuickAddSheet";
+import { PromptCarousel } from "@/components/app/PromptCarousel";
 import banner from "@/assets/momo-banner.jpg";
 
 export const Route = createFileRoute("/today")({
@@ -36,8 +37,8 @@ function Today() {
       <p className="mt-1 text-[16px] text-muted-foreground">{fmtMonthDayWeekday(today)}</p>
 
       {j.settings.showMomo && (
-        <Link to="/progress" className="press relative mt-5 block h-24 overflow-hidden rounded-[24px]" aria-label={t("journey")}>
-          <img src={banner} alt="" width={1536} height={640} className="size-full object-cover object-[30%_60%]" />
+        <Link to="/progress" className="press relative mt-5 block h-28 overflow-hidden rounded-[24px]" aria-label={t("journey")}>
+          <img src={banner} alt="" width={1536} height={640} className="size-full object-cover object-[18%_22%]" />
           <span className="absolute right-3 bottom-3 flex items-center gap-1 rounded-[10px] bg-card/90 px-3 py-1.5 text-sm font-semibold">
             {t("journey")} <ChevronRight className="size-4" />
           </span>
@@ -51,6 +52,8 @@ function Today() {
         <div className="my-4 h-px bg-border" />
         <StockLine />
       </Card>
+
+      <PromptCarousel />
 
       <SectionHeader title={t("today.records")} action={
         <Link to="/calendar" className="flex min-h-11 items-center gap-1 text-[15px] text-muted-foreground">{t("today.seeAll")} <ChevronRight className="size-4" /></Link>

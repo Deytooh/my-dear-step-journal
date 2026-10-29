@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import type { ReactNode } from "react";
-import { ChevronRight, Pencil, Ruler, Scale, Smile, Syringe, Image as ImageIcon } from "lucide-react";
+import { ChevronRight, Droplet, Pencil, Ruler, Scale, Smile, Syringe, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { t, fmtNumber } from "@/lib/i18n";
 import { fmtMonthDay, fmtTime, todayLocal } from "@/lib/dates";
@@ -54,6 +54,7 @@ export function recordIcon(r: JournalRecord) {
     case "condition": return { icon: <Smile className="size-6" />, tone: "peach" as const };
     case "memory": return { icon: <ImageIcon className="size-6" />, tone: "peach" as const };
     case "measure": return { icon: <Ruler className="size-6" />, tone: "sage" as const };
+    case "water": return { icon: <Droplet className="size-6" />, tone: "sage" as const };
   }
 }
 
@@ -67,11 +68,12 @@ export function recordValue(r: JournalRecord) {
     case "weight": return `${fmtNumber(r.value)} ${r.unit}`;
     case "injection": {
       const dose = r.doseValue != null ? `${fmtNumber(r.doseValue, 2)} ${r.doseUnit ?? ""}`.trim() : null;
-      return [r.medication ?? "약 이름 미입력", dose].filter(Boolean).join(" · ");
+      return [r.medication ?? `${t("f.medication")} ${t("missing")}`, dose].filter(Boolean).join(" · ");
     }
     case "condition": return r.label;
     case "memory": return r.note || "사진 기록";
     case "measure": return measureSummary(r);
+    case "water": return t(r.answer === "yes" ? "water.yes" : "water.notYet");
   }
 }
 

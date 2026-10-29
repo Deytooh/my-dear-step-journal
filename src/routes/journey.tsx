@@ -6,6 +6,8 @@ import { fmtMonthDay } from "@/lib/dates";
 import { sortByTime, useJournal, type MemoryRec, type WeightRec } from "@/lib/journal";
 import { useQuickAdd } from "@/components/app/AppShell";
 import { Card, DemoTag, IconBubble, PageTitle } from "@/components/app/ui";
+import { RecordFinder } from "@/components/app/RecordFinder";
+import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/journey")({
   head: () => ({
@@ -33,6 +35,8 @@ function Journey() {
   return (
     <div>
       <PageTitle title={t("journey.title")} sub={t("journey.sub")} />
+      <RecordFinder />
+      <button onClick={() => open("memory")} className="press mt-4 flex h-12 w-full items-center justify-center gap-1 rounded-full border border-primary font-semibold"><Plus className="size-4" />{t("pr.memoryA")}</button>
       {memories.length === 0 && (
         <Card className="p-8 text-center">
           <p className="text-muted-foreground">{t("journey.empty")}</p>

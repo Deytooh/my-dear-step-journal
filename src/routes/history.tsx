@@ -22,7 +22,7 @@ export const Route = createFileRoute("/history")({
 });
 
 type Filter = "all" | JournalRecord["type"];
-const FILTERS: Filter[] = ["all", "weight", "injection", "condition", "measure", "memory"];
+const FILTERS: Filter[] = ["all", "weight", "injection", "condition", "measure", "memory", "water"];
 
 function History() {
   const j = useJournal();

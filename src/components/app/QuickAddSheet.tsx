@@ -6,14 +6,14 @@ import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { t, type Key } from "@/lib/i18n";
 import { instantFromLocal, localDateOf, timeOf, todayLocal } from "@/lib/dates";
-import { useJournal, type JournalRecord, type Purchase, type PartOfDay } from "@/lib/journal";
+import { canDeduct, useJournal, type JournalRecord, type Purchase, type PartOfDay, type StockUnit } from "@/lib/journal";
 import { IconBubble } from "./ui";
 import momo from "@/assets/momo.png";
 import { MomoSheet } from "./MomoSheet";
 import { celebrateSave } from "./AppFeel";
 import { cn } from "@/lib/utils";
 
-export type EntryKind = "menu" | "weight" | "injection" | "condition" | "memory" | "purchase" | "reminder" | "stock" | "voice" | "measure";
+export type EntryKind = "menu" | "weight" | "injection" | "condition" | "memory" | "purchase" | "reminder" | "stock" | "voice" | "measure" | "water";
 
 type Props = { open: boolean; onOpenChange: (v: boolean) => void; kind: EntryKind; setKind: (k: EntryKind) => void; editing?: JournalRecord | Purchase | undefined };
 
@@ -36,7 +36,7 @@ export function QuickAddSheet({ open, onOpenChange, kind, setKind, editing }: Pr
           {kind === "menu" ? (
             <div key="menu" className="feel-panel"><Menu setKind={setKind} showMomo={settings.showMomo} /></div>
           ) : (
-            <EntryForm key={`${kind}-${editing && "id" in editing ? editing.id : "new"}`} kind={kind} editing={editing} onDone={close} />
+            <EntryForm key={`${kind}-${editing && "id" in editing ? editing.id : "new"}`} kind={kind} editing={editing} onDone={close} onManual={() => setKind("menu")} />
           )}
         </div>
       </DrawerContent>
@@ -94,7 +94,7 @@ export function VoiceCard({ title, sub, onClick }: { title: string; sub: string;
   );
 }
 
-const FEELINGS = ["feel.good", "feel.ok", "feel.tired", "feel.nausea", "feel.low"] as const;
+const FEELINGS = ["feel.calm", "feel.meh", "feel.uncomf", "feel.ok", "feel.tired", "feel.nausea", "feel.low"] as const;
 const SITES = ["복부 왼쪽", "복부 오른쪽", "허벅지 왼쪽", "허벅지 오른쪽", "팔 왼쪽", "팔 오른쪽"];
 
 function Field({ label, children, optional }: { label: string; children: ReactNode; optional?: boolean }) {
@@ -108,7 +108,7 @@ function Field({ label, children, optional }: { label: string; children: ReactNo
 const inputCls = "h-12 w-full rounded-[12px] border bg-card px-4 text-[16px] outline-none focus:border-primary";
 const chipCls = (on: boolean) => cn("feel-chip press min-h-11 rounded-full border px-4 text-[15px]", on ? "border-primary bg-primary text-primary-foreground" : "bg-card");
 
-function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: JournalRecord | Purchase | undefined; onDone: () => void }) {
+function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editing?: JournalRecord | Purchase | undefined; onDone: () => void; onManual: () => void }) {
   const j = useJournal();
   const tz = j.tz;
   const rec = editing && "type" in editing ? editing : undefined;
@@ -122,12 +122,16 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
   const [dose, setDose] = useState(rec?.type === "injection" && rec.doseValue != null ? String(rec.doseValue) : "");
   const [doseUnit, setDoseUnit] = useState(rec?.type === "injection" ? rec.doseUnit ?? "mg" : "mg");
   const [site, setSite] = useState<string | null>(rec?.type === "injection" ? rec.site : null);
-  const [useStock, setUseStock] = useState(rec?.type === "injection" ? rec.usedStock : true);
-  const [feel, setFeel] = useState(rec?.type === "condition" ? rec.label : t("feel.good"));
+  const [useStock, setUseStock] = useState(rec?.type === "injection" ? rec.usedStock : false);
+  const [water, setWater] = useState<"yes" | "not_yet">(rec?.type === "water" ? rec.answer : "yes");
+  const [unit, setUnit] = useState<StockUnit>(pur?.stockUnit ?? (pur ? "dose" : "single"));
+  const [addsStock, setAddsStock] = useState(pur ? pur.addsStock !== false : true);
+  const [merchant, setMerchant] = useState(pur?.merchant ?? "");
+  const [feel, setFeel] = useState(rec?.type === "condition" ? rec.label : t("feel.calm"));
   const [note, setNote] = useState(rec?.type === "condition" ? rec.note ?? "" : rec?.type === "memory" ? rec.note : "");
   const [photo, setPhoto] = useState<string | null>(rec?.type === "memory" ? rec.photo ?? null : null);
   const [amount, setAmount] = useState(pur ? String(pur.amount) : "");
-  const [doses, setDoses] = useState(pur ? String(pur.doses) : "4");
+  const [doses, setDoses] = useState(pur && pur.addsStock !== false ? String(pur.doses) : "");
   const [remDate, setRemDate] = useState(j.reminder ? localDateOf(j.reminder.at, tz) : todayLocal(tz));
   const [remTime, setRemTime] = useState(j.reminder ? timeOf(j.reminder.at, tz) : "20:00");
   const [stock, setStock] = useState(String(j.stock));
@@ -137,12 +141,13 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
     return { waist: f(m?.waist), hip: f(m?.hip), chest: f(m?.chest), thigh: f(m?.thigh) };
   });
   const [err, setErr] = useState<string | null>(null);
+  const stockOk = kind === "injection" && j.hasStock && canDeduct(j.stockUnit) && !!med.trim() && (!j.stockMedication || j.stockMedication.trim().toLowerCase() === med.trim().toLowerCase());
 
   useEffect(() => setErr(null), [weight, amount, doses]);
 
   const titles: Record<EntryKind, string> = {
     menu: "", weight: t("type.weight"), injection: t("type.injection"), condition: t("type.condition"), memory: t("type.memory"),
-    purchase: t("type.purchase"), reminder: t("reminder.set"), stock: t("inv.edit"), voice: t("voice.all"), measure: t("type.measure"),
+    purchase: t("type.purchase"), water: t("type.water"), reminder: t("reminder.set"), stock: t("inv.edit"), voice: t("voice.all"), measure: t("type.measure"),
   };
 
   const base = () => ({
@@ -160,7 +165,9 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
     } else if (kind === "injection") {
       const dv = dose ? Number(dose.replace(",", ".")) : null;
       if (dose && !Number.isFinite(dv)) return setErr("용량은 숫자로 입력해 주세요.");
-      j.saveRecord({ ...base(), type: "injection", medication: med.trim() || null, doseValue: dv, doseUnit: dv != null ? doseUnit : null, site, usedStock: useStock });
+      j.saveRecord({ ...base(), type: "injection", medication: med.trim() || null, doseValue: dv, doseUnit: dv != null ? doseUnit : null, site, usedStock: stockOk ? useStock : (rec?.type === "injection" ? rec.usedStock && useStock : false) });
+    } else if (kind === "water") {
+      j.saveRecord({ ...base(), type: "water", answer: water });
     } else if (kind === "condition") {
       j.saveRecord({ ...base(), type: "condition", label: feel, ...(note.trim() ? { note: note.trim() } : {}) });
     } else if (kind === "memory") {
@@ -177,9 +184,12 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
       if (Object.values(vals).every((v) => v == null)) return setErr("최소 한 가지 치수를 입력해 주세요.");
       j.saveRecord({ ...base(), type: "measure", unit: "cm", waist: vals["waist"] ?? null, hip: vals["hip"] ?? null, chest: vals["chest"] ?? null, thigh: vals["thigh"] ?? null });
     } else if (kind === "purchase") {
-      const a = Number(amount.replace(/[^\d]/g, "")); const n = Number(doses);
-      if (!a || !Number.isInteger(n) || n < 0) return setErr("금액과 수량을 확인해 주세요.");
-      j.savePurchase({ id: pur?.id ?? j.newId(), localDate: date, amount: a, currency: "KRW", doses: n, medication: med.trim() || null });
+      const a = Number(amount.replace(/[^\d]/g, "")); const hasQty = doses.trim() !== ""; const n = hasQty ? Number(doses) : 0;
+      if (!a) return setErr("금액을 확인해 주세요.");
+      if (hasQty && (!Number.isInteger(n) || n <= 0)) return setErr("수량은 1 이상의 정수로 입력하거나 비워 두세요.");
+      const stockOn = hasQty && addsStock;
+      j.savePurchase({ id: pur?.id ?? j.newId(), localDate: date, amount: a, currency: "KRW", doses: stockOn ? n : 0, medication: med.trim() || null,
+        stockUnit: hasQty ? unit : null, addsStock: stockOn, merchant: merchant.trim() || null, ...(pur?.demo ? { demo: true } : {}) });
     } else if (kind === "reminder") {
       j.setReminder(instantFromLocal(remDate, remTime, tz));
     } else if (kind === "stock") {
@@ -201,10 +211,10 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
     onDone();
   };
 
-  if (kind === "voice") return <MomoSheet onDone={onDone} />;
+  if (kind === "voice") return <MomoSheet onDone={onDone} onManual={onManual} />;
 
-  const showDate = ["weight", "injection", "condition", "memory", "purchase", "measure"].includes(kind);
-  const showTime = ["weight", "injection", "condition", "memory", "measure"].includes(kind);
+  const showDate = ["weight", "injection", "condition", "memory", "purchase", "measure", "water"].includes(kind);
+  const showTime = ["weight", "injection", "condition", "memory", "measure", "water"].includes(kind);
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); save(); }} className="feel-form space-y-5">
@@ -239,10 +249,7 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
               {SITES.map((s) => <Button variant="unstyled" size="unstyled" type="button" key={s} aria-pressed={site === s} className={chipCls(site === s)} onClick={() => setSite(site === s ? null : s)}>{s}</Button>)}
             </div>
           </div>
-          <label className="flex min-h-11 items-center gap-3">
-            <input type="checkbox" className="size-5 accent-[var(--color-primary)]" checked={useStock} onChange={(e) => setUseStock(e.target.checked)} />
-            <span className="text-[15px]">{t("f.useStock")}</span>
-          </label>
+          <StockMove med={med} on={useStock} setOn={setUseStock} ok={stockOk} wasUsed={rec?.type === "injection" && rec.usedStock} />
         </>
       )}
 
@@ -259,14 +266,22 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
 
       {kind === "memory" && (
         <>
-          <Field label={t("f.photo")} optional>
-            <input type="file" accept="image/*" className="block w-full text-sm" onChange={(e) => {
-              const f = e.target.files?.[0]; if (!f) return;
-              if (f.size > 5 * 1024 * 1024) return setErr("사진은 5MB 이하로 올려 주세요.");
-              const rd = new FileReader(); rd.onload = () => setPhoto(String(rd.result)); rd.readAsDataURL(f);
-            }} />
-          </Field>
-          {photo && <PhotoImg src={photo} alt="선택한 사진" className="max-h-48 rounded-[16px] object-cover" />}
+          <div>
+            <span className="mb-1.5 block text-sm font-medium">{t("f.photo")} <span className="text-muted-foreground">({t("f.optional")})</span></span>
+            {photo && <PhotoImg src={photo} alt={t("f.photo")} className="mb-2 max-h-56 w-full rounded-[16px] object-cover" />}
+            <div className="flex gap-2">
+              <label className="press flex min-h-14 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[16px] border-2 border-dashed border-primary/40 bg-card px-4 text-[15px] font-semibold focus-within:ring-2 focus-within:ring-ring">
+                <ImageIcon className="size-5" />{photo ? t("photo.change") : t("photo.pick")}
+                <input type="file" accept="image/*" className="sr-only" onChange={(e) => {
+                  const f = e.target.files?.[0]; e.target.value = ""; if (!f) return;
+                  if (f.size > 5 * 1024 * 1024) return setErr("사진은 5MB 이하로 올려 주세요.");
+                  const rd = new FileReader(); rd.onload = () => setPhoto(String(rd.result)); rd.readAsDataURL(f);
+                }} />
+              </label>
+              {photo && <Button variant="unstyled" size="unstyled" type="button" onClick={() => setPhoto(null)} className="press min-h-14 rounded-[16px] border px-4 text-[15px]">{t("photo.remove")}</Button>}
+            </div>
+            {!photo && <p className="mt-1 text-sm text-muted-foreground">{t("photo.hint")}</p>}
+          </div>
           <Field label={t("f.note")}>
             <textarea className={cn(inputCls, "h-24 py-3")} value={note} onChange={(e) => setNote(e.target.value)} placeholder="오늘 기억하고 싶은 순간" />
           </Field>
@@ -284,9 +299,31 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
       )}
 
       {kind === "purchase" && (
-        <div className="grid grid-cols-2 gap-3">
+        <>
+          <Field label={t("f.merchant")} optional><input className={inputCls} value={merchant} onChange={(e) => setMerchant(e.target.value)} /></Field>
           <Field label={t("f.amount")}><input inputMode="numeric" className={inputCls} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="320000" /></Field>
-          <Field label={t("f.doses")}><input inputMode="numeric" className={inputCls} value={doses} onChange={(e) => setDoses(e.target.value)} /></Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t("f.qty")} optional><input inputMode="numeric" className={inputCls} value={doses} onChange={(e) => setDoses(e.target.value)} placeholder={t("f.qtyHint")} /></Field>
+            <Field label={t("f.unit")}>
+              <select className={inputCls} value={unit} onChange={(e) => setUnit(e.target.value as StockUnit)}>
+                <option value="single">{t("unit.single")}</option><option value="pen">{t("unit.pen")}</option><option value="dose">{t("unit.dose")}</option>
+              </select>
+            </Field>
+          </div>
+          <label className="flex min-h-11 items-center gap-3 text-[15px]">
+            <input type="checkbox" className="size-5 accent-[var(--color-primary)]" disabled={!doses.trim()} checked={!!doses.trim() && addsStock} onChange={(e) => setAddsStock(e.target.checked)} />
+            {t("f.addsStock")}
+          </label>
+          {!doses.trim() && <p className="-mt-3 text-sm text-muted-foreground">{t("f.expenseOnly")}</p>}
+        </>
+      )}
+
+      {kind === "water" && (
+        <div>
+          <div className="flex flex-wrap gap-2">
+            {(["yes", "not_yet"] as const).map((a) => <Button variant="unstyled" size="unstyled" type="button" key={a} aria-pressed={water === a} className={chipCls(water === a)} onClick={() => setWater(a)}>{t(a === "yes" ? "pr.water.yes" : "pr.water.notYet")}</Button>)}
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">{t("water.note")}</p>
         </div>
       )}
 
@@ -329,5 +366,34 @@ function EntryForm({ kind, editing, onDone }: { kind: EntryKind; editing?: Journ
         <Button variant="unstyled" size="unstyled" type="submit" className="press h-12 flex-1 rounded-full bg-primary font-semibold text-primary-foreground">{t("f.save")}</Button>
       </div>
     </form>
+  );
+}
+
+function StockMove({ med, on, setOn, ok, wasUsed }: { med: string; on: boolean; setOn: (v: boolean) => void; ok: boolean; wasUsed: boolean }) {
+  const j = useJournal();
+  const u = t(`unit.${j.stockUnit}`);
+  // j.stock already includes this injection if it was saved with a deduction, so show the difference only.
+  const before = j.stock + (wasUsed ? 1 : 0);
+  const after = before - (on && ok ? 1 : 0);
+  return (
+    <div className="rounded-[16px] border bg-card p-4 text-[15px]">
+      <p className="font-semibold">{t("stock.move")}</p>
+      {!j.hasStock ? <p className="mt-1 text-muted-foreground">{t("stock.none")}</p>
+        : !canDeduct(j.stockUnit) ? <p className="mt-1 text-muted-foreground">{t("stock.pen")}</p>
+        : (
+          <>
+            <p className="mt-1 text-muted-foreground">{t("stock.of")}: {j.stockMedication ?? t("stock.unknownMed")}</p>
+            {!ok ? <p className="mt-1 text-muted-foreground">{med.trim() ? t("stock.needMed") : t("stock.needMed")}</p> : (
+              <>
+                <label className="mt-2 flex min-h-11 items-center gap-3">
+                  <input type="checkbox" className="size-5 accent-[var(--color-primary)]" checked={on} onChange={(e) => setOn(e.target.checked)} />
+                  {t("stock.deduct", { u })}
+                </label>
+                <p className="text-muted-foreground">{t("stock.before")} {before}{u} → {t("stock.after")} <span className="font-semibold text-foreground">{after}{u}</span></p>
+              </>
+            )}
+          </>
+        )}
+    </div>
   );
 }
