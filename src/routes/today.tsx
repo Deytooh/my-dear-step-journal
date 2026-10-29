@@ -90,7 +90,7 @@ function HomeHero() {
     <section className="-mx-5 rounded-b-[32px] bg-primary px-5 pb-5 text-primary-foreground">
       <div className="relative flex items-end justify-between gap-2">
         <div className="min-w-0 pt-1 pb-3">
-          <h1 className="text-[40px] font-bold leading-tight">{t("today.title")}</h1>
+          <h1 className="text-[40px] font-bold leading-tight">{t("today")}</h1>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-[17px] opacity-90">
             {fmtMonthDayWeekday(today)}
             {j.hasDemo && <span className="rounded-full bg-primary-foreground/15 px-2.5 py-0.5 text-sm">{t("home.example")}</span>}
@@ -116,9 +116,9 @@ function Tile({ title, icon, tone = "card", onClick, to, children, demo }: { tit
   const cls = cn("feel-panel press flex min-h-[176px] flex-col rounded-[24px] p-4 text-left shadow-soft", tone === "sage" ? "bg-secondary" : tone === "peach" ? "bg-accent" : "bg-card");
   const head = (
     <span className="flex items-center gap-2">
-      <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-full", tone === "card" ? "bg-secondary" : "bg-card/70")}>{icon}</span>
-      <span className="min-w-0 flex-1 truncate text-[17px] font-bold">{title}</span>
-      <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+      <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-full", tone === "card" ? "bg-secondary" : "bg-card/70")}>{icon}</span>
+      <span className="min-w-0 flex-1 break-keep text-[17px] font-bold leading-tight">{title}</span>
+      <ChevronRight className="hidden size-5 shrink-0 text-muted-foreground min-[400px]:block" />
     </span>
   );
   const body = <>{head}{demo && <span className="mt-1"><DemoTag show /></span>}{children}</>;
@@ -205,9 +205,9 @@ function MomentTile() {
   return (
     <div className="feel-panel flex min-h-[176px] flex-col rounded-[24px] bg-card p-4 shadow-soft">
       <Link to="/journey" className="press flex min-h-11 items-center gap-2">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-secondary"><ImageIcon className="size-5" /></span>
-        <span className="min-w-0 flex-1 truncate text-[17px] font-bold">{t("home.moment")}</span>
-        <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary"><ImageIcon className="size-5" /></span>
+        <span className="min-w-0 flex-1 break-keep text-[17px] font-bold leading-tight">{t("home.moment")}</span>
+        <ChevronRight className="hidden size-5 shrink-0 text-muted-foreground min-[400px]:block" />
       </Link>
       <div className="my-2 flex flex-1 items-center justify-center">
         {withPhoto?.photo ? <PhotoImg src={withPhoto.photo} className="h-16 w-24 rounded-[12px] object-cover" />
