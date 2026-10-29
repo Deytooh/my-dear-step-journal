@@ -2,6 +2,17 @@
 export type Locale = "ko" | "en" | "fr";
 
 const ko = {
+  "evidence.currency": "통화 코드 (KRW, USD 등)", "evidence.corrected": "직접 수정", "evidence.suggested": "모모 제안",
+  "evidence.stockLater": "차감하지 않아요. 저장 후 주사 수정에서 호환 재고를 직접 선택할 수 있어요.",
+  "evidence.receiptLater": "구매 초안 · 재고 추가 안 함. 저장 후 구매 수정에서 약·단위·수량을 확인하고 재고 추가를 선택할 수 있어요.",
+
+  "evidence.text": "글", "evidence.voice": "음성에서 옮긴 글", "evidence.photos": "사진", "evidence.mixed": "글 · 사진",
+  "evidence.proposed": "모모가 제안한 값이에요. 원문·사진과 비교해 확인해 주세요. 사진은 입력 자료이며 필드별 판독 근거가 보장되지는 않아요.",
+  "evidence.edit": "상세 보기 · 수정", "evidence.clarify": "날짜와 필수 값을 확인해 주세요. 모르는 약·용량·시간·부위는 비워 두세요.",
+  "evidence.localSaved": "이 기기에 저장했어요. 계정 저장 상태는 아래에서 확인해 주세요.",
+  "evidence.saveFailed": "이 기기에 저장하지 못했어요. 초안은 유지했어요. 저장 공간을 확인한 뒤 다시 저장해 주세요.",
+  "evidence.close": "닫기",
+
   "stock.adjustmentReview": "제품이나 단위가 바뀌어 적용하지 않은 재고 조정이 있어요. 구매 내역을 확인해 주세요.",
   "stock.provisional": "확인된 연결만 반영한 수량이에요. 이전 기록을 확인해 주세요.",
   "stock.product": "제품 · 규격",

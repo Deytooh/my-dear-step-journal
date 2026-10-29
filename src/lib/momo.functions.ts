@@ -9,7 +9,7 @@ Today's local date is {today}. Resolve relative dates ("오늘", "어제", "yest
 Return ONLY one JSON object, no prose, no markdown:
 {"reply": string, "candidates": [...]}
 "reply": one short warm sentence in the user's language. No medical advice. Never claim anything was saved: the user reviews first.
-Every candidate MUST include "quote": the exact words copied from the user's text (or "photo" + visible text) that justify it.
+For text-derived candidates, quote must be an exact substring of the input text. For photo-derived candidates quote must be null. Never invent quotations.
 Candidate shapes:
 - {"type":"weight","value":number(kg),"date","time","timeHint","quote"}
 - {"type":"injection","medication","doseValue","doseUnit","site","date","time","timeHint","quote"}
@@ -18,7 +18,7 @@ Candidate shapes:
 - {"type":"memory","note","date","quote"}
 - {"type":"expense","amount":number,"currency","merchant","product","quantity":number,"date","quote"} (receipts only)
 Rules:
-- Use null for anything not explicitly stated. Never guess medication, dose, site, quantity or time.
+- Use null for anything not explicitly stated. Never guess medication, dose, date, site, quantity or time. A missing date remains null.
 - "time" is HH:MM 24h only if an exact clock time is stated; otherwise null.
 - "timeHint" keeps approximate wording verbatim (e.g. "저녁", "this morning"), else null.
 - For receipts copy only legible values. A pharmacy payment does NOT prove a GLP-1 purchase: product null unless printed.

@@ -10,7 +10,10 @@ import { addDays, DEFAULT_TZ, instantFromLocal, localDateOf, todayLocal } from "
 export type Precision = "exact" | "date_only" | "part_of_day" | "unknown";
 export type PartOfDay = "morning" | "afternoon" | "evening" | "night";
 
+export type Evidence = { method: "text" | "voice" | "photos" | "mixed"; text: string; photos: string[]; quote: string | null; proposed: Record<string, string>; confirmed: Record<string, string> };
+
 type Base = {
+  evidence?: Evidence;
   id: string; localDate: string; precision: Precision; at: string | null; partOfDay?: PartOfDay | null;
   demo?: boolean; createdAt: string; source: "manual_text";
 };
@@ -26,8 +29,8 @@ export type JournalRecord = WeightRec | InjectionRec | ConditionRec | MemoryRec 
 export type Reminder = { id: string; at: string; demo?: boolean };
 export type StockUnit = "pen" | "single" | "dose";
 /** doses = quantity in stockUnit. addsStock false = expense only (never touches inventory). */
-export type Purchase = { id: string; localDate: string; amount: number; currency: "KRW"; doses: number; medication: string | null; demo?: boolean;
-  stockUnit?: StockUnit | null; addsStock?: boolean; merchant?: string | null; product?: string | null };
+export type Purchase = { id: string; localDate: string; amount: number; currency: string; doses: number; medication: string | null; demo?: boolean;
+  evidence?: Evidence; quantity?: number | null; stockUnit?: StockUnit | null; addsStock?: boolean; merchant?: string | null; product?: string | null };
 export type PromptId = "feel" | "water" | "memory" | "weight";
 export type PromptSettings = { hidden?: boolean; off?: PromptId[]; done?: Partial<Record<PromptId, string>> };
 
@@ -79,6 +82,8 @@ function demoState(): State {
 
 export type SyncStatus = "local" | "syncing" | "synced" | "error";
 type Ctx = State & {
+  saveMomoBatch: (records: JournalRecord[], purchases: Purchase[]) => void;
+  retrySync: () => void;
   ready: boolean;
   user: { id: string; email: string | null } | null;
   sync: SyncStatus;
@@ -114,9 +119,11 @@ export function JournalProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<{ id: string; email: string | null } | null>(null);
   const [sync, setSync] = useState<SyncStatus>("local");
+  const pendingMomo = useRef(new Set<string>());
   const synced = useRef<State | null>(null); // last state known to be in the cloud
   const pushing = useRef(false);
   const latest = useRef(state); latest.current = state;
+  const [loadRetry, setLoadRetry] = useState(0);
   const [bump, setBump] = useState(0);
 
   useEffect(() => {
@@ -127,7 +134,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     setReady(true);
     supabase.auth.getUser().then(({ data }) => data.user && setUser({ id: data.user.id, email: data.user.email ?? null }));
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT") { setUser(null); synced.current = null; setSync("local"); setState(demoState()); return; }
+      if (event === "SIGNED_OUT") { pendingMomo.current.clear(); setUser(null); synced.current = null; setSync("local"); setState(demoState()); return; }
       if (event === "SIGNED_IN" || event === "USER_UPDATED") {
         const u = session?.user; if (u) setUser((p) => (p?.id === u.id ? p : { id: u.id, email: u.email ?? null }));
       }
@@ -145,7 +152,15 @@ export function JournalProvider({ children }: { children: ReactNode }) {
       try {
         const cloud = await loadCloud();
         if (!live) return;
-        if (cloud) { synced.current = cloud; setState(cloud); }
+        if (cloud) {
+          const local = latest.current;
+          const merged = { ...cloud, records: [...cloud.records.filter((r) => !pendingMomo.current.has(r.id)), ...local.records.filter((r) => pendingMomo.current.has(r.id))], purchases: [...cloud.purchases.filter((p) => !pendingMomo.current.has(p.id)), ...local.purchases.filter((p) => pendingMomo.current.has(p.id))] };
+          synced.current = cloud;
+          setState(merged);
+          if (pendingMomo.current.size) await pushDiff(user.id, cloud, merged);
+          if (!live) return;
+          synced.current = merged;
+        }
         else {
           const local = JSON.parse(localStorage.getItem(KEY) ?? "null") as State | null ?? demoState();
           const empty: State = { records: [], purchases: [], reminder: null, stockAdjust: 0, settings: local.settings };
@@ -156,7 +171,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
       } catch (e) { console.error(e); if (live) setSync("error"); }
     })();
     return () => { live = false; };
-  }, [user, ready]);
+  }, [user, ready, loadRetry]);
 
   // Push every later change to the cloud (debounced).
   useEffect(() => {
@@ -192,6 +207,16 @@ export function JournalProvider({ children }: { children: ReactNode }) {
 
   setLocale(state.settings.locale ?? "ko");
   const value: Ctx = {
+    saveMomoBatch: (records, purchases) => {
+      const current = latest.current;
+      const next = { ...current, records: [...current.records, ...records.filter((r) => !current.records.some((x) => x.id === r.id))], purchases: [...current.purchases, ...purchases.filter((p) => !current.purchases.some((x) => x.id === p.id))] };
+      localStorage.setItem(KEY, JSON.stringify(next)); // fail before updating UI; caller retains drafts
+      for (const entry of [...records, ...purchases]) pendingMomo.current.add(entry.id);
+      latest.current = next;
+      setState(next);
+      if (user) setSync("syncing");
+    },
+    retrySync: () => { if (!synced.current) setLoadRetry((n) => n + 1); else setBump((b) => b + 1); },
     ...state, ready, user, sync, tz: state.settings.timezone,
     inventory: stockInventory, stockNeedsReview,
     stock: soleLot?.balance ?? 0,

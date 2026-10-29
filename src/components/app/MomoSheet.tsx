@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Mic, Square, X, LoaderCircle, ImagePlus, AlertTriangle, Undo2 } from "lucide-react";
+import { Scale, Syringe, Smile, Ruler, Image as ImageIcon, Receipt, Mic, Square, X, LoaderCircle, ImagePlus, AlertTriangle, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { extractWithMomo } from "@/lib/momo.functions";
@@ -34,6 +34,9 @@ async function shrink(file: File): Promise<string> {
 export function MomoSheet({ onDone, onManual }: { onDone: () => void; onManual: () => void }) {
   const j = useJournal();
   const extract = useServerFn(extractWithMomo);
+  const [usedVoice, setUsedVoice] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const saveGuard = useRef(false);
   const [text, setText] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -48,11 +51,35 @@ export function MomoSheet({ onDone, onManual }: { onDone: () => void; onManual: 
   const inflight = useRef(false);
   const cache = useRef<{ sig: string; drafts: Draft[]; reply: string } | null>(null);
   const today = todayLocal(j.tz);
+  const recoveryKey = `mds.momo.draft.${j.user?.id ?? "guest"}`;
+  const [recoveredKey, setRecoveredKey] = useState<string | null>(null);
+  useEffect(() => {
+    setText(""); setImages([]); setDrafts(null); setStep("input"); setSaved(false); setUsedVoice(false); cache.current = null;
+    try {
+      const raw = sessionStorage.getItem(recoveryKey);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (typeof data.text === "string" && Array.isArray(data.images) && data.images.every((x: unknown) => typeof x === "string") && Array.isArray(data.drafts) && data.drafts.every((d: Draft) => d && d.type in FIELDS && typeof d.key === "string" && d.f && Object.values(d.f).every((v) => typeof v === "string"))) {
+          setText(data.text); setImages(data.images); setDrafts(data.drafts); setUsedVoice(!!data.usedVoice); setStep("review");
+        }
+      }
+    } catch { /* Recovery is best effort; never block manual recording. */ }
+    setRecoveredKey(recoveryKey);
+  }, [recoveryKey]);
+  useEffect(() => {
+    if (recoveredKey !== recoveryKey) return;
+    try {
+      if (saved) sessionStorage.removeItem(recoveryKey);
+      else if (drafts) sessionStorage.setItem(recoveryKey, JSON.stringify({ text, images, drafts, usedVoice }));
+    } catch { /* Keep the editable draft in memory if browser storage is full. */ }
+  }, [drafts, text, images, usedVoice, saved, recoveryKey, recoveredKey]);
+
 
   const startMic = () => {
     const W = window as unknown as { SpeechRecognition?: new () => SR; webkitSpeechRecognition?: new () => SR };
     const Ctor = W.SpeechRecognition ?? W.webkitSpeechRecognition;
     if (!Ctor) { toast(t("momo.noMic")); return; }
+    setUsedVoice(true);
     const r = new Ctor();
     r.lang = ({ ko: "ko-KR", en: "en-US", fr: "fr-FR" })[getLocale()];
     r.interimResults = false; r.continuous = true;
@@ -74,14 +101,14 @@ export function MomoSheet({ onDone, onManual }: { onDone: () => void; onManual: 
 
   const run = async () => {
     if (inflight.current || (!text.trim() && !images.length)) return;
-    const sig = JSON.stringify([text.trim(), images.map((i) => i.length + i.slice(-32))]);
+    const sig = JSON.stringify([text, images]);
     // Repeating the same request reuses the previous result instead of asking again.
     if (cache.current?.sig === sig) { setDrafts(cache.current.drafts); setReply(cache.current.reply); setStep("review"); return; }
     inflight.current = true; setBusy(true); setFailure(null);
     try {
       const res = await extract({ data: { text: text.trim(), today, images } });
       if (res.error) { setFailure(res.error === "not_configured" ? t("voice.unavailable") : res.error === "parse" ? t("momo.parse") : t("momo.error")); return; }
-      const ds = res.candidates.map((c, i) => candidateToDraft(c, `${Date.now()}-${i}`, today));
+      const ds = res.candidates.map((c, i) => candidateToDraft(c, `${j.newId()}-${i}`, today, { method: images.length && text ? "mixed" : images.length ? "photos" : usedVoice ? "voice" : "text", text, photos: [...images] }));
       cache.current = { sig, drafts: ds, reply: res.reply };
       setReply(res.reply); setDrafts(ds); setStep("review");
     } catch { setFailure(t("momo.error")); } finally { inflight.current = false; setBusy(false); }
@@ -95,22 +122,30 @@ export function MomoSheet({ onDone, onManual }: { onDone: () => void; onManual: 
 
   const goFinal = () => {
     if (invalid.length) { toast.error(t("momo.invalid")); return; }
-    // Pre-exclude likely duplicates; the user can include them again.
-    setDrafts((ds) => ds?.map((d) => (d.on && isDuplicate(draftToEntry(d, d.key, j.tz, today), j.records, j.purchases) ? { ...d, on: false, dup: true } : d)) ?? null);
+    // Include earlier cards in the comparison as well as saved entries.
+    const seenRecords = [...j.records]; const seenPurchases = [...j.purchases];
+    setDrafts((ds) => ds?.map((d) => {
+      const e = draftToEntry(d, d.key, j.tz, today);
+      const dup = d.on && isDuplicate(e, seenRecords, seenPurchases);
+      if (d.on && "record" in e) seenRecords.push(e.record);
+      if (d.on && "purchase" in e) seenPurchases.push(e.purchase);
+      return dup ? { ...d, on: false, dup: true } : d;
+    }) ?? null);
     setStep("final");
   };
 
   const confirm = () => {
-    if (saving || !entries.length || invalid.length) return;
-    setSaving(true);
+    if (saveGuard.current || saved || !entries.length || invalid.length) return;
+    saveGuard.current = true;
+    setSaving(true); setFailure(null);
     try {
-      const before = j.snapshot();
-      for (const { e } of entries) { if ("record" in e) j.saveRecord(e.record); else if ("purchase" in e) j.savePurchase(e.purchase); }
+      const records = entries.flatMap(({ e }) => "record" in e ? [e.record] : []);
+      const purchases = entries.flatMap(({ e }) => "purchase" in e ? [e.purchase] : []);
+      j.saveMomoBatch(records, purchases);
       celebrateSave();
-      toast.success(t("momo.saved", { n: entries.length }), { action: { label: t("toast.undo"), onClick: () => j.restoreSnapshot(before) } });
-      cache.current = null;
-      onDone();
-    } catch { setSaving(false); toast.error(t("sync.error")); }
+      setSaved(true);
+    } catch { setFailure(t("evidence.saveFailed")); }
+    finally { saveGuard.current = false; setSaving(false); }
   };
 
   return (
@@ -118,7 +153,12 @@ export function MomoSheet({ onDone, onManual }: { onDone: () => void; onManual: 
       <DrawerTitle className="text-[24px] font-bold">{step === "final" ? t("momo.final") : t("voice.all")}</DrawerTitle>
       <DrawerDescription className="text-[15px] text-muted-foreground">{step === "final" ? t("momo.finalSub") : t("momo.hint")}</DrawerDescription>
 
-      {step === "input" && (
+      {saved && <div role="status" className="rounded-[20px] bg-secondary p-4 space-y-3">
+        <p>{t("evidence.localSaved")}</p><p>{t(`sync.${j.sync}`)}</p>
+        {j.sync === "error" && <Button onClick={j.retrySync}>{t("momo.retry")}</Button>}
+        <Button onClick={onDone}>{t("evidence.close")}</Button>
+      </div>}
+      {step === "input" && !saved && (
         <>
           <div>
             <textarea aria-label={t("momo.input")} value={text} onChange={(e) => setText(e.target.value)} rows={4} maxLength={4000}
@@ -135,7 +175,7 @@ export function MomoSheet({ onDone, onManual }: { onDone: () => void; onManual: 
                 <Button variant="unstyled" size="unstyled" type="button" onClick={startMic} className="press flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-secondary text-[15px] font-medium"><Mic className="size-5" />{t("momo.speak")}</Button>
                 <label className={cn("press flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-secondary text-[15px] font-medium focus-within:ring-2 focus-within:ring-ring", images.length >= 3 && "pointer-events-none opacity-50")}>
                   <ImagePlus className="size-5" />{t("momo.photos")}
-                  <input type="file" accept="image/png,image/jpeg,image/webp" multiple className="sr-only" disabled={images.length >= 3} onChange={(e) => { addPhotos(e.target.files); e.target.value = ""; }} />
+                  <input type="file" accept="image/png,image/jpeg,image/webp" multiple className="sr-only" disabled={images.length >= 3} onChange={(e) => { addPhotos(e.target.files).catch(() => setFailure(t("momo.error"))); e.target.value = ""; }} />
                 </label>
               </div>
             )}
@@ -172,14 +212,14 @@ export function MomoSheet({ onDone, onManual }: { onDone: () => void; onManual: 
         </>
       )}
 
-      {step === "review" && drafts && (
+      {step === "review" && !saved && drafts && (
         <>
           {reply && <p className="rounded-[20px] bg-accent p-4 text-[15px]">{reply}</p>}
           <p className="text-[15px] font-semibold">{t("momo.review")}</p>
           {drafts.length === 0 && <p className="text-[15px] text-muted-foreground">{t("momo.none")}</p>}
           <ul className="feel-list space-y-3">
             {drafts.map((d) => <DraftCard key={d.key} d={d} onChange={(p) => update(d.key, p)} onRemove={() => setDrafts(drafts.filter((x) => x.key !== d.key))}
-              error={entries.find((x) => x.d.key === d.key && "error" in x.e) ? t("momo.invalid") : null} />)}
+              error={entries.find((x) => x.d.key === d.key && "error" in x.e) ? t("evidence.clarify") : null} />)}
           </ul>
           <div className="flex gap-2">
             <Button variant="unstyled" size="unstyled" onClick={() => setStep("input")} className="press flex h-12 flex-1 items-center justify-center gap-1 rounded-full border"><Undo2 className="size-4" />{t("momo.original")}</Button>
@@ -188,7 +228,7 @@ export function MomoSheet({ onDone, onManual }: { onDone: () => void; onManual: 
         </>
       )}
 
-      {step === "final" && drafts && (
+      {step === "final" && !saved && drafts && (
         <>
           <ul className="space-y-2">
             {drafts.map((d) => {
@@ -207,12 +247,13 @@ export function MomoSheet({ onDone, onManual }: { onDone: () => void; onManual: 
                   </div>
                   {dup && <p className="text-sm text-destructive">{t("momo.dup")}</p>}
                   <p className="text-[15px] text-muted-foreground">{FIELDS[d.type].map((f) => `${t(f.label as Key)}: ${d.f[f.k] || (f.kind === "time" ? t("unknown") : t("missing"))}`).join(" · ")}</p>
-                  {d.type === "injection" && <p className="mt-1 text-sm text-muted-foreground">{t("stock.move")}: {t("stock.none")}</p>}
-                  {d.type === "expense" && <p className="mt-1 text-sm text-muted-foreground">{t("stock.move")}: {t("f.expenseOnly")}</p>}
+                  {d.type === "injection" && <p className="mt-1 text-sm text-muted-foreground">{t("stock.move")}: {t("evidence.stockLater")}</p>}
+                  {d.type === "expense" && <p className="mt-1 text-sm text-muted-foreground">{t("stock.move")}: {t("evidence.receiptLater")}</p>}
                 </li>
               );
             })}
           </ul>
+          {failure && <p role="alert">{failure}</p>}
           <div className="flex gap-2">
             <Button variant="unstyled" size="unstyled" onClick={() => setStep("review")} className="press h-12 flex-1 rounded-full border">{t("momo.back")}</Button>
             <Button variant="unstyled" size="unstyled" onClick={confirm} disabled={saving || !entries.length} className="press h-12 flex-[1.4] rounded-full bg-primary font-semibold text-primary-foreground disabled:opacity-50">
@@ -227,10 +268,12 @@ export function MomoSheet({ onDone, onManual }: { onDone: () => void; onManual: 
 
 function DraftCard({ d, onChange, onRemove, error }: { d: Draft; onChange: (p: Partial<Draft>) => void; onRemove: () => void; error: string | null }) {
   const miss = missingFields(d);
+  const [expanded, setExpanded] = useState(false);
+  const Icon = { weight: Scale, injection: Syringe, condition: Smile, measure: Ruler, memory: ImageIcon, expense: Receipt }[d.type];
   return (
     <li className={cn("rounded-[20px] border bg-card p-4", d.on ? "border-primary" : "opacity-60")}>
       <div className="flex items-center justify-between gap-2">
-        <span className="rounded-full bg-secondary px-3 py-1 text-sm font-semibold">{typeLabel(d.type)}</span>
+        <span className="flex items-center gap-2 rounded-full bg-secondary px-3 py-1 text-sm font-semibold"><Icon className="size-5" />{typeLabel(d.type)}</span>
         <div className="flex items-center gap-1">
           <label className="flex min-h-11 items-center gap-2 px-2 text-sm">
             <input type="checkbox" className="size-5 accent-[var(--color-primary)]" checked={d.on} onChange={(e) => onChange({ on: e.target.checked })} />
@@ -239,14 +282,18 @@ function DraftCard({ d, onChange, onRemove, error }: { d: Draft; onChange: (p: P
           <Button variant="unstyled" size="unstyled" onClick={onRemove} className="press min-h-11 rounded-full px-3 text-sm text-muted-foreground">{t("momo.remove")}</Button>
         </div>
       </div>
-      {d.on && (
+      <p className="mt-2 text-[18px] font-bold">{d.f["value"] || d.f["medication"] || d.f["label"] || d.f["amount"] || d.f["note"] || t("unknown")}</p>
+      <p className="text-sm">{d.f["date"] || t("evidence.clarify")}</p>
+      <Button variant="unstyled" size="unstyled" className="min-h-11 underline" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{t("evidence.edit")}</Button>
+      <p className="text-sm text-muted-foreground">{t("evidence.proposed")}</p>
+      {d.on && expanded && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           {FIELDS[d.type].map((f) => (
             f.k === "medication" ? <div key={f.k} className="col-span-2">
               <span className="mb-1 block text-sm font-medium">{t(f.label as Key)}</span>
               <MedicationPicker value={d.f[f.k] ?? ""} onChange={(value) => onChange({ f: { ...d.f, [f.k]: value } })} />
             </div> : <label key={f.k} className={cn("block", (f.kind === "text" && f.k === "note") && "col-span-2")}>
-              <span className="mb-1 block text-sm font-medium">{t(f.label as Key)}</span>
+              <span className="mb-1 block text-sm font-medium">{t(f.label as Key)} · {t(d.evidence && d.f[f.k] !== d.evidence.proposed[f.k] ? "evidence.corrected" : "evidence.suggested")}</span>
               <input className={inputCls} type={f.kind === "date" ? "date" : f.kind === "time" ? "time" : "text"} inputMode={f.kind === "num" ? "decimal" : undefined}
                 value={d.f[f.k] ?? ""} placeholder={f.kind === "time" ? t("unknown") : t("missing")} onChange={(e) => onChange({ f: { ...d.f, [f.k]: e.target.value } })} />
             </label>
@@ -255,7 +302,7 @@ function DraftCard({ d, onChange, onRemove, error }: { d: Draft; onChange: (p: P
       )}
       {d.timeHint && <p className="mt-2 text-sm"><span className="font-medium">{t("momo.timeHint")}:</span> “{d.timeHint}”</p>}
       {miss.length > 0 && <p className="mt-1 text-sm text-muted-foreground"><span className="font-medium">{t("momo.missingL")}:</span> {miss.map((k) => t(FIELDS[d.type].find((f) => f.k === k)!.label as Key)).join(", ")}</p>}
-      {d.type === "injection" && <p className="mt-1 text-sm text-muted-foreground">{t("stock.move")}: {t("stock.none")}</p>}
+      {d.type === "injection" && <p className="mt-1 text-sm text-muted-foreground">{t("stock.move")}: {t("evidence.stockLater")}</p>}
       {d.quote && <blockquote className="mt-2 border-l-4 border-primary/40 pl-3 text-sm text-muted-foreground"><span className="font-medium">{t("momo.source")}:</span> “{d.quote}”</blockquote>}
       {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
     </li>

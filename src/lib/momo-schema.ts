@@ -25,7 +25,7 @@ export function sanitizeCandidates(raw: unknown[], sourceText: string): MomoCand
     const c = r as Record<string, unknown>;
     let quote = str(c["quote"], 300);
     // A quote must come from the user's words (or describe a photo); otherwise drop it rather than show invented evidence.
-    if (quote && !sourceText.includes(quote) && !/photo|사진|receipt|영수증/i.test(quote)) quote = null;
+    if (quote && !sourceText.includes(quote)) quote = null;
     const common = { date: date(c["date"]), quote };
     switch (c["type"]) {
       case "weight": out.push({ ...common, type: "weight", value: num(c["value"]), time: time(c["time"]), timeHint: str(c["timeHint"], 40) }); break;

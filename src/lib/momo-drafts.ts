@@ -1,12 +1,12 @@
 // Editable Momo drafts. Model output never becomes a record until the user confirms a draft.
 import type { MomoCandidate } from "./momo-schema";
-import type { JournalRecord, PartOfDay, Purchase } from "./journal";
+import type { Evidence, JournalRecord, PartOfDay, Purchase } from "./journal";
 import { instantFromLocal } from "./dates";
 
 export type DraftType = MomoCandidate["type"];
 export type FieldKind = "text" | "num" | "date" | "time";
 export type FieldDef = { k: string; label: string; kind: FieldKind; important?: boolean };
-export type Draft = { key: string; type: DraftType; on: boolean; dup?: boolean; quote: string | null; timeHint: string | null; f: Record<string, string> };
+export type Draft = { evidence?: Evidence; key: string; type: DraftType; on: boolean; dup?: boolean; quote: string | null; timeHint: string | null; f: Record<string, string> };
 
 export const FIELDS: Record<DraftType, FieldDef[]> = {
   weight: [{ k: "value", label: "f.value", kind: "num", important: true }, { k: "date", label: "f.date", kind: "date" }, { k: "time", label: "f.time", kind: "time", important: true }],
@@ -19,18 +19,18 @@ export const FIELDS: Record<DraftType, FieldDef[]> = {
   measure: [{ k: "waist", label: "f.waist", kind: "num" }, { k: "hip", label: "f.hip", kind: "num" }, { k: "chest", label: "f.chest", kind: "num" }, { k: "thigh", label: "f.thigh", kind: "num" }, { k: "date", label: "f.date", kind: "date" }],
   memory: [{ k: "note", label: "f.note", kind: "text", important: true }, { k: "date", label: "f.date", kind: "date" }],
   expense: [
-    { k: "amount", label: "f.amount", kind: "num", important: true }, { k: "merchant", label: "f.merchant", kind: "text", important: true },
+    { k: "currency", label: "evidence.currency", kind: "text", important: true }, { k: "amount", label: "f.amount", kind: "num", important: true }, { k: "merchant", label: "f.merchant", kind: "text", important: true },
     { k: "product", label: "f.product", kind: "text", important: true }, { k: "quantity", label: "f.quantity", kind: "num" }, { k: "date", label: "f.date", kind: "date", important: true },
   ],
 };
 
 const s = (v: unknown) => (v == null ? "" : String(v));
 
-export function candidateToDraft(c: MomoCandidate, key: string, today: string): Draft {
+export function candidateToDraft(c: MomoCandidate, key: string, today: string, input?: Pick<Evidence, "method" | "text" | "photos">): Draft {
   const f: Record<string, string> = {};
   const rec = c as unknown as Record<string, unknown>;
-  for (const def of FIELDS[c.type]) f[def.k] = def.k === "date" ? s(rec["date"]) || (c.type === "expense" ? "" : today) : s(rec[def.k]);
-  return { key, type: c.type, on: true, quote: c.quote, timeHint: "timeHint" in c ? c.timeHint : null, f };
+  for (const def of FIELDS[c.type]) f[def.k] = def.k === "date" ? s(rec["date"]) : s(rec[def.k]);
+  return { ...(input ? { evidence: { ...input, quote: c.quote && input.text.includes(c.quote) ? c.quote : null, proposed: { ...f }, confirmed: {} } } : {}), key, type: c.type, on: true, quote: c.quote, timeHint: "timeHint" in c ? c.timeHint : null, f };
 }
 
 export const missingFields = (d: Draft) => FIELDS[d.type].filter((x) => x.important && !d.f[x.k]?.trim()).map((x) => x.k);
@@ -47,13 +47,18 @@ export type Entry = { record: JournalRecord } | { purchase: Purchase } | { error
 
 export function draftToEntry(d: Draft, id: string, tz: string, today: string): Entry {
   const f = d.f;
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(f["date"] ?? "") ? f["date"]! : d.type === "expense" ? "" : today;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(f["date"] ?? "") ? f["date"]! : "";
   const time = /^\d{2}:\d{2}$/.test(f["time"] ?? "") ? f["time"]! : null;
   const pod = time ? null : partOfDayFromHint(d.timeHint);
-  const base = { id, localDate: date, createdAt: new Date().toISOString(), source: "manual_text" as const,
+  if (f["date"] && (!date || Number.isNaN(Date.parse(date)) || new Date(date).toISOString().slice(0, 10) !== date)) return { error: "date" };
+  if (f["time"] && !/^([01]\d|2[0-3]):[0-5]\d$/.test(f["time"])) return { error: "time" };
+  const evidence = d.evidence ? { ...d.evidence, confirmed: { ...f } } : undefined;
+  const base = { ...(evidence ? { evidence } : {}), id, localDate: date, createdAt: new Date().toISOString(), source: "manual_text" as const,
     precision: time ? ("exact" as const) : pod ? ("part_of_day" as const) : ("date_only" as const),
     at: time ? instantFromLocal(date, time, tz) : null, partOfDay: pod };
   const bad = (k: string) => ({ error: k });
+  // The journal requires a calendar day: ask for it rather than silently using today.
+  if (!date) return bad("date");
   switch (d.type) {
     case "weight": { const v = n(f["value"]); if (v == null || Number.isNaN(v) || v < 20 || v > 400) return bad("value"); return { record: { ...base, type: "weight", value: Math.round(v * 10) / 10, unit: "kg" } }; }
     case "injection": {
@@ -71,9 +76,10 @@ export function draftToEntry(d: Draft, id: string, tz: string, today: string): E
     case "expense": {
       const a = n(f["amount"]); if (a == null || Number.isNaN(a) || a <= 0) return bad("amount");
       if (!date) return bad("date");
+      if (!/^[A-Z]{3}$/.test(f["currency"] ?? "")) return bad("currency");
       const q = n(f["quantity"]); if (Number.isNaN(q)) return bad("quantity");
       // Receipts are recorded as expenses only; inventory is never changed from a photo.
-      return { purchase: { id, localDate: date, amount: Math.round(a), currency: "KRW", doses: 0, medication: null, product: f["product"]?.trim() || null,
+      return { purchase: { ...(evidence ? { evidence } : {}), quantity: q, id, localDate: date, amount: Math.round(a), currency: f["currency"]!, doses: 0, medication: null, product: f["product"]?.trim() || null,
         merchant: f["merchant"]?.trim() || null, stockUnit: null, addsStock: false } };
     }
   }

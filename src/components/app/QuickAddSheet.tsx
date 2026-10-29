@@ -1,3 +1,4 @@
+import { SourceEvidence } from "./SourceEvidence";
 import { lotIdentity, matchesLot } from "@/lib/inventory";
 import { Button } from "@/components/ui/button";
 import { PhotoImg } from "@/components/app/PhotoImg";
@@ -156,6 +157,7 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
   };
 
   const base = () => ({
+    ...(rec?.evidence ? { evidence: rec.evidence } : {}),
     ...(rec?.demo ? { demo: true } : {}),
     id: rec?.id ?? j.newId(), localDate: date, createdAt: rec?.createdAt ?? new Date().toISOString(), source: "manual_text" as const,
     precision: timeKnown ? ("exact" as const) : rec && rec.precision !== "exact" ? rec.precision : ("date_only" as const),
@@ -195,7 +197,7 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
       if (!a) return setErr("금액을 확인해 주세요.");
       if (hasQty && (!Number.isInteger(n) || n <= 0)) return setErr("수량은 1 이상의 정수로 입력하거나 비워 두세요.");
       const stockOn = hasQty && addsStock;
-      j.savePurchase({ id: pur?.id ?? j.newId(), localDate: date, amount: a, currency: "KRW", doses: stockOn ? n : 0, medication: med.trim() || null,
+      j.savePurchase({ ...(pur?.evidence ? { evidence: pur.evidence } : {}), ...(pur?.quantity != null ? { quantity: pur.quantity } : {}), id: pur?.id ?? j.newId(), localDate: date, amount: a, currency: pur?.currency ?? "KRW", doses: stockOn ? n : 0, medication: med.trim() || null,
         product: product.trim() || null, stockUnit: hasQty ? unit || null : null, addsStock: stockOn, merchant: merchant.trim() || null, ...(pur?.demo ? { demo: true } : {}) });
     } else if (kind === "reminder") {
       j.setReminder(instantFromLocal(remDate, remTime, tz));
@@ -227,6 +229,7 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
   return (
     <form onSubmit={(e) => { e.preventDefault(); save(); }} className="feel-form space-y-5">
       <DrawerTitle className="text-[24px] font-bold">{titles[kind]}{editing && " 수정"}</DrawerTitle>
+      {(rec?.evidence ?? pur?.evidence) && <SourceEvidence evidence={(rec?.evidence ?? pur?.evidence)!} />}
       <DrawerDescription className="sr-only">{titles[kind]}</DrawerDescription>
 
       {kind === "weight" && (
