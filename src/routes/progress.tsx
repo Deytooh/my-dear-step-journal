@@ -103,7 +103,7 @@ function Progress() {
                       <YAxis width={CHART_L} domain={["dataMin - 0.5", "dataMax + 0.5"]} tickFormatter={(v: number) => fmtNumber(v)} tick={{ fontSize: 13, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} tickCount={4} />
                       <Tooltip formatter={(v: number) => [`${fmtNumber(v)} kg`, t("type.weight")]} labelFormatter={(v) => fmtMonthDay(new Date(Number(v)).toISOString().slice(0, 10))} contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)" }} />
                       <Area type="monotone" dataKey="v" stroke="var(--color-primary)" strokeWidth={2} fill="url(#wf)" dot={{ r: 3.5, fill: "var(--color-primary)" }} isAnimationActive={!reducedMotion} animationDuration={700} animationEasing="ease-out">
-                        {data.length <= 12 && <LabelList dataKey="v" position="top" formatter={(v: number) => fmtNumber(v)} style={{ fontSize: 12, fill: "var(--color-foreground)" }} />}
+                        {data.length <= 8 && <LabelList dataKey="v" position="top" formatter={(v: number) => fmtNumber(v)} style={{ fontSize: 12, fill: "var(--color-foreground)" }} />}
                       </Area>
                     </AreaChart>
                   </ResponsiveContainer>
