@@ -36,7 +36,7 @@ function CalendarPage() {
   const recordDays = new Set(j.records.map((r) => r.localDate));
   const reminderDay = j.reminder ? localDateOf(j.reminder.at, j.tz) : null;
   const shift = (n: number) => setYm(({ y, m }) => { const mm = m + n; return { y: y + Math.floor((mm - 1) / 12), m: ((mm - 1 + 12) % 12) + 1 }; });
-  const dayRecords = j.records.filter((r) => r.localDate === sel).sort(sortByTime).reverse();
+  const dayRecords = j.records.filter((r) => r.localDate === sel).sort(sortByTime);
 
   return (
     <div>

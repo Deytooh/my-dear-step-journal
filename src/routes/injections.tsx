@@ -43,10 +43,18 @@ function Injections() {
           <IconBubble><Package className="size-6" /></IconBubble>
           <div className="flex-1">
             <div className="text-sm text-muted-foreground">{t("inv.left")}</div>
-            <div className="text-[32px] font-bold leading-none"><AnimatedValue value={j.stock} digits={0} />{t("inv.unit")}</div>
+            {j.inventory.lots.map((l) => <div key={l.id} className="mt-2 text-[17px] font-bold">{l.medication} {l.product}<DemoTag show={l.demo} /> · {fmtMonthDay(l.localDate)} · {l.id.slice(-6)}<div><AnimatedValue value={l.balance} digits={0} /> {t(`unit.${l.unit}`)}</div></div>)}
+            {!j.inventory.lots.length && <p>{t("home.stockUnknown")}</p>}
           </div>
           <Button variant="unstyled" size="unstyled" onClick={() => open("stock")} className="press h-11 rounded-full border border-primary px-4 text-[15px]">{t("inv.edit")}</Button>
         </div>
+        {j.stockNeedsReview && <p className="mt-3 text-sm">{t("stock.provisional")}</p>}
+        {j.inventory.unresolved.length > 0 && <p className="mt-3">{t("stock.unlinked", { n: j.inventory.unresolved.length })}</p>}
+        {j.inventory.unresolved.map((r) => <Button key={r.id} variant="unstyled" size="unstyled" className="block min-h-11 underline" onClick={() => open("injection", r)}>{fmtMonthDay(r.localDate)} · {r.medication ?? t("stock.unknownMed")}</Button>)}
+        {j.inventory.unresolvedAdjustments.length > 0 && <p>{t("stock.adjustmentReview")}</p>}
+        {j.inventory.unresolvedPurchases.length > 0 && <p>{t("stock.purchaseReview", { n: j.inventory.unresolvedPurchases.length })}</p>}
+        {j.inventory.unresolvedPurchases.map((p) => <Button key={p.id} variant="unstyled" size="unstyled" className="block min-h-11 underline" onClick={() => open("purchase", p)}>{fmtMonthDay(p.localDate)} · {p.medication ?? t("stock.unknownMed")}</Button>)}
+        {j.stockAdjust !== 0 && !j.settings.legacyAdjustmentConfirmed && <div className="mt-3"><p>{t("stock.legacyAdjustment", { n: j.stockAdjust })}</p><Button variant="unstyled" size="unstyled" className="min-h-11 underline" onClick={j.confirmLegacyAdjustment}>{t("stock.confirmAdjustment")}</Button></div>}
         <div className="my-4 h-px bg-border" />
         <NextReminder variant="plain" />
       </Card>
@@ -105,7 +113,7 @@ function Injections() {
                 <div className="flex-1">
                   <div className="text-sm text-muted-foreground">{fmtMonthDayWeekday(p.localDate)}<DemoTag show={p.demo} /></div>
                   <div className="text-[19px] font-bold">{fmtMoney(p.amount, p.currency)}</div>
-                  <div className="text-sm text-muted-foreground">{p.medication ?? "약 이름 미입력"} · {p.doses}{t("inv.unit")}</div>
+                  <div className="text-sm text-muted-foreground">{p.medication ?? "약 이름 미입력"} · {p.doses} {p.stockUnit ? t(`unit.${p.stockUnit}`) : t("stock.review")}</div>
                 </div>
                 <Pencil className="size-5 text-muted-foreground" />
               </Button>

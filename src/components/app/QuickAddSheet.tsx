@@ -1,3 +1,4 @@
+import { lotIdentity, matchesLot } from "@/lib/inventory";
 import { Button } from "@/components/ui/button";
 import { PhotoImg } from "@/components/app/PhotoImg";
 import { useEffect, useState, type ReactNode } from "react";
@@ -124,9 +125,12 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
   const [doseUnit, setDoseUnit] = useState(rec?.type === "injection" ? rec.doseUnit ?? "mg" : "mg");
   const [site, setSite] = useState<string | null>(rec?.type === "injection" ? rec.site : null);
   const [useStock, setUseStock] = useState(rec?.type === "injection" ? rec.usedStock : false);
+  const [lotId, setLotId] = useState(rec?.type === "injection" ? rec.stockPurchaseId ?? "" : "");
+  const selectedLot = j.inventory.lots.find((l) => l.id === lotId);
   const [water, setWater] = useState<"yes" | "not_yet">(rec?.type === "water" ? rec.answer : "yes");
-  const [unit, setUnit] = useState<StockUnit>(pur?.stockUnit ?? (pur ? "dose" : "single"));
+  const [unit, setUnit] = useState<StockUnit | "">(pur?.stockUnit ?? (pur ? "" : "single"));
   const [addsStock, setAddsStock] = useState(pur ? pur.addsStock !== false : true);
+  const [product, setProduct] = useState(pur?.product ?? "");
   const [merchant, setMerchant] = useState(pur?.merchant ?? "");
   const [feel, setFeel] = useState(rec?.type === "condition" ? rec.label : t("feel.calm"));
   const [note, setNote] = useState(rec?.type === "condition" ? rec.note ?? "" : rec?.type === "memory" ? rec.note : "");
@@ -135,14 +139,14 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
   const [doses, setDoses] = useState(pur && pur.addsStock !== false ? String(pur.doses) : "");
   const [remDate, setRemDate] = useState(j.reminder ? localDateOf(j.reminder.at, tz) : todayLocal(tz));
   const [remTime, setRemTime] = useState(j.reminder ? timeOf(j.reminder.at, tz) : "20:00");
-  const [stock, setStock] = useState(String(j.stock));
+  const [stock, setStock] = useState("");
   const [meas, setMeas] = useState(() => {
     const m = rec?.type === "measure" ? rec : null;
     const f = (v: number | null | undefined) => (v != null ? String(v) : "");
     return { waist: f(m?.waist), hip: f(m?.hip), chest: f(m?.chest), thigh: f(m?.thigh) };
   });
   const [err, setErr] = useState<string | null>(null);
-  const stockOk = kind === "injection" && j.hasStock && canDeduct(j.stockUnit) && !!med.trim() && (!j.stockMedication || j.stockMedication.trim().toLowerCase() === med.trim().toLowerCase());
+  const stockOk = kind === "injection" && !!selectedLot && canDeduct(selectedLot.unit) && med.trim() === selectedLot.medication;
 
   useEffect(() => setErr(null), [weight, amount, doses]);
 
@@ -152,9 +156,10 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
   };
 
   const base = () => ({
+    ...(rec?.demo ? { demo: true } : {}),
     id: rec?.id ?? j.newId(), localDate: date, createdAt: rec?.createdAt ?? new Date().toISOString(), source: "manual_text" as const,
-    precision: timeKnown ? ("exact" as const) : ("date_only" as const),
-    at: timeKnown ? instantFromLocal(date, time, tz) : null, partOfDay: null as PartOfDay | null,
+    precision: timeKnown ? ("exact" as const) : rec && rec.precision !== "exact" ? rec.precision : ("date_only" as const),
+    at: timeKnown ? instantFromLocal(date, time, tz) : null, partOfDay: !timeKnown ? rec?.partOfDay ?? null : null as PartOfDay | null,
   });
 
   const save = () => {
@@ -166,7 +171,8 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
     } else if (kind === "injection") {
       const dv = dose ? Number(dose.replace(",", ".")) : null;
       if (dose && !Number.isFinite(dv)) return setErr("용량은 숫자로 입력해 주세요.");
-      j.saveRecord({ ...base(), type: "injection", medication: med.trim() || null, doseValue: dv, doseUnit: dv != null ? doseUnit : null, site, usedStock: stockOk ? useStock : (rec?.type === "injection" ? rec.usedStock && useStock : false) });
+      if (useStock && !stockOk) return setErr(t("stock.choose"));
+      j.saveRecord({ ...base(), type: "injection", medication: med.trim() || null, doseValue: dv, doseUnit: dv != null ? doseUnit : null, site, usedStock: useStock, stockPurchaseId: useStock ? lotId : null, stockIdentity: useStock && selectedLot ? lotIdentity(selectedLot) : null });
     } else if (kind === "water") {
       j.saveRecord({ ...base(), type: "water", answer: water });
     } else if (kind === "condition") {
@@ -190,13 +196,14 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
       if (hasQty && (!Number.isInteger(n) || n <= 0)) return setErr("수량은 1 이상의 정수로 입력하거나 비워 두세요.");
       const stockOn = hasQty && addsStock;
       j.savePurchase({ id: pur?.id ?? j.newId(), localDate: date, amount: a, currency: "KRW", doses: stockOn ? n : 0, medication: med.trim() || null,
-        stockUnit: hasQty ? unit : null, addsStock: stockOn, merchant: merchant.trim() || null, ...(pur?.demo ? { demo: true } : {}) });
+        product: product.trim() || null, stockUnit: hasQty ? unit || null : null, addsStock: stockOn, merchant: merchant.trim() || null, ...(pur?.demo ? { demo: true } : {}) });
     } else if (kind === "reminder") {
       j.setReminder(instantFromLocal(remDate, remTime, tz));
     } else if (kind === "stock") {
       const n = Number(stock);
-      if (!Number.isInteger(n) || n < 0) return setErr("0 이상의 정수를 입력해 주세요.");
-      j.setStock(n);
+      if (!stock.trim() || !Number.isInteger(n) || n < 0) return setErr("0 이상의 정수를 입력해 주세요.");
+      if (!selectedLot) return setErr(t("stock.choose"));
+      j.setStock(n, selectedLot.id);
     }
     celebrateSave();
     toast.success(t("toast.saved"), { action: { label: t("toast.undo"), onClick: () => j.restoreSnapshot(before) } });
@@ -249,7 +256,13 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
             <span className="mb-1.5 block text-sm font-medium">{t("f.site")} <span className="text-muted-foreground">({t("f.optional")})</span></span>
             <SitePicker value={site} onChange={setSite} />
           </div>
-          <StockMove med={med} on={useStock} setOn={setUseStock} ok={stockOk} wasUsed={rec?.type === "injection" && rec.usedStock} />
+          <Field label={t("stock.lot")}><select className={inputCls} value={lotId} onChange={(e) => setLotId(e.target.value)}>
+            <option value="">{t("stock.choose")}</option>
+            {j.inventory.lots.filter((l) => l.medication === med.trim() && canDeduct(l.unit)).map((l) => <option key={l.id} value={l.id}>{l.medication} · {l.product} · {l.localDate} · {l.balance} {t(`unit.${l.unit}`)} · {l.id.slice(-6)}</option>)}
+          </select></Field>
+          {rec?.type === "injection" && rec.usedStock && !rec.stockPurchaseId && <p className="text-sm">{t("stock.review")}</p>}
+          <label className="flex min-h-11 items-center gap-3"><input type="checkbox" className="size-5" checked={useStock} onChange={(e) => setUseStock(e.target.checked)} />{t("stock.deduct", { u: selectedLot ? t(`unit.${selectedLot.unit}`) : "" })}</label>
+          {stockOk && selectedLot && <p>{t("stock.before")} {selectedLot.balance + (rec?.type === "injection" && rec.usedStock && matchesLot(rec, selectedLot) ? 1 : 0)} → {t("stock.after")} {selectedLot.balance + (rec?.type === "injection" && rec.usedStock && matchesLot(rec, selectedLot) ? 1 : 0) - (useStock ? 1 : 0)}</p>}
         </>
       )}
 
@@ -300,13 +313,14 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
 
       {kind === "purchase" && (
         <>
+          <Field label={t("stock.product")} optional><input className={inputCls} value={product} onChange={(e) => setProduct(e.target.value)} /></Field>
           <Field label={t("f.merchant")} optional><input className={inputCls} value={merchant} onChange={(e) => setMerchant(e.target.value)} /></Field>
           <Field label={t("f.amount")}><input inputMode="numeric" className={inputCls} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="320000" /></Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t("f.qty")} optional><input inputMode="numeric" className={inputCls} value={doses} onChange={(e) => setDoses(e.target.value)} placeholder={t("f.qtyHint")} /></Field>
             <Field label={t("f.unit")}>
-              <select className={inputCls} value={unit} onChange={(e) => setUnit(e.target.value as StockUnit)}>
-                <option value="single">{t("unit.single")}</option><option value="pen">{t("unit.pen")}</option><option value="dose">{t("unit.dose")}</option>
+              <select className={inputCls} value={unit} onChange={(e) => setUnit(e.target.value as StockUnit | "")}>
+                <option value="">{t("stock.review")}</option><option value="single">{t("unit.single")}</option><option value="pen">{t("unit.pen")}</option><option value="dose">{t("unit.dose")}</option>
               </select>
             </Field>
           </div>
@@ -337,7 +351,9 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
       )}
 
       {kind === "stock" && (
-        <Field label={t("f.stockCount")}><input inputMode="numeric" className={inputCls} value={stock} onChange={(e) => setStock(e.target.value)} /></Field>
+        <><Field label={t("stock.lot")}><select className={inputCls} value={lotId} onChange={(e) => { setLotId(e.target.value); setStock(String(j.inventory.lots.find((l) => l.id === e.target.value)?.balance ?? "")); }}>
+          <option value="">{t("stock.choose")}</option>{j.inventory.lots.map((l) => <option key={l.id} value={l.id}>{l.medication} · {l.product} · {l.localDate} · {t(`unit.${l.unit}`)} · {l.id.slice(-6)}</option>)}
+        </select></Field><Field label={t("f.stockCount")}><input inputMode="numeric" className={inputCls} value={stock} onChange={(e) => setStock(e.target.value)} /></Field></>
       )}
 
       {showDate && (
@@ -366,34 +382,5 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
         <Button variant="unstyled" size="unstyled" type="submit" className="press h-12 flex-1 rounded-full bg-primary font-semibold text-primary-foreground">{t("f.save")}</Button>
       </div>
     </form>
-  );
-}
-
-function StockMove({ med, on, setOn, ok, wasUsed }: { med: string; on: boolean; setOn: (v: boolean) => void; ok: boolean; wasUsed: boolean }) {
-  const j = useJournal();
-  const u = t(`unit.${j.stockUnit}`);
-  // j.stock already includes this injection if it was saved with a deduction, so show the difference only.
-  const before = j.stock + (wasUsed ? 1 : 0);
-  const after = before - (on && ok ? 1 : 0);
-  return (
-    <div className="rounded-[16px] border bg-card p-4 text-[15px]">
-      <p className="font-semibold">{t("stock.move")}</p>
-      {!j.hasStock ? <p className="mt-1 text-muted-foreground">{t("stock.none")}</p>
-        : !canDeduct(j.stockUnit) ? <p className="mt-1 text-muted-foreground">{t("stock.pen")}</p>
-        : (
-          <>
-            <p className="mt-1 text-muted-foreground">{t("stock.of")}: {j.stockMedication ?? t("stock.unknownMed")}</p>
-            {!ok ? <p className="mt-1 text-muted-foreground">{med.trim() ? t("stock.needMed") : t("stock.needMed")}</p> : (
-              <>
-                <label className="mt-2 flex min-h-11 items-center gap-3">
-                  <input type="checkbox" className="size-5 accent-[var(--color-primary)]" checked={on} onChange={(e) => setOn(e.target.checked)} />
-                  {t("stock.deduct", { u })}
-                </label>
-                <p className="text-muted-foreground">{t("stock.before")} {before}{u} → {t("stock.after")} <span className="font-semibold text-foreground">{after}{u}</span></p>
-              </>
-            )}
-          </>
-        )}
-    </div>
   );
 }

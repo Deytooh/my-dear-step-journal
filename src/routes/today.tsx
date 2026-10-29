@@ -4,7 +4,7 @@ import { Camera, ChevronRight, Image as ImageIcon, Mic, Package, Plus, Scale, Sm
 import type { ReactNode } from "react";
 import { t, getLocale } from "@/lib/i18n";
 import { dayDiff, fmtMonthDay, fmtMonthDayWeekday, localDateOf, todayLocal } from "@/lib/dates";
-import { sortByTime, useJournal, type JournalRecord } from "@/lib/journal";
+import { latestRecord as latest, sortByTime, useJournal, type JournalRecord } from "@/lib/journal";
 import { useQuickAdd } from "@/components/app/AppShell";
 import { Card, DemoTag, RecordRow, SectionHeader } from "@/components/app/ui";
 import { reminderText } from "@/components/app/ReminderCard";
@@ -29,14 +29,11 @@ export const Route = createFileRoute("/today")({
   component: Today,
 });
 
-const latest = <T extends JournalRecord["type"]>(rs: JournalRecord[], type: T) =>
-  rs.filter((r) => r.type === type).sort(sortByTime).at(-1) as Extract<JournalRecord, { type: T }> | undefined;
-
 function Today() {
   const j = useJournal();
   const open = useQuickAdd();
   const today = todayLocal(j.tz);
-  const records = j.records.filter((r) => r.localDate === today).sort(sortByTime).reverse();
+  const records = j.records.filter((r) => r.localDate === today).sort(sortByTime);
 
   return (
     <div>
@@ -177,7 +174,7 @@ function ConditionTile() {
 
 function StockTile() {
   const j = useJournal();
-  const known = j.hasStock || j.stock > 0;
+  const known = j.hasStock;
   return (
     <Tile title={t("home.stock")} icon={<Package className="size-5" />} tone="sage" to="/injections">
       {known ? (
@@ -190,7 +187,7 @@ function StockTile() {
         </>
       ) : (
         <span className="mt-auto pt-3">
-          <span className="block text-[17px] font-semibold">{t("home.stockUnknown")}</span>
+          <span className="block text-[17px] font-semibold">{t(j.stockNeedsReview ? "stock.review" : j.inventory.lots.length > 1 ? "stock.multiple" : "home.stockUnknown")}</span>
           <span className="block text-[15px] text-muted-foreground">{t("home.stockAdd")}</span>
         </span>
       )}
@@ -201,7 +198,7 @@ function StockTile() {
 function MomentTile() {
   const j = useJournal();
   const open = useQuickAdd();
-  const withPhoto = j.records.filter((r): r is Extract<JournalRecord, { type: "memory" }> => r.type === "memory" && !!r.photo).sort(sortByTime).at(-1);
+  const withPhoto = j.records.filter((r): r is Extract<JournalRecord, { type: "memory" }> => r.type === "memory" && !!r.photo).sort(sortByTime)[0];
   return (
     <div className="feel-panel flex min-h-[176px] flex-col rounded-[24px] bg-card p-4 shadow-soft">
       <Link to="/journey" className="press flex min-h-11 items-center gap-2">

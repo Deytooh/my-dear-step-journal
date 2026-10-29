@@ -1,3 +1,5 @@
+import { inventory, lotIdentity } from "./inventory";
+export { canDeduct } from "./inventory";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { loadCloud, pushDiff } from "./cloud-sync";
@@ -13,7 +15,7 @@ type Base = {
   demo?: boolean; createdAt: string; source: "manual_text";
 };
 export type WeightRec = Base & { type: "weight"; value: number; unit: "kg" };
-export type InjectionRec = Base & { type: "injection"; medication: string | null; doseValue: number | null; doseUnit: string | null; site: string | null; usedStock: boolean };
+export type InjectionRec = Base & { type: "injection"; medication: string | null; doseValue: number | null; doseUnit: string | null; site: string | null; usedStock: boolean; stockPurchaseId?: string | null; stockIdentity?: string | null };
 export type ConditionRec = Base & { type: "condition"; label: string; note?: string };
 export type MemoryRec = Base & { type: "memory"; note: string; photo?: string | null };
 export type MeasureRec = Base & { type: "measure"; waist: number | null; hip: number | null; chest: number | null; thigh: number | null; unit: "cm" };
@@ -29,24 +31,16 @@ export type Purchase = { id: string; localDate: string; amount: number; currency
 export type PromptId = "feel" | "water" | "memory" | "weight";
 export type PromptSettings = { hidden?: boolean; off?: PromptId[]; done?: Partial<Record<PromptId, string>> };
 
-/** Inventory is derived, so editing an old injection never deducts twice. */
+/** A scalar is available only when there is exactly one confirmed lot. */
 export function computeStock(purchases: Purchase[], records: JournalRecord[]) {
-  const bought = purchases.filter((p) => p.addsStock !== false).reduce((s, p) => s + p.doses, 0);
-  const used = records.filter((r) => r.type === "injection" && r.usedStock).length;
-  return bought - used;
+  const { lots, unresolved, unresolvedPurchases } = inventory(purchases, records);
+  return lots.length === 1 && !unresolved.length && !unresolvedPurchases.length ? lots[0]!.balance : null;
 }
-/** The unit of the most recent stock-adding purchase (legacy purchases count as doses). */
-export function stockInfo(purchases: Purchase[]) {
-  const last = [...purchases].filter((p) => p.addsStock !== false).sort((a, b) => b.localDate.localeCompare(a.localDate))[0];
-  return { unit: (last?.stockUnit ?? "dose") as StockUnit, medication: last?.medication ?? null, any: !!last };
-}
-/** Only per-injection units can be deducted one-for-one; pens are never converted. */
-export const canDeduct = (unit: StockUnit) => unit !== "pen";
 
 type State = {
   records: JournalRecord[]; reminder: Reminder | null; purchases: Purchase[];
   stockAdjust: number; // manual adjustments to computed stock (in doses)
-  settings: { showMomo: boolean; timezone: string; locale?: "ko" | "en" | "fr"; prompts?: PromptSettings };
+  settings: { showMomo: boolean; timezone: string; locale?: "ko" | "en" | "fr"; stockAdjustments?: Record<string, { identity: string; delta: number }>; legacyAdjustmentConfirmed?: boolean; prompts?: PromptSettings };
 };
 
 const KEY = "mds.journal.v1";
@@ -62,7 +56,7 @@ function demoState(): State {
     at: instantFromLocal(d(n), time, tz), demo: true, createdAt: now, source: "manual_text",
   });
   const inj = (n: number, site: string): InjectionRec => ({
-    id: `demo-i${n}`, type: "injection", medication: "마운자로", doseValue: 2.5, doseUnit: "mg", site, usedStock: true,
+    id: `demo-i${n}`, type: "injection", medication: "마운자로", doseValue: 2.5, doseUnit: "mg", site, usedStock: true, stockPurchaseId: "demo-p1", stockIdentity: JSON.stringify(["마운자로", "single", null]),
     localDate: d(n), precision: "exact", at: instantFromLocal(d(n), "20:00", tz), demo: true, createdAt: now, source: "manual_text",
   });
   const weights = [[-27, 80.6], [-24, 80.5], [-21, 80.0], [-18, 79.9], [-15, 79.9], [-12, 79.5], [-9, 79.2], [-7, 78.7], [-4, 78.9], [-2, 78.6], [0, 78.4]] as const;
@@ -78,8 +72,8 @@ function demoState(): State {
     ],
     reminder: { id: "demo-r", at: instantFromLocal(d(2), "20:00", tz), demo: true },
     purchases: [{ id: "demo-p1", localDate: d(-12), amount: 320000, currency: "KRW", doses: 4, medication: "마운자로", stockUnit: "single", addsStock: true, demo: true }],
-    stockAdjust: 1,
-    settings: { showMomo: true, timezone: tz },
+    stockAdjust: 0,
+    settings: { showMomo: true, timezone: tz, stockAdjustments: { "demo-p1": { identity: JSON.stringify(["마운자로", "single", null]), delta: 1 } } },
   };
 }
 
@@ -89,6 +83,8 @@ type Ctx = State & {
   user: { id: string; email: string | null } | null;
   sync: SyncStatus;
   tz: string;
+  inventory: ReturnType<typeof inventory>;
+  stockNeedsReview: boolean;
   stock: number;
   stockUnit: StockUnit;
   stockMedication: string | null;
@@ -100,7 +96,8 @@ type Ctx = State & {
   setReminder: (at: string | null) => void;
   savePurchase: (p: Purchase) => void;
   deletePurchase: (id: string) => void;
-  setStock: (n: number) => void;
+  setStock: (n: number, purchaseId: string) => void;
+  confirmLegacyAdjustment: () => void;
   setSetting: <K extends keyof State["settings"]>(k: K, v: State["settings"][K]) => void;
   clearDemo: () => void;
   newId: () => string;
@@ -184,8 +181,9 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(tm);
   }, [state, user, bump]);
 
-  const computedStock = useMemo(() => computeStock(state.purchases, state.records), [state.purchases, state.records]);
-  const sInfo = useMemo(() => stockInfo(state.purchases), [state.purchases]);
+  const stockInventory = useMemo(() => inventory(state.purchases, state.records, state.settings.stockAdjustments), [state.purchases, state.records, state.settings.stockAdjustments]);
+  const stockNeedsReview = !!(stockInventory.unresolved.length || stockInventory.unresolvedPurchases.length || stockInventory.unresolvedAdjustments.length || (state.stockAdjust !== 0 && !state.settings.legacyAdjustmentConfirmed));
+  const soleLot = stockInventory.lots.length === 1 ? stockInventory.lots[0] : undefined;
 
   const saveRecord = useCallback((r: JournalRecord) => setState((s) => {
     const exists = s.records.some((x) => x.id === r.id);
@@ -195,8 +193,9 @@ export function JournalProvider({ children }: { children: ReactNode }) {
   setLocale(state.settings.locale ?? "ko");
   const value: Ctx = {
     ...state, ready, user, sync, tz: state.settings.timezone,
-    stock: Math.max(0, computedStock + state.stockAdjust),
-    stockUnit: sInfo.unit, stockMedication: sInfo.medication, hasStock: sInfo.any,
+    inventory: stockInventory, stockNeedsReview,
+    stock: soleLot?.balance ?? 0,
+    stockUnit: soleLot?.unit ?? "dose", stockMedication: soleLot?.medication ?? null, hasStock: !!soleLot && !stockNeedsReview,
     hasDemo: state.records.some((r) => r.demo) || state.purchases.some((p) => p.demo) || !!state.reminder?.demo,
     saveRecord,
     deleteRecord: (id) => {
@@ -208,11 +207,17 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     setReminder: (at) => setState((s) => ({ ...s, reminder: at ? { id: uid(), at } : null })),
     savePurchase: (p) => setState((s) => ({ ...s, purchases: s.purchases.some((x) => x.id === p.id) ? s.purchases.map((x) => (x.id === p.id ? p : x)) : [...s.purchases, p] })),
     deletePurchase: (id) => setState((s) => ({ ...s, purchases: s.purchases.filter((p) => p.id !== id) })),
-    setStock: (n) => setState((s) => ({ ...s, stockAdjust: n - computedStock })),
+    setStock: (n, purchaseId) => setState((s) => {
+      const lot = inventory(s.purchases, s.records).lots.find((l) => l.id === purchaseId);
+      if (!lot) return s;
+      return { ...s, settings: { ...s.settings, stockAdjustments: { ...s.settings.stockAdjustments, [purchaseId]: { identity: lotIdentity(lot), delta: n - lot.balance } } } };
+    }),
+    confirmLegacyAdjustment: () => setState((s) => ({ ...s, settings: { ...s.settings, legacyAdjustmentConfirmed: true } })),
     setSetting: (k, v) => setState((s) => ({ ...s, settings: { ...s.settings, [k]: v } })),
     clearDemo: () => setState((s) => ({
       ...s, records: s.records.filter((r) => !r.demo), purchases: s.purchases.filter((p) => !p.demo),
-      reminder: s.reminder?.demo ? null : s.reminder, stockAdjust: 0,
+      reminder: s.reminder?.demo ? null : s.reminder,
+      settings: { ...s.settings, stockAdjustments: Object.fromEntries(Object.entries(s.settings.stockAdjustments ?? {}).filter(([id]) => !s.purchases.some((p) => p.id === id && p.demo))) },
     })),
     newId: uid,
     snapshot: () => state,
@@ -227,7 +232,14 @@ export function useJournal() {
   return c;
 }
 
+/** Descending by recorded local day, then known instants. Untimed entries follow timed entries; creation order breaks their ties without inventing a time. */
 export const sortByTime = (a: JournalRecord, b: JournalRecord) =>
-  (b.at ?? b.localDate).localeCompare(a.at ?? a.localDate);
+  b.localDate.localeCompare(a.localDate) ||
+  ((b.precision === "exact" && b.at ? 1 : 0) - (a.precision === "exact" && a.at ? 1 : 0)) ||
+  (a.precision === "exact" && b.precision === "exact" && a.at && b.at ? b.at.localeCompare(a.at) : 0) ||
+  b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id);
+
+export const latestRecord = <T extends JournalRecord["type"]>(rs: JournalRecord[], type: T) =>
+  rs.filter((r): r is Extract<JournalRecord, { type: T }> => r.type === type).sort(sortByTime)[0];
 
 export { localDateOf };

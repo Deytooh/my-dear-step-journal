@@ -2,6 +2,16 @@
 export type Locale = "ko" | "en" | "fr";
 
 const ko = {
+  "stock.adjustmentReview": "제품이나 단위가 바뀌어 적용하지 않은 재고 조정이 있어요. 구매 내역을 확인해 주세요.",
+  "stock.provisional": "확인된 연결만 반영한 수량이에요. 이전 기록을 확인해 주세요.",
+  "stock.product": "제품 · 규격",
+  "stock.lot": "재고 구매 선택", "stock.choose": "약과 단위가 맞는 구매를 선택해 주세요",
+  "stock.review": "이전 재고 연결을 확인해 주세요", "stock.multiple": "제품별 재고 보기",
+  "stock.legacyAdjustment": "이전 전체 재고 조정: {n}. 제품별 수량을 확인한 뒤 각 재고를 수정해 주세요.",
+  "stock.confirmAdjustment": "제품별 수량 확인 완료 · 이전 전체 조정 제외",
+  "stock.unlinked": "재고 연결 확인이 필요한 주사: {n}개",
+  "stock.purchaseReview": "약 이름과 단위 확인이 필요한 구매: {n}개",
+
   "med.select": "약 선택하기", "med.search": "제품명 또는 성분 검색", "med.other": "기타 · 직접 입력", "med.none": "모름 · 선택 안 함", "med.noResults": "일치하는 약이 없어요", "med.injectable": "주사제", "med.oral": "먹는 약", "med.combination": "인슐린 복합제", "med.custom": "약 이름 직접 입력", "med.regional": "허가 및 판매 여부는 국가마다 달라요.",
   "auth.title": "내 기록을 안전하게 보관해요", "auth.sub": "로그인하면 기록과 사진이 내 계정에만 저장되고, 다른 기기에서도 이어서 볼 수 있어요.",
   "auth.email": "이메일", "auth.password": "비밀번호", "auth.signin": "로그인", "auth.signup": "가입하기",

@@ -45,7 +45,7 @@ export function StockLine() {
     <div className="flex items-center gap-3">
       <Package className="size-5 text-muted-foreground" />
       <span className="text-[15px] text-muted-foreground">{t("inv.left")}</span>
-      <span className="text-[18px] font-bold"><AnimatedValue value={j.stock} digits={0} />{getLocale() === "ko" ? "" : " "}{t(`unit.${j.stockUnit}`)}</span>
+      <span className="text-[18px] font-bold">{j.hasStock ? <><AnimatedValue value={j.stock} digits={0} />{getLocale() === "ko" ? "" : " "}{t(`unit.${j.stockUnit}`)}</> : t(j.stockNeedsReview ? "stock.review" : j.inventory.lots.length > 1 ? "stock.multiple" : "home.stockUnknown")}</span>
       <Link to="/injections" className="press ml-auto flex min-h-11 items-center gap-1 text-[15px]">
         {t("inj.manage")} <ChevronRight className="size-4" />
       </Link>

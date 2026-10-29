@@ -3,9 +3,9 @@ import { canDeduct, computeStock, type InjectionRec, type Purchase } from "@/lib
 import { pickPrompts } from "@/lib/prompts";
 
 const today = "2026-10-28";
-const inj = (id: string, usedStock: boolean): InjectionRec => ({ id, type: "injection", medication: "M", doseValue: null, doseUnit: null, site: null, usedStock,
+const inj = (id: string, usedStock: boolean): InjectionRec => ({ id, type: "injection", medication: "M", doseValue: null, doseUnit: null, site: null, usedStock, stockPurchaseId: "p4", stockIdentity: JSON.stringify(["M", "single", null]),
   localDate: today, precision: "date_only", at: null, createdAt: "", source: "manual_text" });
-const buy = (doses: number, addsStock?: boolean): Purchase => ({ id: "p" + doses, localDate: today, amount: 1000, currency: "KRW", doses, medication: "M", ...(addsStock === undefined ? {} : { addsStock }) });
+const buy = (doses: number, addsStock?: boolean): Purchase => ({ id: "p" + doses, localDate: today, amount: 1000, currency: "KRW", doses, medication: "M", stockUnit: "single", ...(addsStock === undefined ? {} : { addsStock }) });
 
 describe("stock", () => {
   it("an expense-only purchase leaves stock unchanged", () => {
