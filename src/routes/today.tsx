@@ -112,7 +112,7 @@ function HomeHero() {
   );
 }
 
-function Tile({ title, icon, tone = "card", onClick, to, children, demo }: { title: string; icon: ReactNode; tone?: "card" | "sage" | "peach"; onClick?: () => void; to?: "/injections" | "/journey"; children: ReactNode; demo?: boolean }) {
+function Tile({ title, icon, tone = "card", onClick, to, children, demo }: { title: string; icon: ReactNode; tone?: "card" | "sage" | "peach"; onClick?: () => void; to?: "/injections" | "/journey"; children: ReactNode; demo?: boolean | undefined }) {
   const cls = cn("feel-panel press flex min-h-[176px] flex-col rounded-[24px] p-4 text-left shadow-soft", tone === "sage" ? "bg-secondary" : tone === "peach" ? "bg-accent" : "bg-card");
   const head = (
     <span className="flex items-center gap-2">
