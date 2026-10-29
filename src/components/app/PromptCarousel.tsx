@@ -3,7 +3,7 @@ import { Check, ChevronLeft, ChevronRight, Droplet, Image as ImageIcon, Scale, S
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { t, type Key } from "@/lib/i18n";
-import { fmtTime, instantFromLocal, timeOf, todayLocal } from "@/lib/dates";
+import { instantFromLocal, timeOf, todayLocal } from "@/lib/dates";
 import { useJournal, type PromptId, type PromptSettings } from "@/lib/journal";
 import { pickPrompts } from "@/lib/prompts";
 import { useQuickAdd } from "./AppShell";
@@ -137,4 +137,3 @@ function PromptBody({ id, onSaved, onSkip, onNever, onOpen }: { id: PromptId; on
   );
 }
 
-export { fmtTime };

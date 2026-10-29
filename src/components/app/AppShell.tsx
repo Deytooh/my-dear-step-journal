@@ -71,6 +71,10 @@ function Header() {
             {t("set.momo")}
             <Switch checked={j.settings.showMomo} onCheckedChange={(v) => j.setSetting("showMomo", v)} />
           </label>
+          <label className="flex min-h-11 items-center justify-between gap-3 text-sm">
+            {t("pr.setting")}
+            <Switch checked={!j.settings.prompts?.hidden} onCheckedChange={(v) => j.setSetting("prompts", { ...(j.settings.prompts ?? {}), hidden: !v, ...(v ? { off: [] } : {}) })} />
+          </label>
           <label className="mt-2 flex min-h-11 items-center justify-between gap-3 text-sm">
             {t("set.lang")}
             <select aria-label={t("set.lang")} value={j.settings.locale ?? "ko"} onChange={(e) => j.setSetting("locale", e.target.value as "ko" | "en" | "fr")} className="h-9 rounded-full border bg-card px-3">
