@@ -2,6 +2,7 @@
 export type Locale = "ko" | "en" | "fr";
 
 const ko = {
+  "med.select": "약 선택하기", "med.search": "제품명 또는 성분 검색", "med.other": "기타 · 직접 입력", "med.none": "모름 · 선택 안 함", "med.noResults": "일치하는 약이 없어요", "med.injectable": "주사제", "med.oral": "먹는 약", "med.combination": "인슐린 복합제", "med.custom": "약 이름 직접 입력", "med.regional": "허가 및 판매 여부는 국가마다 달라요.",
   "auth.title": "내 기록을 안전하게 보관해요", "auth.sub": "로그인하면 기록과 사진이 내 계정에만 저장되고, 다른 기기에서도 이어서 볼 수 있어요.",
   "auth.email": "이메일", "auth.password": "비밀번호", "auth.signin": "로그인", "auth.signup": "가입하기",
   "auth.toSignup": "처음이신가요? 가입하기", "auth.toSignin": "이미 계정이 있어요", "auth.google": "Google로 계속하기", "auth.lovable": "Lovable로 계속하기",

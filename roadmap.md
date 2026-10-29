@@ -1,4 +1,5 @@
 # My Dear Step roadmap
+- [ ] Medication picker: verified pre-made GLP-1 list shared by purchases, injections and editable Momo drafts; preserve existing names.
 - [x] App-feel pass: tactile controls, smooth reveals, animated values/charts, save feedback and reduced motion; local save/validation/undo, tabs, desktop/mobile checks passed (sound, device haptics and signed-in sync not part of this pass)
 - [x] Phase 1: design system, app shell, Today / Calendar / Injections / Progress, Quick Add with working manual forms (local storage)
 - [x] Phase 2: undo everywhere, measurements, history view, journey detail

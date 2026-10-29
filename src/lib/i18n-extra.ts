@@ -2,6 +2,7 @@
 type D = Record<string, string>;
 
 export const en: D = {
+  "med.select": "Select medication", "med.search": "Search brand or ingredient", "med.other": "Other · enter name", "med.none": "Unknown · no selection", "med.noResults": "No matching medication", "med.injectable": "Injectable", "med.oral": "Oral", "med.combination": "Insulin combination", "med.custom": "Enter medication name", "med.regional": "Approval and availability vary by country.",
   "auth.title": "Keep your journal safe", "auth.sub": "Sign in so your records and photos are stored in your own account and available on any device.",
   "auth.email": "Email", "auth.password": "Password", "auth.signin": "Sign in", "auth.signup": "Create account",
   "auth.toSignup": "New here? Create an account", "auth.toSignin": "I already have an account", "auth.google": "Continue with Google", "auth.lovable": "Continue with Lovable",
@@ -147,6 +148,7 @@ export const en: D = {
 };
 
 export const fr: D = {
+  "med.select": "Choisir un médicament", "med.search": "Chercher une marque ou une molécule", "med.other": "Autre · saisir le nom", "med.none": "Inconnu · aucun choix", "med.noResults": "Aucun médicament correspondant", "med.injectable": "Injectable", "med.oral": "Oral", "med.combination": "Association avec insuline", "med.custom": "Saisir le nom du médicament", "med.regional": "Autorisation et disponibilité variables selon le pays.",
   "auth.title": "Gardez votre journal en sécurité", "auth.sub": "Connectez-vous pour enregistrer vos données et photos dans votre compte, sur tous vos appareils.",
   "auth.email": "E-mail", "auth.password": "Mot de passe", "auth.signin": "Se connecter", "auth.signup": "Créer un compte",
   "auth.toSignup": "Nouveau ? Créer un compte", "auth.toSignin": "J'ai déjà un compte", "auth.google": "Continuer avec Google", "auth.lovable": "Continuer avec Lovable",
