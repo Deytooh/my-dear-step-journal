@@ -6,3 +6,4 @@
 - [x] Phase 4: Momo text/voice intake + review-before-save (Baseten muse-spark-open-1026)
 - [x] Phase 5: en/fr translations, language switch, JSON backup export/import, page fade motion, aria labels
 - [x] Phase 6: end-to-end demo verification (Momo live call untested until key)
+- [ ] Pass 7 (user brief): Today question cards, richer Momo drafts + photos, purchases/stock rules, chart injection band, memory search, polish & checks
