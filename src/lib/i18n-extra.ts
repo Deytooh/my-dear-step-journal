@@ -97,6 +97,8 @@ export const en: D = {
   "photo.unavailable": "Photo unavailable",
 
   "type.meal": "Meal",
+  "meal.capture": "Photograph my meal",
+  "meal.optional": "Time · meal type · note (optional)",
   "meal.hint": "Food and energy are estimates; portions and ingredients vary. You can edit them.",
   "meal.photoError": "Choose a JPG, PNG or WebP photo up to 15 MB.",
   "meal.noFood":
@@ -578,6 +580,8 @@ export const fr: D = {
   "photo.unavailable": "Photo indisponible",
 
   "type.meal": "Repas",
+  "meal.capture": "Photographier mon repas",
+  "meal.optional": "Heure · type de repas · note (facultatif)",
   "meal.hint":
     "Aliments et énergie sont estimés : portions et ingrédients varient. Modifiez-les si besoin.",
   "meal.photoError": "Choisissez une photo JPG, PNG ou WebP de 15 Mo maximum.",

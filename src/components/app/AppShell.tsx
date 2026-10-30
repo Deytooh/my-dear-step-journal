@@ -103,7 +103,7 @@ function PageSkeleton({ hero }: { hero: boolean }) {
         {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
-            className={`feel-busy rounded-[24px] border border-primary/5 bg-card ${hero ? "h-[168px]" : "h-28"}`}
+            className={`feel-busy rounded-[24px] border border-primary/5 bg-card ${hero ? "h-[132px]" : "h-28"}`}
           />
         ))}
       </div>

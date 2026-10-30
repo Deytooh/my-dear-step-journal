@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Plus, Trash2 } from "lucide-react";
+import { Camera, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { useJournal, type MealRec } from "@/lib/journal";
@@ -282,14 +282,6 @@ export function MealForm({
     >
       <DrawerTitle className="text-2xl font-bold">{t("type.meal")}</DrawerTitle>
       <DrawerDescription>{t("meal.hint")}</DrawerDescription>
-      <label className="block">
-        {t("meal.title")}
-        <input
-          className={input}
-          value={meal.title}
-          onChange={(e) => patch({ title: e.target.value })}
-        />
-      </label>
       {restoredNotice && (
         <div role="status" className="rounded-2xl bg-secondary p-3 text-sm">
           <p>{t("ux.restored")}</p>
@@ -305,28 +297,15 @@ export function MealForm({
         </div>
       )}
       {editing?.evidence && <SourceEvidence evidence={editing.evidence} />}
-      <div className={meal.photoRefs.length === 1 ? "grid gap-3" : "grid grid-cols-2 gap-3"}>
-        {meal.photoRefs.map((ref, index) => (
-          <div key={ref} className="relative min-w-0 space-y-2">
-            <PhotoImg src={ref} alt={`${t("type.meal")} ${index + 1}`} className="meal-photo" />
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11 w-full rounded-xl"
-              onClick={() => {
-                generation.current++;
-                guard.current = false;
-                setBusy(false);
-                patch({ photoRefs: meal.photoRefs.filter((r) => r !== ref) });
-              }}
-            >
-              {t("photo.remove")}
-            </Button>
-          </div>
-        ))}
-      </div>
-      <label className="flex min-h-12 cursor-pointer items-center justify-center rounded-xl border px-3 focus-within:ring-2">
-        {t("momo.photos")}
+      <label
+        className={`meal-capture flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[22px] border border-dashed border-primary/30 bg-secondary px-4 py-5 text-center focus-within:ring-2 focus-within:ring-ring ${meal.photoRefs.length ? "min-h-24" : "min-h-36"} ${busy || meal.photoRefs.length >= 3 ? "cursor-not-allowed opacity-60" : ""}`}
+      >
+        <span className="flex size-11 items-center justify-center rounded-full bg-card">
+          <Camera className="size-6" aria-hidden />
+        </span>
+        <span className="text-[17px] font-semibold">
+          {t(meal.photoRefs.length ? "momo.photos" : "meal.capture")}
+        </span>
         <input
           className="sr-only"
           type="file"
@@ -339,68 +318,69 @@ export function MealForm({
           }}
         />
       </label>
-      <details>
-        <summary>
-          {t("f.note")} · {t("f.optional")}
-        </summary>{" "}
-        <label className="block">
-          {t("f.note")}
-          <textarea
-            className={input}
-            value={meal.note ?? ""}
-            onChange={(e) => patch({ note: e.target.value })}
-          />
-        </label>
-      </details>
-      <details>
-        <summary className="min-h-11 cursor-pointer py-3 font-medium">{t("meal.analyze")}</summary>
-        <label className="flex min-h-11 items-center gap-3 text-sm">
-          <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-          {t("ai.consent")}
-        </label>
-        {!j.user && <p className="text-sm">{t("ai.signin")}</p>}
-        <Button
-          type="button"
-          disabled={!j.user || !consent || busy || !meal.photoRefs.length}
-          onClick={run}
-          className="min-h-12 w-full whitespace-normal"
-        >
-          {t(busy ? "momo.thinking" : "meal.analyze")}
-        </Button>
-        <p className="text-sm text-muted-foreground">{t("meal.replace")}</p>
+      {meal.photoRefs.length > 0 && (
+        <div className={meal.photoRefs.length === 1 ? "grid gap-3" : "grid grid-cols-2 gap-3"}>
+          {meal.photoRefs.map((ref, index) => (
+            <div key={ref} className="relative min-w-0 space-y-2">
+              <PhotoImg src={ref} alt={`${t("type.meal")} ${index + 1}`} className="meal-photo" />
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 w-full rounded-xl"
+                onClick={() => {
+                  generation.current++;
+                  guard.current = false;
+                  setBusy(false);
+                  patch({ photoRefs: meal.photoRefs.filter((r) => r !== ref) });
+                }}
+              >
+                {t("photo.remove")}
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+      <details open={meal.photoRefs.length > 0}>
+        <summary>{t("meal.analyze")}</summary>
+        <div className="space-y-3">
+          <label className="flex min-h-11 items-center gap-3 text-sm">
+            <input
+              type="checkbox"
+              checked={consent}
+              onChange={(e) => setConsent(e.target.checked)}
+            />
+            {t("ai.consent")}
+          </label>
+          {!j.user && <p className="text-sm">{t("ai.signin")}</p>}
+          <Button
+            type="button"
+            disabled={!j.user || !consent || busy || !meal.photoRefs.length}
+            onClick={run}
+            className="min-h-12 w-full whitespace-normal"
+          >
+            {t(busy ? "momo.thinking" : "meal.analyze")}
+          </Button>
+          <p className="text-sm text-muted-foreground">{t("meal.replace")}</p>
+        </div>
       </details>
 
       <label className="block">
-        {t("meal.kind")}
-        <select
+        {t("meal.title")}
+        <input
           className={input}
-          value={meal.mealType}
-          onChange={(e) => patch({ mealType: e.target.value as MealDetails["mealType"] })}
-        >
-          {(["unknown", "breakfast", "lunch", "dinner", "snack", "other"] as const).map((kind) => (
-            <option key={kind} value={kind}>
-              {t(`meal.${kind}`)}
-            </option>
-          ))}
-        </select>
+          value={meal.title}
+          onChange={(e) => patch({ title: e.target.value })}
+        />
       </label>
-      <div className="grid grid-cols-2 gap-3">
-        <label>
+
+      <div>
+        <label className="block">
           {t("f.date")}
           <input
             className={input}
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-          />
-        </label>
-        <label>
-          {t("f.time")}
-          <input
-            className={input}
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
           />
         </label>
       </div>
@@ -576,6 +556,44 @@ export function MealForm({
         </p>
         {totals.partial && <p>{t("meal.partial")}</p>}
       </div>
+      <details>
+        <summary>{t("meal.optional")}</summary>
+        <div className="space-y-3">
+          <label className="block">
+            {t("meal.kind")}
+            <select
+              className={input}
+              value={meal.mealType}
+              onChange={(e) => patch({ mealType: e.target.value as MealDetails["mealType"] })}
+            >
+              {(["unknown", "breakfast", "lunch", "dinner", "snack", "other"] as const).map(
+                (kind) => (
+                  <option key={kind} value={kind}>
+                    {t(`meal.${kind}`)}
+                  </option>
+                ),
+              )}
+            </select>
+          </label>
+          <label className="block">
+            {t("f.time")}
+            <input
+              className={input}
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+            />
+          </label>
+          <label className="block">
+            {t("f.note")}
+            <textarea
+              className={input}
+              value={meal.note ?? ""}
+              onChange={(e) => patch({ note: e.target.value })}
+            />
+          </label>
+        </div>
+      </details>
       <details>
         <summary className="min-h-11 cursor-pointer py-2">{t("meal.assumptions")}</summary>
         <p className="text-sm">{t("meal.hint")}</p>

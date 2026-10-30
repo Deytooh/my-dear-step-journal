@@ -53,6 +53,8 @@ const ko = {
   "photo.unavailable": "사진을 불러올 수 없어요",
 
   "type.meal": "식사",
+  "meal.capture": "식사 사진 찍기",
+  "meal.optional": "시간 · 식사 구분 · 메모 (선택)",
   "meal.hint": "사진 속 음식과 열량은 추정치예요. 양·재료에 따라 달라지며 직접 수정할 수 있어요.",
   "meal.photoError": "사진을 열지 못했어요. JPG·PNG·WebP 15MB 이하를 선택해 주세요.",
   "meal.noFood": "뚜렷한 음식을 찾지 못했어요. 사진·메모는 유지했어요. 직접 입력해 주세요.",

@@ -59,8 +59,6 @@ function Today() {
         <MomentTile />
       </div>
 
-      <PromptCarousel />
-
       <div className="momo-composer mt-4 flex items-center bg-card">
         <Button
           variant="unstyled"
@@ -82,6 +80,8 @@ function Today() {
           <Camera className="size-6" />
         </Button>
       </div>
+
+      <PromptCarousel />
 
       <Button
         variant="outline"
@@ -225,7 +225,7 @@ function Tile({
   demo?: boolean | undefined;
 }) {
   const cls = cn(
-    "app-surface press flex min-h-[168px] flex-col rounded-[24px] p-4 text-left shadow-soft",
+    "app-surface press flex min-h-[132px] flex-col rounded-[22px] p-3.5 text-left shadow-soft",
     tone === "sage" ? "bg-secondary" : tone === "peach" ? "bg-accent" : "bg-card",
   );
   const head = (
@@ -238,7 +238,7 @@ function Tile({
       >
         {icon}
       </span>
-      <span className="min-w-0 flex-1 break-keep text-[17px] font-bold leading-tight">{title}</span>
+      <span className="min-w-0 flex-1 break-keep text-[16px] font-bold leading-tight">{title}</span>
       <ChevronRight className="hidden size-5 shrink-0 text-muted-foreground min-[400px]:block" />
     </span>
   );
@@ -286,12 +286,12 @@ function WeightTile() {
       {w ? (
         <>
           <span className="mt-auto flex items-baseline gap-1 pt-3">
-            <span className="text-[44px] font-semibold leading-none tracking-tight">
+            <span className="text-[40px] font-semibold leading-none tracking-tight">
               <AnimatedValue value={w.value} digits={1} />
             </span>
             <span className="text-[17px] text-muted-foreground">{w.unit}</span>
           </span>
-          <span className="mt-3 border-t pt-2 text-[15px] text-muted-foreground">
+          <span className="mt-2 text-[14px] text-muted-foreground">
             {w.localDate === today ? t("today") : fmtMonthDay(w.localDate)}
           </span>
         </>
@@ -311,7 +311,7 @@ function Face({ label }: { label: string }) {
   const mouth =
     tone === "smile" ? "M20 34 q8 7 16 0" : tone === "flat" ? "M20 35 h16" : "M20 37 q8 -6 16 0";
   return (
-    <svg viewBox="0 0 56 56" className="size-16" aria-hidden>
+    <svg viewBox="0 0 56 56" className="size-11 shrink-0" aria-hidden>
       <circle cx="28" cy="28" r="27" className="fill-card" />
       <path
         d="M16 24 q4 4 8 0 M32 24 q4 4 8 0"
@@ -342,7 +342,7 @@ function ConditionTile() {
       demo={c?.demo}
     >
       {c ? (
-        <span className="mt-auto flex flex-col items-center gap-1 pt-2">
+        <span className="mt-auto flex items-center gap-2 pt-3">
           <Face label={c.label} />
           <span className="text-center text-[17px] font-bold leading-snug">{c.label}</span>
         </span>
@@ -367,7 +367,7 @@ function StockTile() {
       {known ? (
         <>
           <span className="mt-auto flex items-baseline gap-1 pt-3">
-            <span className="text-[44px] font-semibold leading-none">
+            <span className="text-[40px] font-semibold leading-none">
               <AnimatedValue value={j.stock} digits={0} />
             </span>
             <span className="text-[17px] text-muted-foreground">
@@ -408,31 +408,27 @@ function MomentTile() {
     )
     .sort(sortByTime)[0];
   return (
-    <div className="app-surface flex min-h-[168px] flex-col rounded-[24px] bg-card p-4 shadow-soft">
+    <div className="app-surface flex min-h-[132px] flex-col rounded-[22px] bg-card p-3.5 shadow-soft">
       <Link to="/journey" className="press flex min-h-11 items-center gap-2">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-[13px] border border-primary/5 bg-secondary">
           <ImageIcon className="size-5" />
         </span>
-        <span className="min-w-0 flex-1 break-keep text-[17px] font-bold leading-tight">
+        <span className="min-w-0 flex-1 break-keep text-[16px] font-bold leading-tight">
           {t("home.moment")}
         </span>
         <ChevronRight className="hidden size-5 shrink-0 text-muted-foreground min-[400px]:block" />
       </Link>
       {withPhoto?.demo && <DemoTag show />}
-      <div className="my-2 flex flex-1 items-center justify-center">
-        {withPhoto?.photo ? (
-          <PhotoImg src={withPhoto.photo} className="h-[72px] w-full rounded-[14px] object-cover" />
-        ) : (
-          <span className="flex h-[72px] w-full items-center justify-center rounded-[14px] bg-secondary/65 text-primary/55">
-            <ImageIcon className="size-8" />
-          </span>
-        )}
-      </div>
+      {withPhoto?.photo && (
+        <div className="my-2">
+          <PhotoImg src={withPhoto.photo} className="h-14 w-full rounded-[14px] object-cover" />
+        </div>
+      )}
       <Button
         variant="unstyled"
         size="unstyled"
         onClick={() => open("memory")}
-        className="press flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full bg-secondary px-2 text-[15px] font-semibold"
+        className="press mt-auto flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full bg-secondary px-2 text-[15px] font-semibold"
       >
         <Camera className="size-5 shrink-0" />
         {t("home.photo")}

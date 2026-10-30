@@ -60,7 +60,7 @@
   --secondary: oklch(0.952 0.014 125); /* sage tint #EEF2E7 */
   --secondary-foreground: oklch(0.335 0.045 170);
   --muted: oklch(0.952 0.014 125);
-  --muted-foreground: oklch(0.47 0.015 235); /* #59636A */
+  --muted-foreground: oklch(0.43 0.015 235);
   --accent: oklch(0.967 0.022 70); /* peach tint #FFF0E2 */
   --accent-foreground: oklch(0.335 0.045 170);
   --sage: oklch(0.952 0.014 125);
@@ -600,4 +600,38 @@ input[type="checkbox"]:checked {
     width: 56px;
     height: 56px;
   }
+}
+
+/* Keep capture and correction feedback on the shared, reduced-motion-aware profile. */
+.meal-capture {
+  transition:
+    background-color 160ms var(--ease-calm),
+    border-color 160ms var(--ease-calm);
+}
+.meal-capture:not(:has(input:disabled)):active {
+  background-color: color-mix(in oklab, var(--secondary) 85%, var(--primary));
+  border-color: var(--primary);
+}
+.meal-capture > span:first-child {
+  transition: transform 120ms var(--ease-calm);
+}
+.meal-capture:not(:has(input:disabled)):active > span:first-child {
+  transform: scale(0.95);
+}
+.sheet-scroll {
+  scroll-padding-block: 64px 100px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .meal-capture:active > span:first-child {
+    transform: none;
+  }
+}
+
+/* Override Vaul's half-second defaults without changing its drag/keyboard behavior. */
+[data-vaul-drawer][data-state],
+[data-vaul-overlay][data-state][data-vaul-overlay] {
+  animation-duration: 240ms;
+  animation-timing-function: var(--ease-calm);
+  transition-duration: 240ms;
+  transition-timing-function: var(--ease-calm);
 }

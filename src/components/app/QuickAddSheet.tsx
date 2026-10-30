@@ -84,7 +84,7 @@ export function QuickAddSheet({ open, onOpenChange, kind, setKind, editing, init
       <DrawerContent className="mx-auto max-h-[92dvh] max-w-md rounded-t-[28px] border-0 bg-background">
         <div
           ref={scrollPane}
-          className="min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(1rem,env(safe-area-inset-bottom))]"
+          className="sheet-scroll min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(1rem,env(safe-area-inset-bottom))]"
         >
           <div className="sticky top-0 z-20 -mx-5 flex justify-between border-b border-primary/5 bg-background/95 px-5 py-1 backdrop-blur-md">
             {kind !== "menu" && !editing ? (

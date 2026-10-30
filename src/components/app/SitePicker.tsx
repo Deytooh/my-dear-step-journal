@@ -6,10 +6,10 @@ import { cn } from "@/lib/utils";
 export const SITE_ZONES = [
   { id: "팔 왼쪽", key: "arm", side: "left", x: 46, y: 96 },
   { id: "팔 오른쪽", key: "arm", side: "right", x: 154, y: 96 },
-  { id: "복부 왼쪽", key: "belly", side: "left", x: 79, y: 122 },
-  { id: "복부 오른쪽", key: "belly", side: "right", x: 121, y: 122 },
-  { id: "허벅지 왼쪽", key: "thigh", side: "left", x: 77, y: 196 },
-  { id: "허벅지 오른쪽", key: "thigh", side: "right", x: 123, y: 196 },
+  { id: "복부 왼쪽", key: "belly", side: "left", x: 77, y: 128 },
+  { id: "복부 오른쪽", key: "belly", side: "right", x: 123, y: 128 },
+  { id: "허벅지 왼쪽", key: "thigh", side: "left", x: 77, y: 190 },
+  { id: "허벅지 오른쪽", key: "thigh", side: "right", x: 123, y: 190 },
 ] as const;
 
 const siteLabel = (id: string) => {
@@ -35,16 +35,17 @@ export function SitePicker({
   return (
     <div>
       <div className="flex flex-col items-center rounded-[20px] border border-primary/5 bg-secondary p-3">
+        <p className="mb-1 text-xs font-medium text-muted-foreground">{t("site.hint")}</p>
         <div
-          className="mb-1 flex w-full max-w-[240px] justify-between text-sm font-semibold text-muted-foreground"
-          aria-hidden
+          className="mb-1 flex w-full max-w-[200px] justify-between text-sm font-semibold text-muted-foreground"
+          aria-label={t("site.hint")}
         >
           <span>← {t("site.left")}</span>
           <span>{t("site.right")} →</span>
         </div>
         <svg
-          viewBox="0 0 200 260"
-          className="w-full max-w-[240px]"
+          viewBox="0 0 200 240"
+          className="w-full max-w-[200px]"
           role="group"
           aria-label={`${t("f.site")} · ${t("site.hint")}`}
         >
@@ -53,14 +54,14 @@ export function SitePicker({
             strokeWidth="7"
             strokeLinecap="round"
             fill="none"
-            className="text-primary/35"
+            className="text-primary/45"
           >
             <circle cx="100" cy="28" r="17" />
             <line x1="100" y1="52" x2="100" y2="150" />
             <line x1="100" y1="68" x2="42" y2="128" />
             <line x1="100" y1="68" x2="158" y2="128" />
-            <line x1="100" y1="150" x2="72" y2="248" />
-            <line x1="100" y1="150" x2="128" y2="248" />
+            <line x1="100" y1="150" x2="72" y2="228" />
+            <line x1="100" y1="150" x2="128" y2="228" />
           </g>
           {SITE_ZONES.map((z) => {
             const on = value === z.id;
@@ -83,7 +84,7 @@ export function SitePicker({
                 <circle
                   cx={z.x}
                   cy={z.y}
-                  r="19"
+                  r="22"
                   strokeWidth="3"
                   className={cn(
                     "site-zone",
@@ -101,15 +102,14 @@ export function SitePicker({
                     className="text-primary"
                   />
                 ) : (
-                  <circle cx={z.x} cy={z.y} r="4" className="fill-primary/50" />
+                  <circle cx={z.x} cy={z.y} r="4" className="fill-primary/65" />
                 )}
               </g>
             );
           })}
         </svg>
-        <p className="mt-1 text-sm text-muted-foreground">{t("site.hint")}</p>
         <p
-          className="mt-2 flex min-h-11 items-center rounded-full bg-card/80 px-4 text-[15px] font-semibold"
+          className="mt-1 flex min-h-8 items-center rounded-full bg-card/80 px-4 text-[15px] font-semibold"
           aria-live="polite"
         >
           {value ? `✓ ${siteLabel(value)}` : t("site.unknown")}
