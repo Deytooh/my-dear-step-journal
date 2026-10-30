@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,11 +10,60 @@ import { useQuickAdd } from "./AppShell";
 import { celebrateSave } from "./AppFeel";
 import momoImg from "@/assets/momo.png";
 
+import { ContextQuestion } from "./ContextQuestion";
+
 export function PromptCarousel() {
   const j = useJournal();
-  if (!j.ready) return null;
-  return <Questions key={todayLocal(j.tz)} />;
+  const [day, setDay] = useState(() => todayLocal(j.tz));
+  useEffect(() => {
+    const refresh = () => setDay(todayLocal(j.tz));
+    refresh();
+    const timer = setInterval(refresh, 30000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [j.tz]);
+  if (!j.ready || j.settings.prompts?.hidden) return null;
+  const locale = j.settings.locale ?? "ko";
+  const fallback = <Questions key={day} />;
+  return (
+    <>
+      {j.user && j.settings.prompts?.aiConsent ? (
+        <ContextQuestion
+          key={`${j.user.id}:${locale}:${day}:${j.tz}`}
+          day={day}
+          fallback={fallback}
+        />
+      ) : (
+        fallback
+      )}
+      <details className="text-sm text-muted-foreground">
+        <summary className="min-h-11 cursor-pointer py-3">{t("ctx.settings")}</summary>
+        <p className="mb-2">{t("ctx.privacy")}</p>
+        {!j.user && <p>{t("ai.signin")}</p>}
+        <label className="flex min-h-12 items-center gap-3">
+          <input
+            type="checkbox"
+            className="size-5 shrink-0"
+            disabled={!j.user}
+            checked={!!j.settings.prompts?.aiConsent}
+            onChange={(e) => {
+              try {
+                j.setSetting("prompts", { ...j.settings.prompts, aiConsent: e.target.checked });
+              } catch {
+                toast.error(t("sync.error"));
+              }
+            }}
+          />
+          <span>{t("ctx.consent")}</span>
+        </label>
+      </details>
+    </>
+  );
 }
+
 function Questions() {
   const j = useJournal();
   const open = useQuickAdd();

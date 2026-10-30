@@ -95,3 +95,54 @@ it("suppresses questions answered through any manual flow", async () => {
   );
   expect(pickPrompts(journal.records, {}, todayLocal(journal.tz))).not.toContain("feel");
 });
+
+it("undoes the record and contextual answer together without erasing later entries", async () => {
+  render(
+    <JournalProvider>
+      <Capture />
+    </JournalProvider>,
+  );
+  await waitFor(() => expect(journal.ready).toBe(true));
+  const before = journal.snapshot(),
+    day = todayLocal(journal.tz);
+  act(() =>
+    journal.respondPrompt(
+      "water",
+      day,
+      {
+        id: "context-water",
+        type: "water",
+        answer: "yes",
+        localDate: day,
+        at: null,
+        precision: "date_only",
+        createdAt: "",
+        source: "manual_text",
+      },
+      `daily:water:${day}`,
+    ),
+  );
+  const undo = journal.undoFor(before);
+  expect(journal.settings.prompts?.context).toEqual({
+    day,
+    id: `daily:water:${day}`,
+    status: "answered",
+  });
+  act(() =>
+    journal.saveRecord({
+      id: "later",
+      type: "weight",
+      value: 80,
+      unit: "kg",
+      localDate: day,
+      at: null,
+      precision: "date_only",
+      createdAt: "",
+      source: "manual_text",
+    }),
+  );
+  act(undo);
+  expect(journal.records.map((r) => r.id)).toEqual(["later"]);
+  expect(journal.settings.prompts?.context).toBeUndefined();
+  expect(journal.settings.prompts?.answered?.water).toBeUndefined();
+});

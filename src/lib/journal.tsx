@@ -92,6 +92,8 @@ export type Purchase = {
 };
 export type PromptId = "feel" | "water" | "memory" | "weight";
 export type PromptSettings = {
+  aiConsent?: boolean;
+  context?: { day: string; id: string; status: "answered" | "skipped" };
   hidden?: boolean;
   off?: PromptId[];
   answered?: Partial<Record<PromptId, string>>;
@@ -312,7 +314,7 @@ type Ctx = State & {
   importGuest: () => Promise<void>;
   resetDemo: () => void;
   undoFor: (before: State) => () => void;
-  respondPrompt: (id: PromptId, day: string, record?: JournalRecord) => void;
+  respondPrompt: (id: PromptId, day: string, record?: JournalRecord, contextId?: string) => void;
   saveMomoBatch: (records: JournalRecord[], purchases: Purchase[]) => void;
   retrySync: () => void;
   ready: boolean;
@@ -656,11 +658,11 @@ export function JournalProvider({ children }: { children: ReactNode }) {
         if (generation === epoch.current) commit((current) => undoDelta(before, after, current));
       };
     },
-    respondPrompt: (id, day, record) => {
+    respondPrompt: (id, day, record, contextId) => {
       const current = latest.current;
       const prompts = current.settings.prompts ?? {};
       if (record && !owner.current && current.settings.demoMode) record = { ...record, demo: true };
-      const status = record ? "answered" : "skipped";
+      const status: "answered" | "skipped" = record ? "answered" : "skipped";
       const next = {
         ...current,
         records: record
@@ -668,7 +670,11 @@ export function JournalProvider({ children }: { children: ReactNode }) {
           : current.records,
         settings: {
           ...current.settings,
-          prompts: { ...prompts, [status]: { ...prompts[status], [id]: day } },
+          prompts: {
+            ...prompts,
+            [status]: { ...prompts[status], [id]: day },
+            ...(contextId ? { context: { day, id: contextId, status } } : {}),
+          },
         },
       };
       commit(() => next);

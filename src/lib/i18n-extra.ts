@@ -2,6 +2,30 @@
 type D = Record<string, string>;
 
 export const en: D = {
+  "ctx.q.meal_amount.a": "Log how much you ate of your {date} meal?",
+  "ctx.q.meal_amount.b": "Add the amount eaten for your {date} meal?",
+  "ctx.q.feel.a": "How do you feel right now?",
+  "ctx.q.feel.b": "Want to note how you feel now?",
+  "ctx.q.water.a": "Have you had water today?",
+  "ctx.q.water.b": "Want to note whether you had water today?",
+  "ctx.q.memory.a": "A moment you would like to keep today?",
+  "ctx.q.memory.b": "Want to save a moment from today?",
+  "ctx.q.weight.a": "Would you like to log your weight today?",
+  "ctx.q.weight.b": "Want to note today's weight?",
+
+  "ctx.meal": "Log how much you ate of your {date} meal?",
+  "ctx.meta": "Momo’s daily question",
+  "ctx.local": "Daily question",
+  "ctx.obsolete": "This question closed because the entry changed.",
+  "ctx.closed": "A new question can come tomorrow",
+  "ctx.editMeal": "Log amount eaten",
+  "ctx.skip": "Skip",
+  "ctx.settings": "Momo question settings",
+  "ctx.privacy":
+    "Once a day, send only record types, dates and whether a meal’s eaten amount is unknown. No notes, photos or medication details. Turn off to use the basic questions.",
+  "ctx.consent":
+    "I agree to send these minimal facts to the Meta model (Baseten) to choose today’s question.",
+
   "qa.measureTitle": "Body size",
   "ux.doseUnit": "Dose unit",
   "qa.water": "A quick check-in",
@@ -453,6 +477,30 @@ export const en: D = {
 };
 
 export const fr: D = {
+  "ctx.q.meal_amount.a": "Préciser la quantité mangée au repas du {date} ?",
+  "ctx.q.meal_amount.b": "Noter la quantité mangée au repas du {date} ?",
+  "ctx.q.feel.a": "Comment vous sentez-vous maintenant ?",
+  "ctx.q.feel.b": "Noter votre ressenti du moment ?",
+  "ctx.q.water.a": "Avez-vous bu de l’eau aujourd’hui ?",
+  "ctx.q.water.b": "Noter si vous avez bu de l’eau aujourd’hui ?",
+  "ctx.q.memory.a": "Un moment à garder d’aujourd’hui ?",
+  "ctx.q.memory.b": "Envie de garder un souvenir d’aujourd’hui ?",
+  "ctx.q.weight.a": "Voulez-vous noter votre poids aujourd’hui ?",
+  "ctx.q.weight.b": "Envie de noter votre poids du jour ?",
+
+  "ctx.meal": "Préciser la quantité mangée au repas du {date} ?",
+  "ctx.meta": "La question du jour de Momo",
+  "ctx.local": "Question du jour",
+  "ctx.obsolete": "Cette question est fermée car l’entrée a changé.",
+  "ctx.closed": "Une nouvelle question pourra venir demain",
+  "ctx.editMeal": "Noter la quantité mangée",
+  "ctx.skip": "Passer",
+  "ctx.settings": "Questions de Momo",
+  "ctx.privacy":
+    "Une fois par jour, seuls les types de notes, les dates et l’absence de quantité mangée sont envoyés. Aucun texte, photo ou détail de traitement. Désactivez pour les questions classiques.",
+  "ctx.consent":
+    "J’accepte l’envoi de ces faits minimaux au modèle Meta (Baseten) pour choisir la question du jour.",
+
   "qa.measureTitle": "Mesures",
   "ux.doseUnit": "Unité de dose",
   "qa.water": "Un point rapide",

@@ -53,3 +53,7 @@ No push delivery, bank/pharmacy feed, native app, raw-audio Meta integration, da
 ## Follow-up product UX pass
 
 See [UX_AUDIT.md](UX_AUDIT.md) for eight captured steps, fixes and remaining device/backend checks. Current validation: 75 tests, TypeScript and production build pass; lint has 0 errors and 22 existing warnings.
+
+## Questions contextuelles
+
+Voir [CONTEXT_QUESTIONS.md](CONTEXT_QUESTIONS.md) pour le périmètre, les preuves mobiles et les migrations à activer. La validation locale passe avec 96 tests ; le nouveau parcours Meta connecté et la réservation SQL réelle restent à vérifier après configuration.

@@ -21,3 +21,9 @@
 - [ ] Owner: asset rights, public repository decision, hosted judge access, actual video and official portal requirements/submission.
 
 Earlier phase checks describe implemented code and historical local tests; they are not proof of live provider, deployed access control, background notifications or final submission. See docs/SUBMISSION_STATUS.md for this pass's measured checks.
+
+## Questions contextuelles — 30 octobre 2026
+- [x] Occasions pures, sélection Meta encadrée avec consentement, carte unique et secours déterministe.
+- [x] Cache compte/langue/jour, réservation SQL additive, invalidation et actions/Undo existants.
+- [x] Tests ciblés et vérifications mobiles isolées ; voir docs/CONTEXT_QUESTIONS.md.
+- [ ] Appliquer 0001 + 0003, configurer la clé Meta et vérifier le parcours connecté sur deux comptes.

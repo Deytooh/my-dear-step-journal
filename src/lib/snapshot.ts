@@ -93,6 +93,14 @@ const schema = z
         prompts: z
           .object({
             hidden: z.boolean().optional(),
+            aiConsent: z.boolean().optional(),
+            context: z
+              .object({
+                day: date,
+                id: z.string().max(180),
+                status: z.enum(["answered", "skipped"]),
+              })
+              .optional(),
             off: z.array(z.string()).optional(),
             answered: z.record(date).optional(),
             skipped: z.record(date).optional(),

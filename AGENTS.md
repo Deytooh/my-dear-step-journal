@@ -21,6 +21,6 @@
 
 - App feel is presentation-only: shared CSS motion profiles and AppFeel own transient input/save effects; use AnimatedValue for truthful numeric reveals and honor reduced motion, so feedback never changes journal rules or invents medical progress.
 - Momo output is validated server-side (src/lib/momo-schema.ts) and turned into editable drafts (src/lib/momo-drafts.ts); only user-confirmed drafts become records, because the provider has no guaranteed JSON mode.
-- Today's question cards are picked by the pure, deterministic `pickPrompts` (src/lib/prompts.ts) with answered/skipped state in journal settings, so they stay fast and predictable without AI.
+- Today's default question cards use pure `pickPrompts` (src/lib/prompts.ts). Opt-in contextual questions use pure opportunities (src/lib/context-prompts.ts), server-verified owner facts, code-owned actions and constrained localized wording. Cache once per account/local day, keep deterministic fallback, and never create records on display.
 
 - Confirmed Momo batches use stable draft IDs and durable local writes before success. Evidence retains original input, exact text quotes, supplied photo references, proposed fields and confirmed edits; shared manual edits must preserve it. Never invent a missing date or silently move inventory.

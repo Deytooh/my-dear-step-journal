@@ -2,6 +2,29 @@
 export type Locale = "ko" | "en" | "fr";
 
 const ko = {
+  "ctx.q.meal_amount.a": "{date} 식사, 얼마나 드셨는지 남길까요?",
+  "ctx.q.meal_amount.b": "{date} 식사의 먹은 양을 기록할까요?",
+  "ctx.q.feel.a": "지금 기분은 어떠세요?",
+  "ctx.q.feel.b": "지금의 느낌을 남겨 볼까요?",
+  "ctx.q.water.a": "오늘 물을 마셨나요?",
+  "ctx.q.water.b": "오늘 물을 마셨는지 남길까요?",
+  "ctx.q.memory.a": "오늘 남기고 싶은 순간이 있나요?",
+  "ctx.q.memory.b": "오늘의 순간을 하나 남길까요?",
+  "ctx.q.weight.a": "오늘 체중을 기록할까요?",
+  "ctx.q.weight.b": "오늘 체중을 남기고 싶으세요?",
+
+  "ctx.meal": "{date} 식사, 얼마나 드셨는지 남길까요?",
+  "ctx.meta": "모모의 오늘 질문",
+  "ctx.local": "오늘의 질문",
+  "ctx.obsolete": "기록이 바뀌어 이 질문은 닫았어요.",
+  "ctx.closed": "새 질문은 내일 만나요",
+  "ctx.editMeal": "먹은 양 기록하기",
+  "ctx.skip": "넘기기",
+  "ctx.settings": "모모 질문 설정",
+  "ctx.privacy":
+    "하루 한 번, 기록 종류·날짜·식사의 먹은 양이 비어 있는지만 보내요. 글·사진·약 정보는 보내지 않아요. 끄면 기본 질문을 사용해요.",
+  "ctx.consent": "이 최소 정보를 Meta 모델(Baseten)에 보내 오늘 질문을 고르는 데 동의해요.",
+
   "cal.prevMonth": "이전 달",
   "cal.nextMonth": "다음 달",
   "pod.morning": "아침",
@@ -461,11 +484,13 @@ export const setLocale = (l: Locale) => {
 export const getLocale = () => current;
 export const intlLocale = () => ({ ko: "ko-KR", en: "en-US", fr: "fr-FR" })[current];
 
-export function t(key: Key, vars?: Record<string, string | number>) {
-  let s = dicts[current][key] ?? ko[key] ?? key;
+export function tFor(locale: Locale, key: Key, vars?: Record<string, string | number>) {
+  let s = dicts[locale][key] ?? ko[key] ?? key;
   if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace(`{${k}}`, String(v));
   return s;
 }
+
+export const t = (key: Key, vars?: Record<string, string | number>) => tFor(current, key, vars);
 
 export const fmtNumber = (n: number, digits = 1) =>
   new Intl.NumberFormat(intlLocale(), { maximumFractionDigits: digits }).format(n);
