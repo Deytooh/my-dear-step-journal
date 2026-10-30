@@ -17,9 +17,8 @@ import { DemoTag, IconBubble } from "./ui";
 
 export function reminderText(at: string, tz: string, weekday = false) {
   const d = localDateOf(at, tz);
-  return `${weekday ? fmtMonthDayWeekday(d) : fmtMonthDay(d)} · ${fmtTime(at, tz)
-    .replace(":00", "시")
-    .replace(/(\d+)시$/, "$1시")}`;
+  const time = fmtTime(at, tz);
+  return `${weekday ? fmtMonthDayWeekday(d) : fmtMonthDay(d)} · ${getLocale() === "ko" ? time.replace(":00", "시") : time}`;
 }
 
 export function NextReminder({ variant = "today" }: { variant?: "today" | "plain" }) {
@@ -28,8 +27,8 @@ export function NextReminder({ variant = "today" }: { variant?: "today" | "plain
   const r = j.reminder;
   const d = r ? dayDiff(todayLocal(j.tz), localDateOf(r.at, j.tz)) : null;
   return (
-    <div className="flex items-center gap-4">
-      <IconBubble tone="peach">
+    <div className="flex items-center gap-3">
+      <IconBubble tone="peach" size={variant === "plain" ? "sm" : "md"}>
         {variant === "today" ? <Syringe className="size-6" /> : <Bell className="size-6" />}
       </IconBubble>
       <div className="min-w-0 flex-1">

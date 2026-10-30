@@ -2,6 +2,7 @@
 export type Locale = "ko" | "en" | "fr";
 
 const ko = {
+  "ui.loading": "기록을 불러오는 중이에요…",
   "ctx.options": "질문 옵션",
   "ctx.invite": "내 기록에 맞는 질문을 만나 볼까요?",
 
@@ -498,6 +499,6 @@ export const t = (key: Key, vars?: Record<string, string | number>) => tFor(curr
 export const fmtNumber = (n: number, digits = 1) =>
   new Intl.NumberFormat(intlLocale(), { maximumFractionDigits: digits }).format(n);
 export const fmtMoney = (n: number, currency = "KRW") =>
-  currency === "KRW"
+  currency === "KRW" && current === "ko"
     ? `${new Intl.NumberFormat("ko-KR").format(n)}원`
     : new Intl.NumberFormat(intlLocale(), { style: "currency", currency }).format(n);

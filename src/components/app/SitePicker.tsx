@@ -34,7 +34,7 @@ export function SitePicker({
   const toggle = (id: string) => onChange(value === id ? null : id);
   return (
     <div>
-      <div className="flex flex-col items-center rounded-[20px] bg-secondary p-3">
+      <div className="flex flex-col items-center rounded-[20px] border border-primary/5 bg-secondary p-3">
         <div
           className="mb-1 flex w-full max-w-[240px] justify-between text-sm font-semibold text-muted-foreground"
           aria-hidden
@@ -50,7 +50,7 @@ export function SitePicker({
         >
           <g
             stroke="currentColor"
-            strokeWidth="9"
+            strokeWidth="7"
             strokeLinecap="round"
             fill="none"
             className="text-primary/35"
@@ -78,7 +78,7 @@ export function SitePicker({
                     toggle(z.id);
                   }
                 }}
-                className="feel-press cursor-pointer outline-none [&:focus-visible>circle:first-child]:stroke-foreground"
+                className="feel-press cursor-pointer outline-none [&:focus-visible>circle:first-child]:stroke-ring"
               >
                 <circle
                   cx={z.x}
@@ -86,8 +86,8 @@ export function SitePicker({
                   r="19"
                   strokeWidth="3"
                   className={cn(
-                    "transition-colors",
-                    on ? "fill-primary stroke-primary" : "fill-card stroke-primary/50",
+                    "site-zone",
+                    on ? "fill-sage stroke-primary" : "fill-card stroke-primary/50",
                   )}
                 />
                 {on ? (
@@ -98,7 +98,7 @@ export function SitePicker({
                     fill="none"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="text-primary-foreground"
+                    className="text-primary"
                   />
                 ) : (
                   <circle cx={z.x} cy={z.y} r="4" className="fill-primary/50" />
@@ -108,7 +108,10 @@ export function SitePicker({
           })}
         </svg>
         <p className="mt-1 text-sm text-muted-foreground">{t("site.hint")}</p>
-        <p className="mt-1 min-h-6 text-[16px] font-semibold" aria-live="polite">
+        <p
+          className="mt-2 flex min-h-11 items-center rounded-full bg-card/80 px-4 text-[15px] font-semibold"
+          aria-live="polite"
+        >
           {value ? `✓ ${siteLabel(value)}` : t("site.unknown")}
         </p>
       </div>

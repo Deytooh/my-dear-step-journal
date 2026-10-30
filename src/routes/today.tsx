@@ -10,13 +10,14 @@ import {
   Scale,
   Smile,
   Syringe,
+  UtensilsCrossed,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { t, getLocale } from "@/lib/i18n";
 import { dayDiff, fmtMonthDay, fmtMonthDayWeekday, localDateOf, todayLocal } from "@/lib/dates";
 import { latestRecord as latest, sortByTime, useJournal, type JournalRecord } from "@/lib/journal";
 import { useQuickAdd } from "@/components/app/AppShell";
-import { Card, DemoTag, RecordRow, SectionHeader } from "@/components/app/ui";
+import { Card, DemoTag, RecordRow, SectionHeader, EmptyState } from "@/components/app/ui";
 import { reminderText } from "@/components/app/ReminderCard";
 import { PromptCarousel } from "@/components/app/PromptCarousel";
 import { AnimatedValue } from "@/components/app/AppFeel";
@@ -60,12 +61,12 @@ function Today() {
 
       <PromptCarousel />
 
-      <div className="mt-4 flex items-center rounded-full border bg-card shadow-soft">
+      <div className="momo-composer mt-4 flex items-center bg-card">
         <Button
           variant="unstyled"
           size="unstyled"
           onClick={() => open("voice")}
-          className="press flex min-h-14 flex-1 items-center gap-3 rounded-l-full pl-5 text-left text-[16px] text-muted-foreground"
+          className="press flex min-h-14 flex-1 items-center gap-3 rounded-l-[22px] pl-4 text-left text-[16px] text-muted-foreground"
         >
           <Mic className="size-6 shrink-0 text-foreground" />
           {t("momo.talk")}
@@ -76,7 +77,7 @@ function Today() {
           size="unstyled"
           onClick={() => open("voice")}
           aria-label={t("momo.photo")}
-          className="press flex size-14 items-center justify-center rounded-r-full"
+          className="press flex size-14 items-center justify-center rounded-r-[22px]"
         >
           <Camera className="size-6" />
         </Button>
@@ -87,10 +88,11 @@ function Today() {
         className="mt-4 min-h-14 w-full justify-between whitespace-normal rounded-2xl text-left"
         onClick={() => open("meal")}
       >
-        <span>{t("meal.open")}</span>
-        <span className="max-w-[50%] truncate text-sm text-muted-foreground">
-          {latest(j.records, "meal")?.meal.title ?? t("meal.manual")}
+        <span className="flex items-center gap-2">
+          <UtensilsCrossed className="size-5 shrink-0" />
+          {t("meal.open")}
         </span>
+        <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
       </Button>
       <SectionHeader
         title={t("today.records")}
@@ -105,7 +107,7 @@ function Today() {
       />
       <Card className="px-5 pb-5">
         {records.length === 0 && (
-          <p className="py-6 text-center text-muted-foreground">{t("today.empty")}</p>
+          <EmptyState icon={<Plus className="size-5" />}>{t("today.empty")}</EmptyState>
         )}
         <div className="divide-y">
           {records.map((r) => (
@@ -147,7 +149,7 @@ function HomeHero() {
             : t("home.soon");
   }
   return (
-    <section className="-mx-5 rounded-b-[32px] bg-primary px-5 pb-5 text-primary-foreground">
+    <section className="-mx-5 rounded-b-[30px] bg-primary px-5 pb-5 text-primary-foreground">
       <div className="relative flex items-end justify-between gap-2">
         <div className="min-w-0 pt-1 pb-3">
           <h1
@@ -174,7 +176,7 @@ function HomeHero() {
             aria-hidden
             width={112}
             height={112}
-            className="-mb-2 size-28 shrink-0 object-contain"
+            className="-mb-1 size-24 shrink-0 object-contain"
           />
         )}
       </div>
@@ -223,14 +225,14 @@ function Tile({
   demo?: boolean | undefined;
 }) {
   const cls = cn(
-    "feel-panel press flex min-h-[176px] flex-col rounded-[24px] p-4 text-left shadow-soft",
+    "app-surface press flex min-h-[168px] flex-col rounded-[24px] p-4 text-left shadow-soft",
     tone === "sage" ? "bg-secondary" : tone === "peach" ? "bg-accent" : "bg-card",
   );
   const head = (
     <span className="flex items-center gap-2">
       <span
         className={cn(
-          "flex size-10 shrink-0 items-center justify-center rounded-full",
+          "flex size-9 shrink-0 items-center justify-center rounded-[13px] border border-primary/5",
           tone === "card" ? "bg-secondary" : "bg-card/70",
         )}
       >
@@ -284,7 +286,7 @@ function WeightTile() {
       {w ? (
         <>
           <span className="mt-auto flex items-baseline gap-1 pt-3">
-            <span className="text-[38px] font-bold leading-none tracking-tight">
+            <span className="text-[44px] font-semibold leading-none tracking-tight">
               <AnimatedValue value={w.value} digits={1} />
             </span>
             <span className="text-[17px] text-muted-foreground">{w.unit}</span>
@@ -365,7 +367,7 @@ function StockTile() {
       {known ? (
         <>
           <span className="mt-auto flex items-baseline gap-1 pt-3">
-            <span className="text-[38px] font-bold leading-none">
+            <span className="text-[44px] font-semibold leading-none">
               <AnimatedValue value={j.stock} digits={0} />
             </span>
             <span className="text-[17px] text-muted-foreground">
@@ -406,9 +408,9 @@ function MomentTile() {
     )
     .sort(sortByTime)[0];
   return (
-    <div className="feel-panel flex min-h-[176px] flex-col rounded-[24px] bg-card p-4 shadow-soft">
+    <div className="app-surface flex min-h-[168px] flex-col rounded-[24px] bg-card p-4 shadow-soft">
       <Link to="/journey" className="press flex min-h-11 items-center gap-2">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-[13px] border border-primary/5 bg-secondary">
           <ImageIcon className="size-5" />
         </span>
         <span className="min-w-0 flex-1 break-keep text-[17px] font-bold leading-tight">
@@ -419,9 +421,9 @@ function MomentTile() {
       {withPhoto?.demo && <DemoTag show />}
       <div className="my-2 flex flex-1 items-center justify-center">
         {withPhoto?.photo ? (
-          <PhotoImg src={withPhoto.photo} className="h-16 w-24 rounded-[12px] object-cover" />
+          <PhotoImg src={withPhoto.photo} className="h-[72px] w-full rounded-[14px] object-cover" />
         ) : (
-          <span className="flex h-16 w-24 items-center justify-center rounded-[12px] bg-secondary text-primary/50">
+          <span className="flex h-[72px] w-full items-center justify-center rounded-[14px] bg-secondary/65 text-primary/55">
             <ImageIcon className="size-8" />
           </span>
         )}

@@ -5,7 +5,7 @@ import { t } from "@/lib/i18n";
 import { fmtMonthDay, todayLocal } from "@/lib/dates";
 import { sortByTime, useJournal, type JournalRecord } from "@/lib/journal";
 import { useQuickAdd } from "@/components/app/AppShell";
-import { Card, PageTitle, RecordRow } from "@/components/app/ui";
+import { Card, PageTitle, RecordRow, EmptyState } from "@/components/app/ui";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/history")({
@@ -63,7 +63,7 @@ function History() {
     <div>
       <PageTitle title={t("hist.title")} sub={t("hist.sub")} momoArt={false} />
       <RecordFinder />
-      <details className="my-3">
+      <details className="journal-disclosure my-3">
         <summary className="min-h-11 cursor-pointer py-3">{t("hist.range")}</summary>
         <div className="grid grid-cols-2 gap-3">
           <label>
@@ -86,14 +86,14 @@ function History() {
           </label>
         </div>
       </details>
-      <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
+      <div className="-mx-5 flex snap-x gap-2 overflow-x-auto px-5 pb-2 [scrollbar-width:none]">
         {FILTERS.map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             aria-pressed={filter === f}
             className={cn(
-              "press min-h-11 shrink-0 rounded-full border px-4 text-[15px]",
+              "feel-chip press min-h-11 shrink-0 rounded-full border px-4 text-[15px]",
               filter === f ? "border-primary bg-primary text-primary-foreground" : "bg-card",
             )}
           >
@@ -102,14 +102,16 @@ function History() {
         ))}
       </div>
       {groups.length === 0 ? (
-        <Card className="mt-4 p-8 text-center text-muted-foreground">{t("hist.empty")}</Card>
+        <Card className="mt-4">
+          <EmptyState>{t("hist.empty")}</EmptyState>
+        </Card>
       ) : (
         groups.map(([day, recs]) => (
           <section key={day} className="mt-5">
             <h2 className="text-sm font-semibold text-muted-foreground">
               {day === today ? t("today") : fmtMonthDay(day)}
             </h2>
-            <div className="divide-y">
+            <div className="history-group mt-2 divide-y">
               {recs.map((r) => (
                 <RecordRow key={r.id} r={r} onEdit={() => open(r.type, r)} />
               ))}

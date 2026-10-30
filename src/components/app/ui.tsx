@@ -1,3 +1,5 @@
+import { PhotoImg } from "./PhotoImg";
+import { mealTotals } from "@/lib/meals";
 import { Button } from "@/components/ui/button";
 import type { ReactNode } from "react";
 import {
@@ -8,6 +10,7 @@ import {
   Scale,
   Smile,
   Syringe,
+  UtensilsCrossed,
   Image as ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,7 +32,7 @@ export function IconBubble({
   return (
     <span
       className={cn(
-        "feel-icon flex shrink-0 items-center justify-center rounded-full",
+        "feel-icon flex shrink-0 items-center justify-center rounded-[16px] border border-primary/5",
         tone === "sage" ? "bg-sage" : "bg-peach",
         size === "md" ? "size-14" : "size-11",
       )}
@@ -50,7 +53,7 @@ export function PageTitle({
 }) {
   const { settings } = useJournal();
   return (
-    <div className="relative flex items-end justify-between pt-3 pb-4">
+    <div className="page-heading relative flex items-center justify-between">
       <div>
         <h1 className="text-[28px] font-bold leading-tight">{title}</h1>
         {sub && <p className="mt-1 text-[15px] text-muted-foreground">{sub}</p>}
@@ -71,13 +74,15 @@ export function PageTitle({
 
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
   return (
-    <section className={cn("rounded-[24px] bg-card shadow-soft", className)}>{children}</section>
+    <section className={cn("app-surface rounded-[24px] bg-card shadow-soft", className)}>
+      {children}
+    </section>
   );
 }
 
 export function SectionHeader({ title, action }: { title: string; action?: ReactNode }) {
   return (
-    <div className="mt-7 mb-3 flex items-center justify-between">
+    <div className="section-heading mt-7 mb-3 flex items-center justify-between">
       <h2 className="text-[20px] font-bold">{title}</h2>
       {action}
     </div>
@@ -96,7 +101,7 @@ export function DemoTag({ show }: { show?: boolean | undefined }) {
 export function recordIcon(r: JournalRecord) {
   switch (r.type) {
     case "meal":
-      return { icon: <ImageIcon className="size-6" />, tone: "peach" as const };
+      return { icon: <UtensilsCrossed className="size-6" />, tone: "peach" as const };
     case "weight":
       return { icon: <Scale className="size-6" />, tone: "sage" as const };
     case "injection":
@@ -176,22 +181,40 @@ export function RecordRow({
 }) {
   const { tz } = useJournal();
   const ic = recordIcon(r);
+  const photo = r.type === "memory" ? r.photo : r.type === "meal" ? r.meal.photoRefs[0] : null;
+  const totals = r.type === "meal" ? mealTotals(r.meal) : null;
+  const energy = totals?.consumed ?? totals?.pictured;
   const label = r.type === "memory" ? t("type.memory") : t(`type.${r.type}`);
   return (
     <Button
       variant="unstyled"
       size="unstyled"
       onClick={onEdit}
-      className="feel-panel press flex w-full items-center gap-4 py-4 text-left"
+      data-record={r.type}
+      className="record-row press flex w-full items-center py-4 text-left"
     >
-      <IconBubble tone={ic.tone}>{ic.icon}</IconBubble>
+      {photo ? (
+        <PhotoImg
+          src={photo}
+          alt=""
+          className="size-14 shrink-0 rounded-[16px] border object-cover"
+        />
+      ) : (
+        <IconBubble tone={ic.tone}>{ic.icon}</IconBubble>
+      )}
       <div className="min-w-0 flex-1">
         <div className="text-sm text-muted-foreground">
           {label}
           <DemoTag show={r.demo} />
         </div>
-        <div className="truncate text-[22px] font-bold leading-snug">{recordValue(r)}</div>
+        <div className="record-value line-clamp-2 font-semibold leading-snug">{recordValue(r)}</div>
         <div className="text-sm text-muted-foreground">{recordWhen(r, tz)}</div>
+        {energy && (
+          <div className="mt-1 text-xs text-muted-foreground">
+            {t(totals?.consumed ? "meal.consumedEstimate" : "meal.picturedEstimate")} ·{" "}
+            {Math.round(energy.low)}–{Math.round(energy.high)} kcal
+          </div>
+        )}
       </div>
       {trailing === "edit" ? (
         <Pencil className="size-5 text-muted-foreground" aria-label={t("ui.edit")} />
@@ -216,7 +239,10 @@ export function Segmented<T extends string>({
   return (
     <div
       role="tablist"
-      className={cn("flex rounded-full p-1", size === "lg" ? "bg-secondary" : "border bg-card")}
+      className={cn(
+        "segmented flex rounded-[18px]",
+        size === "lg" ? "bg-secondary" : "border bg-card",
+      )}
     >
       {options.map((o) => {
         const active = o.value === value;
@@ -242,6 +268,28 @@ export function Segmented<T extends string>({
           </Button>
         );
       })}
+    </div>
+  );
+}
+
+export function EmptyState({
+  icon,
+  children,
+  action,
+}: {
+  icon?: ReactNode;
+  children: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
+      {icon && (
+        <span className="flex size-12 items-center justify-center rounded-[16px] border border-primary/5 bg-secondary text-primary/65">
+          {icon}
+        </span>
+      )}
+      <p className="max-w-64 text-[15px] leading-relaxed text-muted-foreground">{children}</p>
+      {action}
     </div>
   );
 }

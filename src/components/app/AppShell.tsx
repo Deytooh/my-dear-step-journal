@@ -1,7 +1,7 @@
 import { validateSnapshot } from "@/lib/snapshot";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { CalendarDays, ChartNoAxesColumn, Home, Plus, Syringe, Settings2 } from "lucide-react";
 import { t, type Key } from "@/lib/i18n";
@@ -35,6 +35,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [kind, setKind] = useState<EntryKind>("menu");
   const [editing, setEditing] = useState<JournalRecord | Purchase | undefined>();
   const j = useJournal();
+  useEffect(() => {
+    document.documentElement.lang = j.settings.locale ?? "ko";
+  }, [j.settings.locale]);
   const opener: Opener = (k = "menu", e, date) => {
     setEntryDate(date);
     setKind(k);
@@ -68,7 +71,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
             </div>
           )}
-          {children}
+          {j.ready ? children : <PageSkeleton hero={pathname === "/today"} />}
         </main>
       </div>
       <AppFeel />
@@ -85,12 +88,35 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
+function PageSkeleton({ hero }: { hero: boolean }) {
+  return (
+    <div role="status" aria-label={t("ui.loading")} className="pointer-events-none">
+      <span className="sr-only">{t("ui.loading")}</span>
+      {hero ? (
+        <div className="-mx-5 h-[188px] rounded-b-[30px] bg-primary" />
+      ) : (
+        <div className="flex h-28 items-center">
+          <span className="feel-busy h-7 w-40 rounded-xl bg-secondary" />
+        </div>
+      )}
+      <div aria-hidden className={hero ? "mt-5 grid grid-cols-2 gap-3" : "grid gap-4"}>
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className={`feel-busy rounded-[24px] border border-primary/5 bg-card ${hero ? "h-[168px]" : "h-28"}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Header({ hero = false }: { hero?: boolean }) {
   const j = useJournal();
   const navigate = useNavigate();
   return (
     <header
-      className={`flex items-center justify-between px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-2 ${hero ? "bg-primary text-primary-foreground" : ""}`}
+      className={`flex items-center justify-between px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-3 ${hero ? "bg-primary text-primary-foreground" : ""}`}
     >
       <Link to="/today" className="flex items-end gap-1" aria-label="my dear step">
         <span className="font-brand text-[26px] leading-none tracking-tight">my dear step</span>
@@ -313,48 +339,50 @@ function Sprout({ hero = false }: { hero?: boolean }) {
 }
 
 function BottomNav({ onAdd, expanded }: { onAdd: () => void; expanded: boolean }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const activePath = pathname === "/journey" || pathname === "/history" ? "/progress" : pathname;
   const item =
-    "press flex min-h-14 flex-1 flex-col items-center justify-center gap-1 text-[13px] text-muted-foreground";
+    "press flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[12px] text-muted-foreground";
   const render = (tab: (typeof tabs)[number]) => {
     const Icon = tab.icon;
+    const active = activePath === tab.to;
     return (
       <Link
         key={tab.to}
         to={tab.to}
-        className={item}
+        className={`${item} ${active ? "text-foreground font-semibold" : ""}`}
+        aria-current={active ? "page" : undefined}
         activeProps={{ className: "!text-foreground font-semibold" }}
       >
-        {({ isActive }) => (
-          <>
-            <span className="feel-nav-icon flex h-8 w-12 items-center justify-center rounded-full">
-              <Icon
-                className="size-6"
-                strokeWidth={isActive ? 2.4 : 1.7}
-                fill={isActive && tab.to === "/today" ? "currentColor" : "none"}
-              />
-            </span>
-            {t(tab.label)}
-          </>
-        )}
+        <>
+          <span className="feel-nav-icon flex h-8 w-12 items-center justify-center rounded-full">
+            <Icon
+              className="size-6"
+              strokeWidth={active ? 2.4 : 1.7}
+              fill={active && tab.to === "/today" ? "currentColor" : "none"}
+            />
+          </span>
+          <span className="whitespace-nowrap text-center leading-tight">{t(tab.label)}</span>
+        </>
       </Link>
     );
   };
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm">
-      <div className="mx-auto flex max-w-md items-end px-2 pt-1 pb-1">
+    <nav className="app-nav fixed inset-x-0 bottom-0 z-40 border-t border-primary/10 bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm">
+      <div className="mx-auto flex max-w-md items-end px-2 pt-2 pb-2">
         {tabs.slice(0, 2).map(render)}
         <Button
           variant="unstyled"
           size="unstyled"
           onClick={onAdd}
           aria-expanded={expanded}
-          className="feel-add press -mt-7 flex flex-1 flex-col items-center gap-1 text-[13px] text-muted-foreground"
+          className="feel-add press -mt-7 flex min-w-0 flex-1 flex-col items-center gap-1 text-[12px] text-muted-foreground"
           aria-label={t("nav.add")}
         >
           <span className="flex size-16 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-soft">
             <Plus className="size-8" strokeWidth={2.2} />
           </span>
-          {t("nav.add")}
+          <span className="whitespace-nowrap text-center leading-tight">{t("nav.add")}</span>
         </Button>
         {tabs.slice(2).map(render)}
       </div>

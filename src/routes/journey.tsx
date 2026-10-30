@@ -5,7 +5,7 @@ import { t, fmtNumber } from "@/lib/i18n";
 import { fmtMonthDay } from "@/lib/dates";
 import { sortByTime, useJournal, type MemoryRec, type WeightRec } from "@/lib/journal";
 import { useQuickAdd } from "@/components/app/AppShell";
-import { Card, DemoTag, IconBubble, PageTitle } from "@/components/app/ui";
+import { Card, DemoTag, IconBubble, PageTitle, EmptyState } from "@/components/app/ui";
 import { RecordFinder } from "@/components/app/RecordFinder";
 import { Plus } from "lucide-react";
 
@@ -44,32 +44,26 @@ function Journey() {
         {t("pr.memoryA")}
       </button>
       {memories.length === 0 && (
-        <Card className="p-8 text-center">
-          <p className="text-muted-foreground">{t("journey.empty")}</p>
-          <button
-            onClick={() => open("memory")}
-            className="press mt-4 h-11 rounded-full bg-primary px-5 text-primary-foreground"
-          >
-            {t("pr.memoryA")}
-          </button>
+        <Card className="mt-4">
+          <EmptyState icon={<ImageIcon className="size-5" />}>{t("journey.empty")}</EmptyState>
         </Card>
       )}
-      <ol className="relative mt-4 border-l-2 border-border pl-6">
+      <ol className="relative mt-5 border-l border-primary/15 pl-5">
         {memories.map((m) => {
           const w = weightOn(m.localDate);
           const diff = w && first ? w.value - first.value : null;
           return (
             <li key={m.id} className="mb-6">
               <span
-                className="absolute -left-[9px] mt-1 size-4 rounded-full bg-peach-accent"
+                className="absolute -left-[5px] mt-2 size-2 rounded-full bg-peach-accent ring-4 ring-background"
                 aria-hidden
               />
               <button
                 onClick={() => open("memory", m)}
-                className="press w-full overflow-hidden rounded-[20px] bg-card text-left shadow-soft"
+                className="app-surface press w-full overflow-hidden rounded-[22px] bg-card text-left shadow-soft"
               >
                 {m.photo ? (
-                  <PhotoImg src={m.photo} className="max-h-72 w-full object-cover" />
+                  <PhotoImg src={m.photo} className="memory-photo" />
                 ) : (
                   <div className="flex h-20 items-center justify-center bg-peach">
                     <ImageIcon className="size-6" />
@@ -80,7 +74,9 @@ function Journey() {
                     {fmtMonthDay(m.localDate)}
                     <DemoTag show={m.demo} />
                   </div>
-                  {m.note && <p className="mt-1 text-[16px]">{m.note}</p>}
+                  {m.note && (
+                    <p className="mt-2 whitespace-pre-wrap text-[16px] leading-relaxed">{m.note}</p>
+                  )}
                   {w && (
                     <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
                       <Scale className="size-4" />
@@ -97,7 +93,10 @@ function Journey() {
         })}
         {first && (
           <li className="flex items-center gap-3">
-            <span className="absolute -left-[9px] size-4 rounded-full bg-primary" aria-hidden />
+            <span
+              className="absolute -left-[5px] size-2 rounded-full bg-primary ring-4 ring-background"
+              aria-hidden
+            />
             <IconBubble size="sm">
               <Flag className="size-5" />
             </IconBubble>

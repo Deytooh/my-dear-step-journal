@@ -6,7 +6,7 @@ import { SourceEvidence } from "./SourceEvidence";
 import { lotIdentity, matchesLot } from "@/lib/inventory";
 import { Button } from "@/components/ui/button";
 import { PhotoImg } from "@/components/app/PhotoImg";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -65,6 +65,11 @@ type Props = {
 
 export function QuickAddSheet({ open, onOpenChange, kind, setKind, editing, initialDate }: Props) {
   const { settings, user } = useJournal();
+  const scrollPane = useRef<HTMLDivElement>(null);
+  // A new sheet view begins below its fixed header; expanding fields never resets it.
+  useLayoutEffect(() => {
+    if (open && scrollPane.current) scrollPane.current.scrollTop = 0;
+  }, [open, kind, editing?.id]);
   const [mealSeed, setMealSeed] = useState<{ images: string[]; note: string }>({
     images: [],
     note: "",
@@ -77,8 +82,11 @@ export function QuickAddSheet({ open, onOpenChange, kind, setKind, editing, init
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="mx-auto max-h-[92dvh] max-w-md rounded-t-[28px] border-0 bg-background">
-        <div className="min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <div className="flex justify-between pt-2">
+        <div
+          ref={scrollPane}
+          className="min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(1rem,env(safe-area-inset-bottom))]"
+        >
+          <div className="sticky top-0 z-20 -mx-5 flex justify-between border-b border-primary/5 bg-background/95 px-5 py-1 backdrop-blur-md">
             {kind !== "menu" && !editing ? (
               <Button
                 variant="unstyled"
@@ -618,7 +626,8 @@ function EntryForm({
         e.preventDefault();
         if (!composing.current) save();
       }}
-      className="feel-form space-y-5"
+      data-entry-kind={kind}
+      className="journal-form feel-form space-y-5"
     >
       <DrawerTitle className="text-[24px] font-bold">
         {titles[kind]}
@@ -1019,7 +1028,7 @@ function EntryForm({
         </p>
       )}
 
-      <div className="sticky bottom-0 z-10 flex gap-3 border-t bg-background pt-3 pb-[max(.75rem,env(safe-area-inset-bottom))]">
+      <div className="sheet-actions flex gap-3">
         {(editing || (kind === "reminder" && j.reminder)) && (
           <Button
             variant="unstyled"

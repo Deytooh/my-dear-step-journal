@@ -139,10 +139,10 @@ function Questions() {
               <div
                 role="listitem"
                 key={id}
-                className={`grid min-h-[224px] w-[88%] shrink-0 snap-start grid-rows-[1fr_auto_auto] gap-2 rounded-[24px] p-4 ${index % 2 ? "bg-accent" : "bg-secondary"}`}
+                className={`question-card grid min-h-[224px] w-[90%] shrink-0 snap-start grid-rows-[1fr_auto_auto] gap-2 rounded-[24px] p-4 ${index % 2 ? "bg-accent" : "bg-secondary"}`}
               >
                 <div className="flex items-center gap-3">
-                  <img src={momoImg} alt="" className="size-14 shrink-0 object-contain" />
+                  <img src={momoImg} alt="" className="size-12 shrink-0 object-contain" />
                   <p className="min-w-0 text-[18px] font-bold leading-snug">{t(question)}</p>
                 </div>
                 {done ? (

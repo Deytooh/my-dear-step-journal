@@ -67,7 +67,9 @@ function AuthPage() {
 
   return (
     <div className="mx-auto max-w-md pb-10 pt-4">
-      <h1 className="font-brand text-[28px] leading-tight">{t("auth.title")}</h1>
+      <h1 className="pt-3 text-[30px] font-semibold leading-tight tracking-tight">
+        {t("auth.title")}
+      </h1>
       <p className="mt-2 text-sm text-muted-foreground">{t("auth.sub")}</p>
       <Card className="mt-6 p-5">
         <Button
@@ -93,7 +95,7 @@ function AuthPage() {
           {t("auth.or")}
           <span className="h-px flex-1 bg-border" />
         </div>
-        <form onSubmit={submit} className="feel-form space-y-3" aria-busy={busy}>
+        <form onSubmit={submit} className="journal-form feel-form space-y-4" aria-busy={busy}>
           <label className="block text-sm">
             {t("auth.email")}
             <input

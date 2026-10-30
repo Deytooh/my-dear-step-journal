@@ -278,10 +278,18 @@ export function MealForm({
         e.preventDefault();
         if (!("isComposing" in e.nativeEvent && e.nativeEvent.isComposing)) save();
       }}
-      className="space-y-4"
+      className="journal-form space-y-4"
     >
       <DrawerTitle className="text-2xl font-bold">{t("type.meal")}</DrawerTitle>
       <DrawerDescription>{t("meal.hint")}</DrawerDescription>
+      <label className="block">
+        {t("meal.title")}
+        <input
+          className={input}
+          value={meal.title}
+          onChange={(e) => patch({ title: e.target.value })}
+        />
+      </label>
       {restoredNotice && (
         <div role="status" className="rounded-2xl bg-secondary p-3 text-sm">
           <p>{t("ux.restored")}</p>
@@ -297,18 +305,14 @@ export function MealForm({
         </div>
       )}
       {editing?.evidence && <SourceEvidence evidence={editing.evidence} />}
-      <div className="flex flex-wrap gap-2">
+      <div className={meal.photoRefs.length === 1 ? "grid gap-3" : "grid grid-cols-2 gap-3"}>
         {meal.photoRefs.map((ref, index) => (
-          <div key={ref} className="relative">
-            <PhotoImg
-              src={ref}
-              alt={`${t("type.meal")} ${index + 1}`}
-              className="size-24 rounded-xl object-cover"
-            />
+          <div key={ref} className="relative min-w-0 space-y-2">
+            <PhotoImg src={ref} alt={`${t("type.meal")} ${index + 1}`} className="meal-photo" />
             <Button
               type="button"
               variant="outline"
-              className="min-h-11"
+              className="min-h-11 w-full rounded-xl"
               onClick={() => {
                 generation.current++;
                 guard.current = false;
@@ -335,14 +339,19 @@ export function MealForm({
           }}
         />
       </label>
-      <label className="block">
-        {t("f.note")}
-        <textarea
-          className={input}
-          value={meal.note ?? ""}
-          onChange={(e) => patch({ note: e.target.value })}
-        />
-      </label>
+      <details>
+        <summary>
+          {t("f.note")} · {t("f.optional")}
+        </summary>{" "}
+        <label className="block">
+          {t("f.note")}
+          <textarea
+            className={input}
+            value={meal.note ?? ""}
+            onChange={(e) => patch({ note: e.target.value })}
+          />
+        </label>
+      </details>
       <details>
         <summary className="min-h-11 cursor-pointer py-3 font-medium">{t("meal.analyze")}</summary>
         <label className="flex min-h-11 items-center gap-3 text-sm">
@@ -360,14 +369,7 @@ export function MealForm({
         </Button>
         <p className="text-sm text-muted-foreground">{t("meal.replace")}</p>
       </details>
-      <label className="block">
-        {t("meal.title")}
-        <input
-          className={input}
-          value={meal.title}
-          onChange={(e) => patch({ title: e.target.value })}
-        />
-      </label>
+
       <label className="block">
         {t("meal.kind")}
         <select
@@ -405,8 +407,8 @@ export function MealForm({
       <p className="text-sm">{t("meal.dateDefault")}</p>
       <ul className="space-y-3">
         {meal.items.map((item) => (
-          <li key={item.id} className="space-y-3 rounded-2xl border bg-card p-3">
-            <div className="flex items-center gap-3">
+          <li key={item.id} className="meal-food space-y-3 rounded-[20px] border bg-card p-4">
+            <div className="flex items-center justify-between gap-3">
               <label className="flex min-h-11 items-center gap-2">
                 <input
                   type="checkbox"
@@ -418,6 +420,7 @@ export function MealForm({
               <Button
                 type="button"
                 variant="ghost"
+                className="size-11 shrink-0 rounded-full text-muted-foreground"
                 aria-label={t("ux.removeFood", { name: item.name || t("meal.food") })}
                 onClick={() => patch({ items: meal.items.filter((i) => i.id !== item.id) })}
               >
@@ -440,46 +443,58 @@ export function MealForm({
                 onChange={(e) => itemPatch(item.id, { portionDescription: e.target.value || null })}
               />
             </label>
-            <label className="flex min-h-11 items-center gap-2">
-              <input
-                type="checkbox"
-                checked={item.kcal !== null}
-                onChange={(e) =>
-                  itemPatch(item.id, {
-                    kcal: e.target.checked ? { low: NaN, high: NaN, basis: "user_entered" } : null,
-                  })
-                }
-              />
-              {t("meal.energyKnown")}
-            </label>
-            {item.kcal && (
-              <>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["low", "high"] as const).map((side) => (
-                    <label key={side}>
-                      {t(`meal.${side}`)} kcal
-                      <input
-                        className={input}
-                        type="number"
-                        min="0"
-                        max="10000"
-                        value={Number.isFinite(item.kcal![side]) ? item.kcal![side] : ""}
-                        onChange={(e) =>
-                          itemPatch(item.id, {
-                            kcal: {
-                              ...item.kcal!,
-                              [side]: e.target.value === "" ? NaN : Number(e.target.value),
-                              basis: "user_entered",
-                            },
-                          })
-                        }
-                      />
-                    </label>
-                  ))}
-                </div>
-                <p className="text-sm">{t(`meal.${item.kcal.basis}`)}</p>
-              </>
-            )}
+            <details>
+              <summary>
+                <span>{t("meal.energyKnown")}</span>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {item.kcal && Number.isFinite(item.kcal.low) && Number.isFinite(item.kcal.high)
+                    ? `${item.kcal.low}–${item.kcal.high} kcal`
+                    : t("unknown")}
+                </span>
+              </summary>
+              <label className="flex min-h-11 items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={item.kcal !== null}
+                  onChange={(e) =>
+                    itemPatch(item.id, {
+                      kcal: e.target.checked
+                        ? { low: NaN, high: NaN, basis: "user_entered" }
+                        : null,
+                    })
+                  }
+                />
+                {t("meal.energyKnown")}
+              </label>
+              {item.kcal && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["low", "high"] as const).map((side) => (
+                      <label key={side}>
+                        {t(`meal.${side}`)} kcal
+                        <input
+                          className={input}
+                          type="number"
+                          min="0"
+                          max="10000"
+                          value={Number.isFinite(item.kcal![side]) ? item.kcal![side] : ""}
+                          onChange={(e) =>
+                            itemPatch(item.id, {
+                              kcal: {
+                                ...item.kcal!,
+                                [side]: e.target.value === "" ? NaN : Number(e.target.value),
+                                basis: "user_entered",
+                              },
+                            })
+                          }
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-sm">{t(`meal.${item.kcal.basis}`)}</p>
+                </>
+              )}
+            </details>
             <details>
               <summary className="min-h-11 cursor-pointer py-2">{t("meal.ingredients")}</summary>
               <p className="text-sm">
@@ -552,11 +567,11 @@ export function MealForm({
           />
         </label>
       )}
-      <div className="rounded-2xl bg-secondary p-4" aria-live="polite">
+      <div className="app-surface rounded-[20px] bg-peach p-4" aria-live="polite">
         <p className="text-sm">
           {t(totals.consumed ? "meal.consumedEstimate" : "meal.picturedEstimate")}
         </p>
-        <p className="text-2xl font-bold tabular-nums">
+        <p className="mt-1 text-[23px] font-semibold tracking-tight tabular-nums">
           {energy ? `${Math.round(energy.low)}–${Math.round(energy.high)} kcal` : t("unknown")}
         </p>
         {totals.partial && <p>{t("meal.partial")}</p>}
@@ -575,7 +590,7 @@ export function MealForm({
           {error}
         </p>
       )}
-      <div className="sticky bottom-0 flex gap-2 border-t bg-background py-3 pb-[max(.75rem,env(safe-area-inset-bottom))]">
+      <div className="sheet-actions flex gap-2">
         {editing && (
           <Button
             type="button"

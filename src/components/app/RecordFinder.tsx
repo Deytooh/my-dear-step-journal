@@ -91,7 +91,10 @@ export function RecordFinder() {
     ? j.purchases.filter((p) => aiKeys.includes(`purchase:${p.id}`))
     : [];
   return (
-    <section aria-labelledby="find-title" className="mt-2 rounded-[24px] bg-secondary p-4">
+    <section
+      aria-labelledby="find-title"
+      className="app-surface mt-2 rounded-[24px] bg-secondary p-4"
+    >
       <h2 id="find-title" className="text-[18px] font-bold">
         {t("find.title")}
       </h2>
@@ -128,18 +131,21 @@ export function RecordFinder() {
           <Search className="size-5" />
         </Button>
       </form>
-      <label className="mt-2 flex min-h-11 items-center gap-2 text-sm">
-        <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-        {t("ai.consent")}
-      </label>
-      {!j.user && <p className="text-sm">{t("ai.signin")}</p>}
-      <Button
-        className="mt-2 min-h-12 w-full whitespace-normal rounded-full"
-        disabled={!j.user || !consent || busy || !q.trim()}
-        onClick={run}
-      >
-        {t(busy ? "momo.thinking" : "find.ai")}
-      </Button>
+      <details className="journal-disclosure mt-3">
+        <summary>{t("find.ai")}</summary>
+        <label className="mt-2 flex min-h-11 items-center gap-2 text-sm">
+          <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+          {t("ai.consent")}
+        </label>
+        {!j.user && <p className="text-sm">{t("ai.signin")}</p>}
+        <Button
+          className="mt-2 min-h-12 w-full whitespace-normal rounded-full"
+          disabled={!j.user || !consent || busy || !q.trim()}
+          onClick={run}
+        >
+          {t(busy ? "momo.thinking" : "find.ai")}
+        </Button>
+      </details>
       {failure && (
         <p role="alert" className="mt-2 text-sm">
           {failure}
@@ -175,10 +181,20 @@ export function RecordFinder() {
                       size="unstyled"
                       onClick={() => open(r.type, r)}
                       aria-label={`${t("find.open")}: ${fmtMonthDay(r.localDate)}`}
-                      className="press flex w-full items-center gap-3 rounded-[16px] bg-card p-3 text-left"
+                      className="record-row press flex w-full items-center gap-3 rounded-[16px] border border-primary/5 bg-card p-3 text-left"
                     >
-                      {r.type === "memory" && r.photo && (
-                        <PhotoImg src={r.photo} className="size-12 rounded-[10px] object-cover" />
+                      {((r.type === "memory" && r.photo) ||
+                        (r.type === "meal" && r.meal.photoRefs[0])) && (
+                        <PhotoImg
+                          src={
+                            (r.type === "memory"
+                              ? r.photo
+                              : r.type === "meal"
+                                ? r.meal.photoRefs[0]
+                                : "")!
+                          }
+                          className="size-14 shrink-0 rounded-[14px] object-cover"
+                        />
                       )}
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm text-muted-foreground">

@@ -29,6 +29,7 @@ import { useQuickAdd } from "@/components/app/AppShell";
 import { AnimatedValue, useReducedMotion } from "@/components/app/AppFeel";
 import {
   Card,
+  EmptyState,
   DemoTag,
   IconBubble,
   measureSummary,
@@ -183,14 +184,14 @@ function Progress() {
           </div>
           <Card className="mt-3 p-4">
             {data.length === 0 && injDays.length === 0 ? (
-              <p className="py-10 text-center text-muted-foreground">{t("prog.noData")}</p>
+              <EmptyState icon={<Scale className="size-5" />}>{t("prog.noData")}</EmptyState>
             ) : (
               <>
                 <p className="mb-1 text-sm font-medium text-muted-foreground">
                   {t("chart.unit")}
                   {hasDemoPoints && <DemoTag show />}
                 </p>
-                <div className="h-52" aria-hidden>
+                <div className="h-56" aria-hidden>
                   <ResponsiveContainer>
                     <AreaChart data={data} margin={{ top: 18, right: CHART_R, left: 0, bottom: 0 }}>
                       <defs>
@@ -226,17 +227,24 @@ function Progress() {
                         labelFormatter={(v) =>
                           fmtMonthDay(new Date(Number(v)).toISOString().slice(0, 10))
                         }
-                        contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)" }}
+                        contentStyle={{
+                          borderRadius: 16,
+                          border: "1px solid var(--color-border)",
+                          background: "var(--card)",
+                          boxShadow: "var(--shadow-soft)",
+                          padding: "10px 14px",
+                          fontSize: 14,
+                        }}
                       />
                       <Area
                         type="monotone"
                         dataKey="v"
                         stroke="var(--color-primary)"
-                        strokeWidth={2}
+                        strokeWidth={2.5}
                         fill="url(#wf)"
                         dot={{ r: 3.5, fill: "var(--color-primary)" }}
                         isAnimationActive={!reducedMotion}
-                        animationDuration={700}
+                        animationDuration={180}
                         animationEasing="ease-out"
                       >
                         {data.length <= 8 && (
@@ -295,7 +303,7 @@ function Progress() {
               </span>
             </div>
             {data.length > 0 && (
-              <details className="mt-3 text-[15px]">
+              <details className="journal-disclosure mt-3 text-[15px]">
                 <summary className="press flex min-h-11 cursor-pointer items-center font-medium">
                   {t("chart.table")}
                 </summary>
@@ -334,24 +342,27 @@ function Progress() {
               </Link>
             }
           />
-          <div className="divide-y">
+          <div className="history-group divide-y">
             {weights.slice(0, 5).map((w) => (
               <Button
                 variant="unstyled"
                 size="unstyled"
                 key={w.id}
                 onClick={() => open("weight", w)}
-                className="press flex w-full items-center gap-4 py-3 text-left"
+                className="record-row press flex w-full items-center gap-3 py-4 text-left"
               >
                 <IconBubble size="sm">
                   <Scale className="size-5" />
                 </IconBubble>
-                <span className="w-20 text-muted-foreground">{fmtMonthDay(w.localDate)}</span>
-                <span className="flex-1 text-[20px] font-bold">
-                  {fmtNumber(w.value)} kg
-                  <DemoTag show={w.demo} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[22px] font-semibold tabular-nums">
+                    {fmtNumber(w.value)} kg
+                    <DemoTag show={w.demo} />
+                  </span>
+                  <span className="mt-0.5 block text-sm text-muted-foreground">
+                    {fmtMonthDay(w.localDate)} · {t("prog.manual")}
+                  </span>
                 </span>
-                <span className="text-sm text-muted-foreground">{t("prog.manual")}</span>
                 <ChevronRight className="size-5 text-muted-foreground" />
               </Button>
             ))}
@@ -371,9 +382,11 @@ function Progress() {
             {t("meas.add")}
           </Button>
           {measures.length === 0 ? (
-            <Card className="mt-3 p-8 text-center text-muted-foreground">{t("meas.empty")}</Card>
+            <Card className="mt-3">
+              <EmptyState icon={<Ruler className="size-5" />}>{t("meas.empty")}</EmptyState>
+            </Card>
           ) : (
-            <div className="mt-2 divide-y">
+            <div className="history-group mt-3 divide-y">
               {measures.map((m, i) => {
                 const prev = measures[i + 1];
                 const dw = m.waist != null && prev?.waist != null ? m.waist - prev.waist : null;
@@ -383,7 +396,7 @@ function Progress() {
                     size="unstyled"
                     key={m.id}
                     onClick={() => open("measure", m)}
-                    className="press flex w-full items-center gap-4 py-3 text-left"
+                    className="record-row press flex w-full items-center gap-3 py-4 text-left"
                   >
                     <IconBubble size="sm">
                       <Ruler className="size-5" />
@@ -432,9 +445,7 @@ function Progress() {
                   onClick={() => open("memory", m)}
                   className="press overflow-hidden rounded-[20px] bg-card text-left shadow-soft"
                 >
-                  {m.photo && (
-                    <PhotoImg src={m.photo} className="aspect-square w-full object-cover" />
-                  )}
+                  {m.photo && <PhotoImg src={m.photo} className="memory-photo" />}
                   <div className="p-3">
                     <div className="text-xs text-muted-foreground">{fmtMonthDay(m.localDate)}</div>
                     <div className="line-clamp-2 text-sm">{m.note}</div>

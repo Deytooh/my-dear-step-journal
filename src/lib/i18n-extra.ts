@@ -2,6 +2,7 @@
 type D = Record<string, string>;
 
 export const en: D = {
+  "ui.loading": "Loading your journal…",
   "ctx.options": "Question options",
   "ctx.invite": "A question based on your notes?",
 
@@ -480,6 +481,7 @@ export const en: D = {
 };
 
 export const fr: D = {
+  "ui.loading": "Chargement de vos notes…",
   "ctx.options": "Options de la question",
   "ctx.invite": "Une question selon vos notes ?",
 

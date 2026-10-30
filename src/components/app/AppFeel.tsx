@@ -36,58 +36,55 @@ export function AppFeel() {
       if (reduced) return;
       setCelebration((n) => n + 1);
       clearTimeout(timer.current);
-      timer.current = setTimeout(() => setCelebration(0), 950);
+      timer.current = setTimeout(() => setCelebration(0), 320);
     };
-    const press = (event: PointerEvent) => {
-      if (reduced || event.button !== 0 || !(event.target instanceof Element)) return;
-      const target = event.target.closest<HTMLElement>("button, a, [role=tab]");
-      if (!target || target.matches(":disabled, [aria-disabled=true]")) return;
-      const rect = target.getBoundingClientRect();
-      const ring = document.createElement("span");
-      ring.className = "feel-touch";
-      ring.setAttribute("aria-hidden", "true");
-      ring.style.left = `${Math.max(rect.left + 8, Math.min(event.clientX, rect.right - 8))}px`;
-      ring.style.top = `${Math.max(rect.top + 8, Math.min(event.clientY, rect.bottom - 8))}px`;
-      document.body.appendChild(ring);
-      ring.addEventListener("animationend", () => ring.remove(), { once: true });
+    const visible = () => {
+      document.documentElement.dataset["motionPaused"] = String(document.hidden);
     };
-    const input = (event: Event) => {
-      if (
-        reduced ||
-        !(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
-      )
-        return;
-      const field = event.target;
-      if (["checkbox", "file", "radio"].includes(field.type)) return;
-      field.getAnimations().forEach((a) => a.cancel());
-      field.animate([{ borderColor: "var(--peach-accent)" }, { borderColor: "var(--primary)" }], {
-        duration: 300,
-        easing: "ease-out",
+    visible();
+    document.addEventListener("visibilitychange", visible);
+    const seen = new Set<Element>();
+    const observer = new IntersectionObserver(
+      (entries) =>
+        entries.forEach((entry) =>
+          entry.target.classList.toggle("feel-offscreen", !entry.isIntersecting),
+        ),
+      { rootMargin: "40px" },
+    );
+    const observe = () => {
+      for (const element of seen) {
+        if (!element.isConnected) {
+          observer.unobserve(element);
+          seen.delete(element);
+        }
+      }
+      document.querySelectorAll(".feel-busy, .feel-indeterminate").forEach((element) => {
+        if (!seen.has(element)) {
+          seen.add(element);
+          observer.observe(element);
+        }
       });
     };
-    document.addEventListener("pointerdown", press, { passive: true });
-    document.addEventListener("input", input);
+    observe();
+    const changes = new MutationObserver(observe);
+    changes.observe(document.body, { childList: true, subtree: true });
     window.addEventListener("journal:celebrate", celebrate);
     return () => {
       clearTimeout(timer.current);
-      document.removeEventListener("pointerdown", press);
-      document.removeEventListener("input", input);
+      document.removeEventListener("visibilitychange", visible);
+      observer.disconnect();
+      changes.disconnect();
+      delete document.documentElement.dataset["motionPaused"];
       window.removeEventListener("journal:celebrate", celebrate);
-      document.querySelectorAll(".feel-touch").forEach((ring) => ring.remove());
     };
   }, [reduced]);
   if (!celebration || reduced) return null;
   return (
     <div key={celebration} className="feel-celebration" aria-hidden="true">
       <div className="feel-stamp">
-        <Check className="size-7" strokeWidth={3} />
+        <Check className="size-4" strokeWidth={3} />
       </div>
       <span className="feel-saved-label">{t("toast.saved")}</span>
-      <div className="feel-petals">
-        {Array.from({ length: 8 }, (_, i) => (
-          <i key={i} />
-        ))}
-      </div>
     </div>
   );
 }

@@ -341,7 +341,7 @@ export function MomoSheet({
   };
 
   return (
-    <div className="feel-form space-y-4" aria-busy={busy}>
+    <div className="journal-form feel-form space-y-4" aria-busy={busy}>
       <DrawerTitle className="text-[24px] font-bold">
         {step === "final" ? t("momo.final") : t("voice.all")}
       </DrawerTitle>
@@ -372,7 +372,7 @@ export function MomoSheet({
               rows={4}
               maxLength={4000}
               placeholder={t("momo.placeholder")}
-              className="w-full rounded-[20px] border bg-card p-4 text-[16px] placeholder:text-muted-foreground"
+              className="momo-composer w-full border bg-card p-4 text-[16px] placeholder:text-muted-foreground"
             />
             {listening ? (
               <div className="flex items-center gap-2 rounded-[16px] bg-peach p-3" role="status">
@@ -404,20 +404,24 @@ export function MomoSheet({
                   size="unstyled"
                   type="button"
                   onClick={startMic}
-                  className="press flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-secondary text-[15px] font-medium"
+                  className="press flex min-h-14 flex-1 items-center justify-center gap-2 rounded-[18px] bg-secondary px-2 py-1 text-[14px] font-medium leading-snug"
                 >
-                  <Mic className="size-5" />
-                  {t("momo.speak")}
+                  <Mic className="size-5 shrink-0" />
+                  <span className="min-w-0">{t("momo.speak")}</span>
                 </Button>
                 <label
                   className={cn(
-                    "press flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-secondary text-[15px] font-medium focus-within:ring-2 focus-within:ring-ring",
+                    "press flex min-h-14 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[18px] bg-secondary px-2 py-1 text-[14px] font-medium leading-snug focus-within:ring-2 focus-within:ring-ring",
                     images.length >= 3 && "pointer-events-none opacity-50",
                   )}
                 >
-                  <ImagePlus className="size-5" />
-                  {t("momo.photos")}
+                  <ImagePlus className="size-5 shrink-0" />
+                  <span>{t("f.photo")}</span>
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    {images.length}/3
+                  </span>
                   <input
+                    aria-label={t("momo.photos")}
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
                     multiple
@@ -437,13 +441,13 @@ export function MomoSheet({
           </div>
           {images.length > 0 && (
             <div>
-              <ul className="flex gap-2">
+              <ul className="flex gap-3 overflow-x-auto py-2 [scrollbar-width:none]">
                 {images.map((src, i) => (
-                  <li key={i} className="relative">
+                  <li key={i} className="relative shrink-0">
                     <img
                       src={src}
                       alt={`${t("f.photo")} ${i + 1}`}
-                      className="size-20 rounded-[12px] object-cover"
+                      className="h-24 w-28 rounded-[16px] object-cover"
                     />
                     <Button
                       variant="unstyled"
@@ -455,7 +459,7 @@ export function MomoSheet({
                         setImages(images.filter((_, k) => k !== i));
                       }}
                       aria-label={`${t("photo.remove")} ${i + 1}`}
-                      className="press absolute -top-2 -right-2 flex size-8 items-center justify-center rounded-full border bg-card"
+                      className="press absolute top-1 right-1 flex size-11 items-center justify-center rounded-full border bg-card/95 shadow-soft"
                     >
                       <X className="size-4" />
                     </Button>
@@ -522,7 +526,7 @@ export function MomoSheet({
               {t("meal.open")}
             </Button>
           )}
-          <div className="sticky bottom-0 z-10 space-y-2 border-t bg-background py-3">
+          <div className="sheet-actions space-y-2">
             <Button
               variant="outline"
               className="min-h-11 w-full whitespace-normal"
@@ -573,7 +577,7 @@ export function MomoSheet({
               />
             ))}
           </ul>
-          <div className="sticky bottom-0 z-10 flex gap-2 border-t bg-background py-3">
+          <div className="sheet-actions flex gap-2">
             <Button
               variant="unstyled"
               size="unstyled"
@@ -598,7 +602,7 @@ export function MomoSheet({
 
       {step === "final" && !saved && drafts && (
         <>
-          <ul className="space-y-2">
+          <ul className="momo-drafts space-y-3">
             {drafts.map((d) => {
               const dup = d.dup;
               if (!d.on && !dup) return null;
@@ -676,7 +680,7 @@ export function MomoSheet({
             })}
           </ul>
           {failure && <p role="alert">{failure}</p>}
-          <div className="sticky bottom-0 z-10 flex gap-2 border-t bg-background py-3">
+          <div className="sheet-actions flex gap-2">
             <Button
               variant="unstyled"
               size="unstyled"
@@ -723,7 +727,12 @@ function DraftCard({
     expense: Receipt,
   }[d.type];
   return (
-    <li className={cn("rounded-[20px] border bg-card p-4", d.on ? "border-primary" : "opacity-60")}>
+    <li
+      className={cn(
+        "app-surface rounded-[22px] border bg-card p-4",
+        d.on ? "border-primary" : "opacity-60",
+      )}
+    >
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-2 rounded-full bg-secondary px-3 py-1 text-sm font-semibold">
           <Icon className="size-5" />
@@ -761,13 +770,21 @@ function DraftCard({
       <Button
         variant="unstyled"
         size="unstyled"
-        className="min-h-11 underline"
+        className="mt-2 min-h-11 rounded-full border px-3 text-sm font-medium"
         aria-expanded={expanded}
         onClick={() => setExpanded(!expanded)}
       >
         {t("evidence.edit")}
       </Button>
-      <p className="text-sm text-muted-foreground">{t("evidence.proposed")}</p>
+      <details className="journal-disclosure mt-2">
+        <summary>{t("momo.source")}</summary>
+        <p className="text-sm text-muted-foreground">{t("evidence.proposed")}</p>
+        {d.quote && (
+          <blockquote className="mt-2 border-l-2 border-primary/30 pl-3 text-sm">
+            “{d.quote}”
+          </blockquote>
+        )}
+      </details>
       {d.on && expanded && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           {FIELDS[d.type].map((f) =>
@@ -821,11 +838,7 @@ function DraftCard({
           {t("stock.move")}: {t("evidence.stockLater")}
         </p>
       )}
-      {d.quote && (
-        <blockquote className="mt-2 border-l-4 border-primary/40 pl-3 text-sm text-muted-foreground">
-          <span className="font-medium">{t("momo.source")}:</span> “{d.quote}”
-        </blockquote>
-      )}
+
       {error && (
         <p role="alert" className="mt-2 text-sm text-destructive">
           {error}

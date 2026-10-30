@@ -21,7 +21,7 @@ function displayValue(key: string, value: string | undefined) {
 }
 export function SourceEvidence({ evidence }: { evidence: Evidence }) {
   return (
-    <details className="rounded-[16px] border bg-card p-3 text-[15px]">
+    <details className="journal-disclosure text-[15px]">
       <summary className="min-h-11 cursor-pointer">
         {t("momo.source")} · {t(`evidence.${evidence.method}`)}
       </summary>
