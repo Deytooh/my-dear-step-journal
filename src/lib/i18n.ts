@@ -303,7 +303,7 @@ const ko = {
   "f.photo": "사진",
   "f.reminderAt": "알림 날짜와 시간",
   "f.useStock": "재고에서 1회분 차감",
-  "f.stockCount": "남은 수량 (회분)",
+  "f.stockCount": "남은 수량",
   "toast.saved": "저장했어요",
   "toast.deleted": "삭제했어요",
   "toast.undo": "되돌리기",
@@ -427,6 +427,7 @@ const ko = {
   "stock.needMed": "약 이름이 재고 제품과 같을 때만 차감할 수 있어요.",
   "stock.of": "재고 제품",
   "stock.unknownMed": "제품 미입력",
+  "photo.processing": "사진을 준비하는 중이에요…",
   "photo.pick": "사진 고르기",
   "photo.change": "다른 사진으로 바꾸기",
   "photo.remove": "사진 빼기",
@@ -498,9 +499,21 @@ export function tFor(locale: Locale, key: Key, vars?: Record<string, string | nu
 
 export const t = (key: Key, vars?: Record<string, string | number>) => tFor(current, key, vars);
 
+const numberFormatters = new Map<string, Intl.NumberFormat>();
+const numberFormatter = (locale: string, options: Intl.NumberFormatOptions) => {
+  const key = `${locale}:${JSON.stringify(options)}`;
+  let formatter = numberFormatters.get(key);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locale, options);
+    if (numberFormatters.size >= 32) numberFormatters.delete(numberFormatters.keys().next().value!);
+    numberFormatters.set(key, formatter);
+  }
+  return formatter;
+};
+
 export const fmtNumber = (n: number, digits = 1) =>
-  new Intl.NumberFormat(intlLocale(), { maximumFractionDigits: digits }).format(n);
+  numberFormatter(intlLocale(), { maximumFractionDigits: digits }).format(n);
 export const fmtMoney = (n: number, currency = "KRW") =>
   currency === "KRW" && current === "ko"
-    ? `${new Intl.NumberFormat("ko-KR").format(n)}원`
-    : new Intl.NumberFormat(intlLocale(), { style: "currency", currency }).format(n);
+    ? `${numberFormatter("ko-KR", {}).format(n)}원`
+    : numberFormatter(intlLocale(), { style: "currency", currency }).format(n);

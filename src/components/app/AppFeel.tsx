@@ -51,23 +51,31 @@ export function AppFeel() {
         ),
       { rootMargin: "40px" },
     );
-    const observe = () => {
-      for (const element of seen) {
-        if (!element.isConnected) {
+    const selector = ".feel-busy, .feel-indeterminate";
+    const visit = (node: Node, add: boolean) => {
+      if (!(node instanceof Element)) return;
+      const update = (element: Element) => {
+        if (add && !seen.has(element)) {
+          seen.add(element);
+          observer.observe(element);
+        } else if (!add && seen.has(element) && !element.isConnected) {
           observer.unobserve(element);
           seen.delete(element);
         }
-      }
-      document.querySelectorAll(".feel-busy, .feel-indeterminate").forEach((element) => {
-        if (!seen.has(element)) {
-          seen.add(element);
-          observer.observe(element);
-        }
-      });
+      };
+      if (node.matches(selector)) update(node);
+      node.querySelectorAll(selector).forEach(update);
     };
-    observe();
-    const changes = new MutationObserver(observe);
-    changes.observe(document.body, { childList: true, subtree: true });
+    const changes = new MutationObserver((records) => {
+      for (const record of records) {
+        record.removedNodes.forEach((node) => visit(node, false));
+        record.addedNodes.forEach((node) => visit(node, true));
+      }
+    });
+    if (!reduced) {
+      visit(document.body, true);
+      changes.observe(document.body, { childList: true, subtree: true });
+    }
     window.addEventListener("journal:celebrate", celebrate);
     return () => {
       clearTimeout(timer.current);

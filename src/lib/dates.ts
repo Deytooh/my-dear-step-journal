@@ -2,10 +2,23 @@ import { intlLocale } from "./i18n";
 // Date helpers. All instants are stored as ISO UTC strings; display uses the user's timezone.
 export const DEFAULT_TZ = "Asia/Seoul";
 
+// Reuse expensive ICU formatters across calendar cells, rows and form keystrokes.
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
+function dateFormatter(locale: string, options: Intl.DateTimeFormatOptions) {
+  const key = `${locale}:${JSON.stringify(options)}`;
+  let formatter = dateFormatters.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, options);
+    if (dateFormatters.size >= 64) dateFormatters.delete(dateFormatters.keys().next().value!);
+    dateFormatters.set(key, formatter);
+  }
+  return formatter;
+}
+
 /** YYYY-MM-DD for an instant in a given timezone. */
 export function localDateOf(iso: string | Date, tz = DEFAULT_TZ): string {
   const d = typeof iso === "string" ? new Date(iso) : iso;
-  return new Intl.DateTimeFormat("en-CA", {
+  return dateFormatter("en-CA", {
     timeZone: tz,
     year: "numeric",
     month: "2-digit",
@@ -23,7 +36,7 @@ export function instantFromLocal(localDate: string, time: string, tz = DEFAULT_T
   const [hh = 0, mm = 0] = time.split(":").map(Number);
   const guess = Date.UTC(y, m - 1, d, hh, mm);
   // offset of tz at that moment
-  const parts = new Intl.DateTimeFormat("en-US", {
+  const parts = dateFormatter("en-US", {
     timeZone: tz,
     hourCycle: "h23",
     year: "numeric",
@@ -38,7 +51,7 @@ export function instantFromLocal(localDate: string, time: string, tz = DEFAULT_T
 }
 
 export function timeOf(iso: string, tz = DEFAULT_TZ) {
-  return new Intl.DateTimeFormat("en-GB", {
+  return dateFormatter("en-GB", {
     timeZone: tz,
     hour: "2-digit",
     minute: "2-digit",
@@ -49,12 +62,12 @@ export function timeOf(iso: string, tz = DEFAULT_TZ) {
 const ld = (s: string) => new Date(s + "T12:00:00Z");
 
 export function fmtMonthDay(localDate: string, locale = intlLocale()) {
-  return new Intl.DateTimeFormat(locale, { month: "long", day: "numeric", timeZone: "UTC" }).format(
+  return dateFormatter(locale, { month: "long", day: "numeric", timeZone: "UTC" }).format(
     ld(localDate),
   );
 }
 export function fmtMonthDayWeekday(localDate: string, locale = intlLocale()) {
-  return new Intl.DateTimeFormat(locale, {
+  return dateFormatter(locale, {
     month: "long",
     day: "numeric",
     weekday: "long",
@@ -62,14 +75,14 @@ export function fmtMonthDayWeekday(localDate: string, locale = intlLocale()) {
   }).format(ld(localDate));
 }
 export function fmtTime(iso: string, tz = DEFAULT_TZ, locale = intlLocale(), minutes = true) {
-  return new Intl.DateTimeFormat(locale, {
+  return dateFormatter(locale, {
     timeZone: tz,
     hour: "numeric",
     ...(minutes ? { minute: "2-digit" } : {}),
   }).format(new Date(iso));
 }
 export function fmtYearMonth(y: number, m: number, locale = intlLocale()) {
-  return new Intl.DateTimeFormat(locale, {
+  return dateFormatter(locale, {
     year: "numeric",
     month: "long",
     timeZone: "UTC",
@@ -114,7 +127,7 @@ export function previousWeek(day: string) {
 
 export function weekdayLabels(locale = intlLocale()) {
   return Array.from({ length: 7 }, (_, i) =>
-    new Intl.DateTimeFormat(locale, { weekday: "short", timeZone: "UTC" }).format(
+    dateFormatter(locale, { weekday: "short", timeZone: "UTC" }).format(
       ld(addDays("2024-01-01", i)),
     ),
   );

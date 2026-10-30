@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
+import { DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { t, type Key } from "@/lib/i18n";
 import { instantFromLocal, localDateOf, timeOf, todayLocal } from "@/lib/dates";
 import {
@@ -38,6 +38,7 @@ import momo from "@/assets/momo.png";
 import { MomoSheet } from "./MomoSheet";
 import { celebrateSave } from "./AppFeel";
 import { cn } from "@/lib/utils";
+import { EntrySheet } from "./EntrySheet";
 import { MedicationPicker } from "./MedicationPicker";
 
 export type EntryKind =
@@ -55,6 +56,7 @@ export type EntryKind =
   | "water";
 
 type Props = {
+  session?: number;
   initialDate?: string | undefined;
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -63,13 +65,21 @@ type Props = {
   editing?: JournalRecord | Purchase | undefined;
 };
 
-export function QuickAddSheet({ open, onOpenChange, kind, setKind, editing, initialDate }: Props) {
+export function QuickAddSheet({
+  session = 0,
+  open,
+  onOpenChange,
+  kind,
+  setKind,
+  editing,
+  initialDate,
+}: Props) {
   const { settings, user } = useJournal();
   const scrollPane = useRef<HTMLDivElement>(null);
   // A new sheet view begins below its fixed header; expanding fields never resets it.
   useLayoutEffect(() => {
     if (open && scrollPane.current) scrollPane.current.scrollTop = 0;
-  }, [open, kind, editing?.id]);
+  }, [open, session, kind, editing?.id]);
   const [mealSeed, setMealSeed] = useState<{ images: string[]; note: string }>({
     images: [],
     note: "",
@@ -80,58 +90,61 @@ export function QuickAddSheet({ open, onOpenChange, kind, setKind, editing, init
     if (!open) setMealSeed({ images: [], note: "" });
   }, [open]);
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="mx-auto max-h-[92dvh] max-w-md rounded-t-[28px] border-0 bg-background">
-        <div
-          ref={scrollPane}
-          className="sheet-scroll min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(1rem,env(safe-area-inset-bottom))]"
-        >
-          <div className="sticky top-0 z-20 -mx-5 flex justify-between border-b border-primary/5 bg-background/95 px-5 py-1 backdrop-blur-md">
-            {kind !== "menu" && !editing ? (
-              <Button
-                variant="unstyled"
-                size="unstyled"
-                onClick={() => setKind("menu")}
-                className="press -ml-2 flex size-11 items-center justify-center"
-                aria-label={t("ui.back")}
-              >
-                <ChevronLeft className="size-6" />
-              </Button>
-            ) : (
-              <span />
-            )}
+    <EntrySheet
+      open={open}
+      onOpenChange={onOpenChange}
+      header={
+        <div className="relative z-30 flex shrink-0 justify-between border-b border-primary/5 bg-background px-5 py-1">
+          {kind !== "menu" && !editing ? (
             <Button
               variant="unstyled"
               size="unstyled"
-              onClick={close}
-              className="press -mr-2 flex size-11 items-center justify-center"
-              aria-label={t("evidence.close")}
+              onClick={() => setKind("menu")}
+              className="press -ml-2 flex size-11 items-center justify-center"
+              aria-label={t("ui.back")}
             >
-              <X className="size-6" />
+              <ChevronLeft className="size-6" />
             </Button>
-          </div>
-          {kind === "menu" ? (
-            <div key="menu" className="feel-panel">
-              <Menu setKind={setKind} showMomo={settings.showMomo} />
-            </div>
           ) : (
-            <EntryForm
-              key={`${kind}-${editing && "id" in editing ? editing.id : "new"}-${user?.id ?? "guest"}`}
-              initialDate={initialDate}
-              mealSeed={mealSeed}
-              onMeal={(images, note) => {
-                setMealSeed({ images, note });
-                setKind("meal");
-              }}
-              kind={kind}
-              editing={editing}
-              onDone={close}
-              onManual={() => setKind("menu")}
-            />
+            <span />
           )}
+          <Button
+            variant="unstyled"
+            size="unstyled"
+            onClick={close}
+            className="press -mr-2 flex size-11 items-center justify-center"
+            aria-label={t("evidence.close")}
+          >
+            <X className="size-6" />
+          </Button>
         </div>
-      </DrawerContent>
-    </Drawer>
+      }
+    >
+      <div
+        ref={scrollPane}
+        className="sheet-scroll relative z-0 min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(1rem,env(safe-area-inset-bottom))]"
+      >
+        {kind === "menu" ? (
+          <div key="menu" className="feel-panel">
+            <Menu setKind={setKind} showMomo={settings.showMomo} />
+          </div>
+        ) : (
+          <EntryForm
+            key={`${session}-${kind}-${editing && "id" in editing ? editing.id : "new"}-${user?.id ?? "guest"}`}
+            initialDate={initialDate}
+            mealSeed={mealSeed}
+            onMeal={(images, note) => {
+              setMealSeed({ images, note });
+              setKind("meal");
+            }}
+            kind={kind}
+            editing={editing}
+            onDone={close}
+            onManual={() => setKind("menu")}
+          />
+        )}
+      </div>
+    </EntrySheet>
   );
 }
 
@@ -339,10 +352,10 @@ function EntryForm({
   const pur = editing && !("type" in editing) ? editing : undefined;
 
   const [date, setDate] = useState(
-    rec?.localDate ?? pur?.localDate ?? initialDate ?? todayLocal(tz),
+    () => rec?.localDate ?? pur?.localDate ?? initialDate ?? todayLocal(tz),
   );
   const [timeKnown, setTimeKnown] = useState(rec ? rec.precision === "exact" : true);
-  const [time, setTime] = useState(
+  const [time, setTime] = useState(() =>
     rec?.at ? timeOf(rec.at, tz) : timeOf(new Date().toISOString(), tz),
   );
   const [weight, setWeight] = useState(rec?.type === "weight" ? String(rec.value) : "");
@@ -368,6 +381,7 @@ function EntryForm({
   const [note, setNote] = useState(
     rec?.type === "condition" ? (rec.note ?? "") : rec?.type === "memory" ? rec.note : "",
   );
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [photo, setPhoto] = useState<string | null>(
     rec?.type === "memory" ? (rec.photo ?? null) : null,
   );
@@ -379,7 +393,7 @@ function EntryForm({
         ? String(pur.doses)
         : "",
   );
-  const [remDate, setRemDate] = useState(
+  const [remDate, setRemDate] = useState(() =>
     j.reminder ? localDateOf(j.reminder.at, tz) : todayLocal(tz),
   );
   const [remTime, setRemTime] = useState(j.reminder ? timeOf(j.reminder.at, tz) : "20:00");
@@ -390,6 +404,10 @@ function EntryForm({
     return { waist: f(m?.waist), hip: f(m?.hip), chest: f(m?.chest), thigh: f(m?.thigh) };
   });
   const composing = useRef(false);
+  const submitted = useRef(false);
+  const [saving, setSaving] = useState(false);
+  const [entryId] = useState(() => rec?.id ?? pur?.id ?? j.newId());
+  const errorRef = useRef<HTMLParagraphElement>(null);
   const [err, setErr] = useState<string | null>(null);
   const stockOk =
     kind === "injection" &&
@@ -397,7 +415,12 @@ function EntryForm({
     canDeduct(selectedLot.unit) &&
     med.trim() === selectedLot.medication;
 
-  useEffect(() => setErr(null), [weight, amount, doses]);
+  useLayoutEffect(() => {
+    if (err) {
+      errorRef.current?.focus({ preventScroll: true });
+      errorRef.current?.scrollIntoView({ block: "nearest" });
+    }
+  }, [err]);
 
   const titles: Record<EntryKind, string> = {
     meal: t("type.meal"),
@@ -437,7 +460,7 @@ function EntryForm({
     ...(rec ?? {}),
     ...(rec?.evidence ? { evidence: editedEvidence()! } : {}),
     ...(rec?.demo ? { demo: true } : {}),
-    id: rec?.id ?? j.newId(),
+    id: entryId,
     localDate: date,
     createdAt: rec?.createdAt ?? new Date().toISOString(),
     source: "manual_text" as const,
@@ -451,6 +474,10 @@ function EntryForm({
   });
 
   const save = () => {
+    if (submitted.current || photoBusy) return;
+    submitted.current = true;
+    setSaving(true);
+    let completed = false;
     try {
       if (
         ["weight", "injection", "condition", "memory", "purchase", "measure", "water"].includes(
@@ -544,7 +571,7 @@ function EntryForm({
                 },
               }
             : {}),
-          id: pur?.id ?? j.newId(),
+          id: entryId,
           localDate: date,
           amount: a,
           currency: pur?.currency ?? "KRW",
@@ -558,6 +585,8 @@ function EntryForm({
           ...(pur?.demo ? { demo: true } : {}),
         });
       } else if (kind === "reminder") {
+        if (!validDate(remDate) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(remTime))
+          return setErr(t("validation.date"));
         j.setReminder(instantFromLocal(remDate, remTime, tz));
       } else if (kind === "stock") {
         const n = Number(stock);
@@ -565,6 +594,7 @@ function EntryForm({
         if (!selectedLot) return setErr(t("stock.choose"));
         j.setStock(n, selectedLot.id);
       }
+      completed = true;
       celebrateSave();
       toast.success(t("toast.saved"), {
         action: { label: t("toast.undo"), onClick: j.undoFor(before) },
@@ -572,6 +602,11 @@ function EntryForm({
       onDone();
     } catch {
       setErr(t("evidence.saveFailed"));
+    } finally {
+      if (!completed) {
+        submitted.current = false;
+        setSaving(false);
+      }
     }
   };
 
@@ -616,6 +651,10 @@ function EntryForm({
 
   return (
     <form
+      noValidate
+      onChange={() => {
+        if (err) setErr(null);
+      }}
       onCompositionStart={() => {
         composing.current = true;
       }}
@@ -641,7 +680,6 @@ function EntryForm({
       {kind === "weight" && (
         <Field label={t("f.value")}>
           <input
-            autoFocus
             inputMode="decimal"
             className={cn(inputCls, "h-16 text-[28px] font-bold")}
             value={weight}
@@ -787,19 +825,22 @@ function EntryForm({
             <div className="flex gap-2">
               <label className="press flex min-h-14 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[16px] border-2 border-dashed border-primary/40 bg-card px-4 text-[15px] font-semibold focus-within:ring-2 focus-within:ring-ring">
                 <ImageIcon className="size-5" />
-                {photo ? t("photo.change") : t("photo.pick")}
+                {t(photoBusy ? "photo.processing" : photo ? "photo.change" : "photo.pick")}
                 <input
                   type="file"
                   accept="image/*"
                   className="sr-only"
+                  disabled={photoBusy}
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     e.target.value = "";
-                    if (!f) return;
+                    if (!f || photoBusy) return;
+                    setPhotoBusy(true);
                     shrinkPhoto(f)
                       .then((data) => retainPhoto(data, j.user?.id ?? "guest"))
                       .then(setPhoto)
-                      .catch(() => setErr(t("validation.manual8")));
+                      .catch(() => setErr(t("validation.manual8")))
+                      .finally(() => setPhotoBusy(false));
                   }}
                 />
               </label>
@@ -969,7 +1010,13 @@ function EntryForm({
               ))}
             </select>
           </Field>
-          <Field label={t("f.stockCount")}>
+          <Field
+            label={
+              selectedLot
+                ? `${t("f.stockCount")} · ${t(`unit.${selectedLot.unit}`)}`
+                : t("f.stockCount")
+            }
+          >
             <input
               inputMode="numeric"
               className={inputCls}
@@ -1023,7 +1070,12 @@ function EntryForm({
         </details>
       )}
       {err && (
-        <p role="alert" className="feel-error text-sm text-destructive">
+        <p
+          ref={errorRef}
+          tabIndex={-1}
+          role="alert"
+          className="feel-error rounded-xl text-sm text-destructive"
+        >
           {err}
         </p>
       )}
@@ -1044,9 +1096,10 @@ function EntryForm({
           variant="unstyled"
           size="unstyled"
           type="submit"
+          disabled={saving || photoBusy}
           className="press h-12 flex-1 rounded-full bg-primary font-semibold text-primary-foreground"
         >
-          {t("f.save")}
+          {t(saving ? "momo.saving" : "f.save")}
         </Button>
       </div>
     </form>

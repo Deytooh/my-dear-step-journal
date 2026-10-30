@@ -6,7 +6,6 @@ import { clearPhotoCache } from "./cloud-sync";
 import { inventory, lotIdentity } from "./inventory";
 export { canDeduct } from "./inventory";
 import {
-  createContext,
   useCallback,
   useContext,
   useEffect,
@@ -20,7 +19,7 @@ import { loadCloud, pushDiff } from "./cloud-sync";
 import { setLocale } from "./i18n";
 import { addDays, DEFAULT_TZ, instantFromLocal, localDateOf, todayLocal } from "./dates";
 
-// Journal store: works on-device when signed out; when signed in, mirrors every change to Lovable Cloud.
+// Storage stays behind the stable journal context: local first, with account changes mirrored to Lovable Cloud.
 export type Precision = "exact" | "date_only" | "part_of_day" | "unknown";
 export type PartOfDay = "morning" | "afternoon" | "evening" | "night";
 
@@ -307,7 +306,7 @@ function demoState(): State {
 }
 
 export type SyncStatus = "local" | "syncing" | "synced" | "error";
-type Ctx = State & {
+export type JournalContextValue = State & {
   storageBlocked: boolean;
   conflict: boolean;
   resolveConflict: (choice: "local" | "cloud") => void;
@@ -345,7 +344,8 @@ type Ctx = State & {
 };
 export type JournalSnapshot = State;
 
-const JournalCtx = createContext<Ctx | null>(null);
+// Context identity must survive edits to this provider module.
+import { JournalCtx } from "./journal-context";
 
 export function JournalProvider({ children }: { children: ReactNode }) {
   const empty = (): State => ({
@@ -601,7 +601,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
   );
 
   setLocale(state.settings.locale ?? "ko");
-  const value: Ctx = {
+  const value: JournalContextValue = {
     storageBlocked,
     conflict,
     resolveConflict: (choice) => {
@@ -797,7 +797,13 @@ export const sortByTime = (a: JournalRecord, b: JournalRecord) =>
   b.createdAt.localeCompare(a.createdAt) ||
   b.id.localeCompare(a.id);
 
-export const latestRecord = <T extends JournalRecord["type"]>(rs: JournalRecord[], type: T) =>
-  rs.filter((r): r is Extract<JournalRecord, { type: T }> => r.type === type).sort(sortByTime)[0];
+export const latestRecord = <T extends JournalRecord["type"]>(rs: JournalRecord[], type: T) => {
+  let latest: Extract<JournalRecord, { type: T }> | undefined;
+  for (const record of rs) {
+    if (record.type === type && (!latest || sortByTime(record, latest) < 0))
+      latest = record as Extract<JournalRecord, { type: T }>;
+  }
+  return latest;
+};
 
 export { localDateOf };

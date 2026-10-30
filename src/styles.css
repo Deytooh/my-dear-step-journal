@@ -473,8 +473,7 @@ input[type="radio"] {
   bottom: 0;
   z-index: 20;
   border-top: 1px solid var(--border);
-  background: color-mix(in oklab, var(--background) 95%, transparent);
-  backdrop-filter: blur(12px);
+  background: var(--background);
   padding-block: 12px max(12px, env(safe-area-inset-bottom));
 }
 .sheet-actions > button {
@@ -634,4 +633,55 @@ input[type="checkbox"]:checked {
   animation-timing-function: var(--ease-calm);
   transition-duration: 240ms;
   transition-timing-function: var(--ease-calm);
+}
+
+/* Form sheets keep their height through view changes. Only the inner pane scrolls. */
+.entry-sheet {
+  height: var(--entry-height, 92dvh);
+  bottom: var(--entry-bottom, 0px);
+  max-height: 92dvh;
+}
+.entry-sheet[data-state="open"] {
+  animation: entry-sheet-in 180ms var(--ease-calm);
+}
+.entry-sheet[data-state="closed"] {
+  animation: entry-sheet-out 140ms var(--ease-calm);
+}
+.entry-overlay[data-state="open"] {
+  animation: feel-enter 140ms var(--ease-calm);
+}
+.entry-overlay[data-state="closed"] {
+  animation: entry-fade-out 140ms var(--ease-calm);
+}
+.entry-sheet .journal-form {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.entry-sheet .journal-form > * {
+  flex-shrink: 0;
+}
+.entry-sheet .sheet-actions {
+  margin-top: auto;
+}
+@keyframes entry-sheet-in {
+  from {
+    transform: translateY(32px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes entry-sheet-out {
+  to {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+@keyframes entry-fade-out {
+  to {
+    opacity: 0;
+  }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Camera, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,16 @@ export function MealForm({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  useLayoutEffect(() => {
+    if (error) {
+      errorRef.current?.focus({ preventScroll: true });
+      errorRef.current?.scrollIntoView({ block: "nearest" });
+    }
+  }, [error]);
+  const [attaching, setAttaching] = useState(false);
+  const photoPending = useRef(false);
+  const photoGeneration = useRef(0);
   const [consent, setConsent] = useState(false);
   const [fraction, setFraction] = useState(
     meal.consumedFraction === null ? "" : String(meal.consumedFraction),
@@ -100,6 +110,7 @@ export function MealForm({
     setRecovered(true);
     return () => {
       generation.current += 1;
+      photoGeneration.current += 1;
     };
   }, [recoveryKey, editing, j.tz]);
   useEffect(() => {
@@ -117,6 +128,7 @@ export function MealForm({
   }, [meal, date, time, proposal, saved, recovered, recoveryKey, fraction, analysisInput]);
   const resetDraft = () => {
     generation.current++;
+    photoGeneration.current++;
     guard.current = false;
     setBusy(false);
     setError("");
@@ -148,22 +160,27 @@ export function MealForm({
   });
   const energy = totals.consumed ?? totals.pictured;
   const attach = async (files: FileList | null) => {
-    if (!files) return;
-    const token = generation.current;
+    if (!files || photoPending.current) return;
+    photoPending.current = true;
+    setAttaching(true);
+    const token = photoGeneration.current;
     try {
       const refs = await Promise.all(
         Array.from(files)
           .slice(0, 3 - meal.photoRefs.length)
           .map(async (f) => retainPhoto(await shrinkPhoto(f), owner)),
       );
-      if (token === generation.current)
+      if (token === photoGeneration.current)
         setMeal((m) => ({ ...m, photoRefs: [...m.photoRefs, ...refs].slice(0, 3) }));
     } catch {
       setError(t("meal.photoError"));
+    } finally {
+      photoPending.current = false;
+      setAttaching(false);
     }
   };
   const run = async () => {
-    if (guard.current || !j.user || !consent) return;
+    if (guard.current || attaching || !j.user || !consent) return;
     guard.current = true;
     setBusy(true);
     setError("");
@@ -209,7 +226,7 @@ export function MealForm({
     }
   };
   const save = () => {
-    if (guard.current || saved) return;
+    if (guard.current || attaching || saved) return;
     const finalMeal = { ...meal, consumedFraction: fraction === "" ? null : Number(fraction) };
     const parsed = mealSchema.safeParse(finalMeal);
     if (!parsed.success || !validDate(date) || (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time))) {
@@ -274,6 +291,10 @@ export function MealForm({
     );
   return (
     <form
+      noValidate
+      onChange={() => {
+        if (error) setError("");
+      }}
       onSubmit={(e) => {
         e.preventDefault();
         if (!("isComposing" in e.nativeEvent && e.nativeEvent.isComposing)) save();
@@ -298,20 +319,22 @@ export function MealForm({
       )}
       {editing?.evidence && <SourceEvidence evidence={editing.evidence} />}
       <label
-        className={`meal-capture flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[22px] border border-dashed border-primary/30 bg-secondary px-4 py-5 text-center focus-within:ring-2 focus-within:ring-ring ${meal.photoRefs.length ? "min-h-24" : "min-h-36"} ${busy || meal.photoRefs.length >= 3 ? "cursor-not-allowed opacity-60" : ""}`}
+        className={`meal-capture flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[22px] border border-dashed border-primary/30 bg-secondary px-4 py-5 text-center focus-within:ring-2 focus-within:ring-ring ${meal.photoRefs.length ? "min-h-24" : "min-h-36"} ${busy || attaching || meal.photoRefs.length >= 3 ? "cursor-not-allowed opacity-60" : ""}`}
       >
         <span className="flex size-11 items-center justify-center rounded-full bg-card">
           <Camera className="size-6" aria-hidden />
         </span>
         <span className="text-[17px] font-semibold">
-          {t(meal.photoRefs.length ? "momo.photos" : "meal.capture")}
+          {t(
+            attaching ? "photo.processing" : meal.photoRefs.length ? "momo.photos" : "meal.capture",
+          )}
         </span>
         <input
           className="sr-only"
           type="file"
           accept="image/jpeg,image/png,image/webp"
           multiple
-          disabled={busy || meal.photoRefs.length >= 3}
+          disabled={busy || attaching || meal.photoRefs.length >= 3}
           onChange={(e) => {
             attach(e.target.files);
             e.target.value = "";
@@ -329,6 +352,7 @@ export function MealForm({
                 className="min-h-11 w-full rounded-xl"
                 onClick={() => {
                   generation.current++;
+                  photoGeneration.current++;
                   guard.current = false;
                   setBusy(false);
                   patch({ photoRefs: meal.photoRefs.filter((r) => r !== ref) });
@@ -354,7 +378,7 @@ export function MealForm({
           {!j.user && <p className="text-sm">{t("ai.signin")}</p>}
           <Button
             type="button"
-            disabled={!j.user || !consent || busy || !meal.photoRefs.length}
+            disabled={!j.user || !consent || busy || attaching || !meal.photoRefs.length}
             onClick={run}
             className="min-h-12 w-full whitespace-normal"
           >
@@ -455,6 +479,7 @@ export function MealForm({
                         <input
                           className={input}
                           type="number"
+                          step="any"
                           min="0"
                           max="10000"
                           value={Number.isFinite(item.kcal![side]) ? item.kcal![side] : ""}
@@ -604,7 +629,7 @@ export function MealForm({
         </ul>
       </details>
       {error && (
-        <p role="alert" className="text-destructive">
+        <p ref={errorRef} tabIndex={-1} role="alert" className="rounded-xl text-destructive">
           {error}
         </p>
       )}
@@ -634,7 +659,11 @@ export function MealForm({
             {t("f.delete")}
           </Button>
         )}
-        <Button type="submit" disabled={busy || saving} className="min-h-12 flex-1 rounded-full">
+        <Button
+          type="submit"
+          disabled={busy || attaching || saving}
+          className="min-h-12 flex-1 rounded-full"
+        >
           {t(saving ? "momo.saving" : "ux.saveMeal")}
         </Button>
       </div>

@@ -51,6 +51,8 @@ export function PhotoImg({
   return (
     <img
       src={url}
+      loading="lazy"
+      decoding="async"
       alt={alt}
       className={className}
       onError={() => {

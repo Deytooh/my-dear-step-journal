@@ -1,7 +1,7 @@
 import { validateSnapshot } from "@/lib/snapshot";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { CalendarDays, ChartNoAxesColumn, Home, Plus, Syringe, Settings2 } from "lucide-react";
 import { t, type Key } from "@/lib/i18n";
@@ -13,9 +13,8 @@ import { toast } from "sonner";
 import { AppFeel } from "./AppFeel";
 import { Switch } from "@/components/ui/switch";
 
-type Opener = (kind?: EntryKind, editing?: JournalRecord | Purchase, initialDate?: string) => void;
-const QuickAddCtx = createContext<Opener>(() => {});
-export const useQuickAdd = () => useContext(QuickAddCtx);
+import { QuickAddCtx, type Opener } from "./quick-add-context";
+export { useQuickAdd } from "./quick-add-context";
 
 const tabs: {
   to: "/today" | "/calendar" | "/injections" | "/progress";
@@ -31,6 +30,7 @@ const tabs: {
 export function AppShell({ children }: { children: ReactNode }) {
   const [entryDate, setEntryDate] = useState<string | undefined>();
   const [open, setOpen] = useState(false);
+  const [entrySession, setEntrySession] = useState(0);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [kind, setKind] = useState<EntryKind>("menu");
   const [editing, setEditing] = useState<JournalRecord | Purchase | undefined>();
@@ -38,7 +38,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.lang = j.settings.locale ?? "ko";
   }, [j.settings.locale]);
+  // A fresh session resets form values even when reopened during the close animation.
   const opener: Opener = (k = "menu", e, date) => {
+    setEntrySession((n) => n + 1);
     setEntryDate(date);
     setKind(k);
     setEditing(e);
@@ -77,6 +79,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <AppFeel />
       <BottomNav expanded={open} onAdd={() => opener("menu")} />
       <QuickAddSheet
+        session={entrySession}
         initialDate={entryDate}
         open={open}
         onOpenChange={setOpen}
@@ -368,7 +371,7 @@ function BottomNav({ onAdd, expanded }: { onAdd: () => void; expanded: boolean }
     );
   };
   return (
-    <nav className="app-nav fixed inset-x-0 bottom-0 z-40 border-t border-primary/10 bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm">
+    <nav className="app-nav fixed inset-x-0 bottom-0 z-40 border-t border-primary/10 bg-card pb-[env(safe-area-inset-bottom)]">
       <div className="mx-auto flex max-w-md items-end px-2 pt-2 pb-2">
         {tabs.slice(0, 2).map(render)}
         <Button
