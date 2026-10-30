@@ -50,3 +50,19 @@ Les tests serveur utilisent des doubles pour le provider, les requêtes proprié
 Secours et consentement dans l’application complète, sans compte :
 
 ![Secours classique et consentement désactivé sans compte](context-questions/guest-fallback-390.png)
+
+## Accueil allégé — après `62b5935`
+
+L’accueil conserve seulement les cartes, un accès « Questions de Momo » et une invitation courte si le consentement manque. L’explication détaillée, le consentement explicite, l’affichage des questions et la restauration des questions masquées sont regroupés dans une sheet. Les contrôles équivalents ont été retirés du menu général pour éviter les doublons. L’accès à cette sheet reste présent quand les questions sont masquées, pour pouvoir les réactiver.
+
+Chaque carte garde ses réponses principales et « Plus tard ». Le bouton « … », nommé pour les lecteurs d’écran, ouvre un menu avec l’action de masquage existante : un type de question classique, ou l’ensemble des questions pour une carte contextuelle. Les états, l’Undo et les règles d’enregistrement restent inchangés. La fermeture de la sheet rend le focus à son déclencheur.
+
+Vérifications : 99 tests, TypeScript et build passent ; lint 0 erreur / 22 avertissements existants. Trois nouvelles régressions vérifient l’absence d’envoi à l’ouverture, le consentement explicite, l’accès aux options par menu et le masquage/rétablissement sans perte de focus. Contrôle dans l’application complète à 360/390/430 px, avec textes français, coréens et anglais : aucun débordement horizontal de la sheet, bouton de fermeture visible. Les boutons français longs ont été corrigés sans changer les valeurs sauvegardées. Aucun appel Meta réel ni migration de production dans cette passe ; les prérequis ci-dessus restent inchangés.
+
+| Accueil à 360 px | Sheet à 360 px |
+| --- | --- |
+| ![Accueil français allégé](question-settings/home-fr-360.png) | ![Consentement regroupé dans la sheet](question-settings/sheet-fr-360.png) |
+
+| Coréen à 390 px | Anglais à 430 px |
+| --- | --- |
+| ![Sheet coréenne](question-settings/sheet-ko-390.png) | ![Sheet anglaise](question-settings/sheet-en-430.png) |

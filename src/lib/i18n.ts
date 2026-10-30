@@ -2,6 +2,9 @@
 export type Locale = "ko" | "en" | "fr";
 
 const ko = {
+  "ctx.options": "질문 옵션",
+  "ctx.invite": "내 기록에 맞는 질문을 만나 볼까요?",
+
   "ctx.q.meal_amount.a": "{date} 식사, 얼마나 드셨는지 남길까요?",
   "ctx.q.meal_amount.b": "{date} 식사의 먹은 양을 기록할까요?",
   "ctx.q.feel.a": "지금 기분은 어떠세요?",
@@ -20,7 +23,7 @@ const ko = {
   "ctx.closed": "새 질문은 내일 만나요",
   "ctx.editMeal": "먹은 양 기록하기",
   "ctx.skip": "넘기기",
-  "ctx.settings": "모모 질문 설정",
+  "ctx.settings": "모모의 질문",
   "ctx.privacy":
     "하루 한 번, 기록 종류·날짜·식사의 먹은 양이 비어 있는지만 보내요. 글·사진·약 정보는 보내지 않아요. 끄면 기본 질문을 사용해요.",
   "ctx.consent": "이 최소 정보를 Meta 모델(Baseten)에 보내 오늘 질문을 고르는 데 동의해요.",

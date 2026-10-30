@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { t, type Key } from "@/lib/i18n";
+import { t, getLocale, type Key } from "@/lib/i18n";
 import { todayLocal } from "@/lib/dates";
 import { useJournal, type PromptId } from "@/lib/journal";
 import { pickPrompts } from "@/lib/prompts";
@@ -11,6 +11,8 @@ import { celebrateSave } from "./AppFeel";
 import momoImg from "@/assets/momo.png";
 
 import { ContextQuestion } from "./ContextQuestion";
+import { QuestionSettings } from "./QuestionSettings";
+import { QuestionMenu } from "./QuestionMenu";
 
 export function PromptCarousel() {
   const j = useJournal();
@@ -25,41 +27,22 @@ export function PromptCarousel() {
       document.removeEventListener("visibilitychange", refresh);
     };
   }, [j.tz]);
-  if (!j.ready || j.settings.prompts?.hidden) return null;
+  if (!j.ready) return null;
   const locale = j.settings.locale ?? "ko";
   const fallback = <Questions key={day} />;
   return (
     <>
-      {j.user && j.settings.prompts?.aiConsent ? (
-        <ContextQuestion
-          key={`${j.user.id}:${locale}:${day}:${j.tz}`}
-          day={day}
-          fallback={fallback}
-        />
-      ) : (
-        fallback
-      )}
-      <details className="text-sm text-muted-foreground">
-        <summary className="min-h-11 cursor-pointer py-3">{t("ctx.settings")}</summary>
-        <p className="mb-2">{t("ctx.privacy")}</p>
-        {!j.user && <p>{t("ai.signin")}</p>}
-        <label className="flex min-h-12 items-center gap-3">
-          <input
-            type="checkbox"
-            className="size-5 shrink-0"
-            disabled={!j.user}
-            checked={!!j.settings.prompts?.aiConsent}
-            onChange={(e) => {
-              try {
-                j.setSetting("prompts", { ...j.settings.prompts, aiConsent: e.target.checked });
-              } catch {
-                toast.error(t("sync.error"));
-              }
-            }}
+      {!j.settings.prompts?.hidden &&
+        (j.user && j.settings.prompts?.aiConsent ? (
+          <ContextQuestion
+            key={`${j.user.id}:${locale}:${day}:${j.tz}`}
+            day={day}
+            fallback={fallback}
           />
-          <span>{t("ctx.consent")}</span>
-        </label>
-      </details>
+        ) : (
+          fallback
+        ))}
+      <QuestionSettings />
     </>
   );
 }
@@ -112,10 +95,14 @@ function Questions() {
       lock.current = false;
     }
   };
-  const hide = (id?: PromptId) => {
+  const hide = (id: PromptId) => {
     const before = j.snapshot();
-    j.setSetting("prompts", id ? { ...ps, off: [...(ps.off ?? []), id] } : { ...ps, hidden: true });
-    undoToast(before, t(id ? "pr.never" : "pr.hide"));
+    try {
+      j.setSetting("prompts", { ...ps, off: [...new Set([...(ps.off ?? []), id])] });
+      undoToast(before, t("pr.never"));
+    } catch {
+      toast.error(t("sync.error"));
+    }
   };
   return (
     <section aria-label={t("pr.title")} className="mt-5">
@@ -167,13 +154,15 @@ function Questions() {
                     {t(skipped ? "pr.skipped" : "pr.saved")}
                   </p>
                 ) : options.length ? (
-                  <div className="grid auto-cols-fr grid-flow-col gap-2">
+                  <div
+                    className={`grid gap-2 ${options.length === 3 && getLocale() !== "ko" ? "grid-cols-[1fr_.95fr_1.8fr]" : "auto-cols-fr grid-flow-col"}`}
+                  >
                     {options.map((o) => (
                       <Button
                         key={o.value}
                         variant="unstyled"
                         size="unstyled"
-                        className="press min-h-14 min-w-0 whitespace-normal [overflow-wrap:anywhere] rounded-full border bg-card px-2 py-2 text-[15px] font-semibold leading-snug"
+                        className="press min-h-14 min-w-0 whitespace-normal [overflow-wrap:anywhere] rounded-full border bg-card px-0.5 py-2 text-[15px] font-semibold leading-snug"
                         onClick={() => answer(id, o.value)}
                       >
                         {o.label}
@@ -188,7 +177,7 @@ function Questions() {
                     {t(id === "memory" ? "pr.memoryA" : "pr.weightA")}
                   </Button>
                 )}
-                <div className="flex flex-wrap justify-center gap-x-3 text-sm">
+                <div className="relative flex min-h-11 items-center justify-center px-11 text-sm">
                   {!done && (
                     <Button
                       variant="unstyled"
@@ -199,28 +188,13 @@ function Questions() {
                       {t("pr.later")}
                     </Button>
                   )}
-                  <Button
-                    variant="unstyled"
-                    size="unstyled"
-                    className="min-h-11 px-2 text-muted-foreground"
-                    onClick={() => hide(id)}
-                  >
-                    {t("pr.never")}
-                  </Button>
+                  <QuestionMenu onDisable={() => hide(id)} label={t("pr.never")} />
                 </div>
               </div>
             );
           })}
         {!slots.length && <p className="min-h-20 py-4 text-muted-foreground">{t("pr.allDone")}</p>}
       </div>
-      <Button
-        variant="unstyled"
-        size="unstyled"
-        className="min-h-11 px-2 text-sm text-muted-foreground"
-        onClick={() => hide()}
-      >
-        {t("pr.hide")}
-      </Button>
     </section>
   );
 }

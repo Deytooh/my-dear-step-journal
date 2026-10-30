@@ -110,8 +110,8 @@ it("removes actions after a source edit/deletion without another model call", as
 });
 it("passes without a record, and keeps the day and opportunity in separate state", async () => {
   render(card());
-  await screen.findByRole("button", { name: "넘기기" });
-  fireEvent.click(screen.getByRole("button", { name: "넘기기" }));
+  await screen.findByRole("button", { name: "나중에" });
+  fireEvent.click(screen.getByRole("button", { name: "나중에" }));
   expect(j.setSetting).toHaveBeenCalledWith(
     "prompts",
     expect.objectContaining({ context: { day, id: "meal:meal", status: "skipped" } }),
@@ -201,4 +201,35 @@ it("does not request a second proposal on a fresh device after today's question 
   expect(await screen.findByRole("status")).toHaveTextContent("오늘은 건너뛰었어요");
   expect(mocks.request).not.toHaveBeenCalled();
   expect(screen.queryByRole("button", { name: "먹은 양 기록하기" })).not.toBeInTheDocument();
+});
+
+it("does not send anything when settings open, and requires an explicit consent action", async () => {
+  vi.spyOn(dates, "todayLocal").mockReturnValue(day);
+  j.settings.prompts = { aiConsent: false };
+  j.setSetting.mockImplementation((_key, prompts) => {
+    j.settings = { ...j.settings, prompts };
+  });
+  const view = render(<PromptCarousel />);
+  expect(screen.queryByText(/하루 한 번, 기록 종류/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "모모의 질문" }));
+  expect(await screen.findByRole("dialog")).toBeVisible();
+  expect(mocks.request).not.toHaveBeenCalled();
+  expect(j.setSetting).not.toHaveBeenCalled();
+  const consent = screen.getByRole("checkbox", { name: /이 최소 정보를 Meta/ });
+  expect(consent).not.toBeChecked();
+  fireEvent.click(consent);
+  view.rerender(<PromptCarousel />);
+  await waitFor(() => expect(mocks.request).toHaveBeenCalledTimes(1));
+  expect(mocks.request.mock.calls[0]![0].data.consent).toBe(true);
+  expect(j.respondPrompt).not.toHaveBeenCalled();
+});
+it("places contextual opt-out inside its menu and preserves journal records", async () => {
+  render(card());
+  await screen.findByRole("button", { name: "나중에" });
+  expect(screen.queryByRole("button", { name: "질문 숨기기" })).not.toBeInTheDocument();
+  fireEvent.keyDown(screen.getByRole("button", { name: "질문 옵션" }), { key: "ArrowDown" });
+  fireEvent.click(await screen.findByRole("menuitem", { name: "질문 숨기기" }));
+  expect(j.setSetting).toHaveBeenCalledWith("prompts", expect.objectContaining({ hidden: true }));
+  expect(j.records).toEqual([meal]);
+  expect(j.respondPrompt).not.toHaveBeenCalled();
 });

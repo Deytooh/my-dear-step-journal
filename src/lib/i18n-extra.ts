@@ -2,6 +2,9 @@
 type D = Record<string, string>;
 
 export const en: D = {
+  "ctx.options": "Question options",
+  "ctx.invite": "A question based on your notes?",
+
   "ctx.q.meal_amount.a": "Log how much you ate of your {date} meal?",
   "ctx.q.meal_amount.b": "Add the amount eaten for your {date} meal?",
   "ctx.q.feel.a": "How do you feel right now?",
@@ -20,7 +23,7 @@ export const en: D = {
   "ctx.closed": "A new question can come tomorrow",
   "ctx.editMeal": "Log amount eaten",
   "ctx.skip": "Skip",
-  "ctx.settings": "Momo question settings",
+  "ctx.settings": "Momo’s questions",
   "ctx.privacy":
     "Once a day, send only record types, dates and whether a meal’s eaten amount is unknown. No notes, photos or medication details. Turn off to use the basic questions.",
   "ctx.consent":
@@ -477,6 +480,9 @@ export const en: D = {
 };
 
 export const fr: D = {
+  "ctx.options": "Options de la question",
+  "ctx.invite": "Une question selon vos notes ?",
+
   "ctx.q.meal_amount.a": "Préciser la quantité mangée au repas du {date} ?",
   "ctx.q.meal_amount.b": "Noter la quantité mangée au repas du {date} ?",
   "ctx.q.feel.a": "Comment vous sentez-vous maintenant ?",

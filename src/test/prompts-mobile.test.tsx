@@ -69,7 +69,8 @@ it("keeps skipped and permanently hidden state separate", async () => {
   fireEvent.click(screen.getAllByRole("button", { name: "나중에" })[0]!);
   expect(journal.settings.prompts?.skipped?.feel).toBe(todayLocal(journal.tz));
   expect(journal.settings.prompts?.answered?.feel).toBeUndefined();
-  fireEvent.click(screen.getAllByRole("button", { name: "이 질문 그만 보기" })[0]!);
+  fireEvent.keyDown(screen.getAllByRole("button", { name: "질문 옵션" })[0]!, { key: "ArrowDown" });
+  fireEvent.click(await screen.findByRole("menuitem", { name: "이 질문 그만 보기" }));
   expect(journal.settings.prompts?.off).toContain("feel");
   expect(journal.records).toHaveLength(0);
 });
@@ -145,4 +146,30 @@ it("undoes the record and contextual answer together without erasing later entri
   expect(journal.records.map((r) => r.id)).toEqual(["later"]);
   expect(journal.settings.prompts?.context).toBeUndefined();
   expect(journal.settings.prompts?.answered?.water).toBeUndefined();
+});
+
+it("keeps explanation and guest consent inside the sheet and can restore hidden questions there", async () => {
+  render(
+    <JournalProvider>
+      <Capture />
+      <PromptCarousel />
+    </JournalProvider>,
+  );
+  await screen.findByText("오늘 물을 마셨나요?");
+  expect(screen.queryByText(/하루 한 번, 기록 종류/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "질문 숨기기" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("menuitem")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "모모의 질문" }));
+  expect(await screen.findByRole("dialog")).toBeVisible();
+  expect(screen.getByText(/하루 한 번, 기록 종류/)).toBeVisible();
+  expect(screen.getByRole("checkbox", { name: /이 최소 정보를 Meta/ })).toBeDisabled();
+  fireEvent.click(screen.getByRole("checkbox", { name: "짧은 질문 표시" }));
+  expect(journal.settings.prompts?.hidden).toBe(true);
+  expect(screen.getByRole("dialog")).toBeVisible();
+  fireEvent.click(screen.getByRole("checkbox", { name: "짧은 질문 표시" }));
+  expect(journal.settings.prompts?.hidden).toBe(false);
+  expect(journal.records).toHaveLength(0);
+  fireEvent.click(screen.getAllByRole("button", { name: "닫기" }).at(-1)!);
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(screen.getByRole("button", { name: "모모의 질문" })).toHaveFocus();
 });

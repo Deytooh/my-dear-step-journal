@@ -197,24 +197,7 @@ function Header({ hero = false }: { hero?: boolean }) {
               onCheckedChange={(v) => j.setSetting("showMomo", v)}
             />
           </label>
-          <label className="flex min-h-11 items-center justify-between gap-3 text-sm">
-            {t("pr.setting")}
-            <Switch
-              checked={!j.settings.prompts?.hidden}
-              onCheckedChange={(v) =>
-                j.setSetting("prompts", { ...(j.settings.prompts ?? {}), hidden: !v })
-              }
-            />
-          </label>
-          <Button
-            variant="ghost"
-            className="min-h-11 w-full whitespace-normal"
-            onClick={() =>
-              j.setSetting("prompts", { ...(j.settings.prompts ?? {}), off: [], hidden: false })
-            }
-          >
-            {t("pr.restore")}
-          </Button>
+
           <label className="mt-2 flex min-h-11 items-center justify-between gap-3 text-sm">
             {t("set.lang")}
             <select

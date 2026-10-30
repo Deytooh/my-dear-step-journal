@@ -2,6 +2,7 @@ import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { t, type Key } from "@/lib/i18n";
 import type { Opportunity, DailyState } from "@/lib/context-prompts";
+import { QuestionMenu } from "./QuestionMenu";
 import momo from "@/assets/momo.png";
 
 /** Presentation stays independently verifiable without signing in or sending journal data. */
@@ -87,7 +88,7 @@ export function ContextQuestionCard({
             )}
           </Button>
         )}
-        <div className="flex min-h-11 items-center justify-center">
+        <div className="relative flex min-h-11 items-center justify-center px-11">
           {state === "proposed" && (
             <Button
               variant="unstyled"
@@ -95,19 +96,12 @@ export function ContextQuestionCard({
               className="min-h-11 px-3 text-sm text-muted-foreground"
               onClick={skip}
             >
-              {t("ctx.skip")}
+              {t("pr.later")}
             </Button>
           )}
+          <QuestionMenu onDisable={hide} label={t("pr.hide")} />
         </div>
       </div>
-      <Button
-        variant="unstyled"
-        size="unstyled"
-        className="min-h-11 px-2 text-sm text-muted-foreground"
-        onClick={hide}
-      >
-        {t("pr.hide")}
-      </Button>
     </section>
   );
 }
