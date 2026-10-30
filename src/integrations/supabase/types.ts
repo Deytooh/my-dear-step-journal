@@ -71,6 +71,45 @@ export type Database = {
         }
         Relationships: []
       }
+      momo_daily_questions: {
+        Row: {
+          local_day: string
+          locale: string
+          proposal: Json | null
+          user_id: string
+        }
+        Insert: {
+          local_day: string
+          locale: string
+          proposal?: Json | null
+          user_id: string
+        }
+        Update: {
+          local_day?: string
+          locale?: string
+          proposal?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      momo_usage: {
+        Row: {
+          day: string
+          requests: number
+          user_id: string
+        }
+        Insert: {
+          day?: string
+          requests?: number
+          user_id: string
+        }
+        Update: {
+          day?: string
+          requests?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       purchases: {
         Row: {
           created_at: string
@@ -103,7 +142,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      finish_context_question: {
+        Args: { p_day: string; p_locale: string; p_proposal: Json }
+        Returns: boolean
+      }
+      reserve_context_question: {
+        Args: { p_locale: string; p_timezone: string }
+        Returns: Json
+      }
+      reserve_momo_request: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
