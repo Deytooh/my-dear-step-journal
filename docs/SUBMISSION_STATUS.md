@@ -49,3 +49,7 @@ Final checks were run after the final source pass. Pre-existing formatting is me
 ## Deliberate release boundaries
 
 No push delivery, bank/pharmacy feed, native app, raw-audio Meta integration, daily calorie budget or treatment/nutrition advice is claimed. Runtime AI is optional and authenticated; manual logging works without it. Database quota setup fails closed if missing. Independent cloud operations can partially succeed: stable-ID retry is not a multi-table transaction. A failed partial batch can require an explicit local/cloud version choice after backup. Snapshot conflicts are detected on account reload/other-tab changes, not a real-time multi-device merge guarantee. Backups contain structured data and media references, not a standalone private-media archive. Shared source blobs are retained; garbage collection/account deletion remain administrative backend actions. Invalid local data is protected from overwrite and can be downloaded for recovery in a fresh profile.
+
+## Follow-up product UX pass
+
+See [UX_AUDIT.md](UX_AUDIT.md) for eight captured steps, fixes and remaining device/backend checks. Current validation: 75 tests, TypeScript and production build pass; lint has 0 errors and 22 existing warnings.

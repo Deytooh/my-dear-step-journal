@@ -60,6 +60,7 @@ export function MealForm({
     generation = useRef(0);
   const owner = j.user?.id ?? "guest";
   const recoveryKey = `mds.meal.draft.${owner}.${editing?.id ?? "new"}`;
+  const [restoredNotice, setRestoredNotice] = useState(false);
   const [recovered, setRecovered] = useState(false);
   useEffect(() => {
     try {
@@ -69,6 +70,16 @@ export function MealForm({
         // Untitled drafts are allowed in recovery, never in saved records.
         const parsed = draftMealSchema.safeParse(stored.meal);
         if (parsed.success && typeof stored.date === "string") {
+          setRestoredNotice(
+            !editing ||
+              JSON.stringify(parsed.data) !== JSON.stringify(draftMealSchema.parse(editing.meal)) ||
+              stored.date !== editing.localDate ||
+              (stored.time || "") !== (editing.at ? timeOf(editing.at, j.tz) : "") ||
+              (stored.fraction ?? "") !==
+                (editing.meal.consumedFraction === null
+                  ? ""
+                  : String(editing.meal.consumedFraction)),
+          );
           setMeal({ ...parsed.data, title: parsed.data.title });
           setDate(stored.date);
           setTime(stored.time || "");
@@ -90,7 +101,7 @@ export function MealForm({
     return () => {
       generation.current += 1;
     };
-  }, [recoveryKey]);
+  }, [recoveryKey, editing, j.tz]);
   useEffect(() => {
     if (!recovered) return;
     try {
@@ -104,6 +115,21 @@ export function MealForm({
       /* in-memory draft remains usable */
     }
   }, [meal, date, time, proposal, saved, recovered, recoveryKey, fraction, analysisInput]);
+  const resetDraft = () => {
+    generation.current++;
+    guard.current = false;
+    setBusy(false);
+    setError("");
+    const original = editing?.meal ?? emptyMeal();
+    setMeal(original);
+    setDate(editing?.localDate ?? initialDate ?? todayLocal(j.tz));
+    setTime(editing?.at ? timeOf(editing.at, j.tz) : "");
+    setFraction(original.consumedFraction === null ? "" : String(original.consumedFraction));
+    setProposal(editing?.evidence?.proposed["meal"] ?? "");
+    setAnalysisInput(null);
+    setRestoredNotice(false);
+    if (!editing) id.current = j.newId();
+  };
   const patch = (p: Partial<MealDetails>) => {
     generation.current++;
     guard.current = false;
@@ -256,6 +282,20 @@ export function MealForm({
     >
       <DrawerTitle className="text-2xl font-bold">{t("type.meal")}</DrawerTitle>
       <DrawerDescription>{t("meal.hint")}</DrawerDescription>
+      {restoredNotice && (
+        <div role="status" className="rounded-2xl bg-secondary p-3 text-sm">
+          <p>{t("ux.restored")}</p>
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-2 min-h-11 whitespace-normal"
+            onClick={resetDraft}
+            disabled={saving}
+          >
+            {t(editing ? "ux.resetSaved" : "ux.resetDraft")}
+          </Button>
+        </div>
+      )}
       {editing?.evidence && <SourceEvidence evidence={editing.evidence} />}
       <div className="flex flex-wrap gap-2">
         {meal.photoRefs.map((ref, index) => (
@@ -378,7 +418,7 @@ export function MealForm({
               <Button
                 type="button"
                 variant="ghost"
-                aria-label={t("momo.remove")}
+                aria-label={t("ux.removeFood", { name: item.name || t("meal.food") })}
                 onClick={() => patch({ items: meal.items.filter((i) => i.id !== item.id) })}
               >
                 <Trash2 className="size-5" />
@@ -562,7 +602,7 @@ export function MealForm({
           </Button>
         )}
         <Button type="submit" disabled={busy || saving} className="min-h-12 flex-1 rounded-full">
-          {t(saving ? "momo.saving" : "momo.confirm")}
+          {t(saving ? "momo.saving" : "ux.saveMeal")}
         </Button>
       </div>
     </form>

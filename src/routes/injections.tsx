@@ -74,10 +74,10 @@ function Injections() {
           <Button
             variant="unstyled"
             size="unstyled"
-            onClick={() => open("stock")}
+            onClick={() => open(j.inventory.lots.length ? "stock" : "purchase")}
             className="press h-11 rounded-full border border-primary px-4 text-[15px]"
           >
-            {t("inv.edit")}
+            {t(j.inventory.lots.length ? "inv.edit" : "home.stockAdd")}
           </Button>
         </div>
         {j.stockNeedsReview && <p className="mt-3 text-sm">{t("stock.provisional")}</p>}

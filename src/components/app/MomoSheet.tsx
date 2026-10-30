@@ -144,9 +144,9 @@ export function MomoSheet({
         ) {
           setText(data.text);
           setImages(data.images);
-          setDrafts(data.drafts);
+          setDrafts(data.drafts.length ? data.drafts : null);
           setUsedVoice(!!data.usedVoice);
-          setStep("review");
+          setStep(data.drafts.length ? "review" : "input");
         }
       }
     } catch {
@@ -158,8 +158,12 @@ export function MomoSheet({
     if (recoveredKey !== recoveryKey) return;
     try {
       if (saved) sessionStorage.removeItem(recoveryKey);
-      else if (drafts)
-        sessionStorage.setItem(recoveryKey, JSON.stringify({ text, images, drafts, usedVoice }));
+      else if (drafts || text.trim() || images.length)
+        sessionStorage.setItem(
+          recoveryKey,
+          JSON.stringify({ text, images, drafts: drafts ?? [], usedVoice }),
+        );
+      else sessionStorage.removeItem(recoveryKey);
     } catch {
       /* Keep the editable draft in memory if browser storage is full. */
     }
@@ -518,16 +522,27 @@ export function MomoSheet({
               {t("meal.open")}
             </Button>
           )}
-          <Button
-            variant="unstyled"
-            size="unstyled"
-            onClick={run}
-            disabled={!j.user || !consent || busy || listening || (!text.trim() && !images.length)}
-            className="press h-12 w-full rounded-full bg-primary font-semibold text-primary-foreground disabled:opacity-50"
-          >
-            {busy && <LoaderCircle className="feel-busy mr-2 size-5" />}
-            {busy ? t("momo.thinking") : t("momo.extract")}
-          </Button>
+          <div className="sticky bottom-0 z-10 space-y-2 border-t bg-background py-3">
+            <Button
+              variant="outline"
+              className="min-h-11 w-full whitespace-normal"
+              onClick={onManual}
+            >
+              {t("momo.manual")}
+            </Button>
+            <Button
+              variant="unstyled"
+              size="unstyled"
+              onClick={run}
+              disabled={
+                !j.user || !consent || busy || listening || (!text.trim() && !images.length)
+              }
+              className="press h-12 w-full rounded-full bg-primary font-semibold text-primary-foreground disabled:opacity-50"
+            >
+              {busy && <LoaderCircle className="feel-busy mr-2 size-5" />}
+              {busy ? t("momo.thinking") : t("momo.extract")}
+            </Button>
+          </div>
           {busy && (
             <div role="progressbar" aria-label={t("momo.thinking")} className="feel-progress h-1.5">
               <div className="feel-indeterminate h-full w-1/3 rounded-full bg-primary" />
@@ -558,7 +573,7 @@ export function MomoSheet({
               />
             ))}
           </ul>
-          <div className="flex gap-2">
+          <div className="sticky bottom-0 z-10 flex gap-2 border-t bg-background py-3">
             <Button
               variant="unstyled"
               size="unstyled"
@@ -661,7 +676,7 @@ export function MomoSheet({
             })}
           </ul>
           {failure && <p role="alert">{failure}</p>}
-          <div className="flex gap-2">
+          <div className="sticky bottom-0 z-10 flex gap-2 border-t bg-background py-3">
             <Button
               variant="unstyled"
               size="unstyled"

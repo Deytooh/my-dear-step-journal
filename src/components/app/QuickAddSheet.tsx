@@ -12,6 +12,8 @@ import {
   ChevronRight,
   Image as ImageIcon,
   Mic,
+  Droplet,
+  UtensilsCrossed,
   Package,
   Ruler,
   Scale,
@@ -131,7 +133,7 @@ function Menu({ setKind, showMomo }: { setKind: (k: EntryKind) => void; showMomo
       k: "meal",
       title: "type.meal",
       sub: "meal.quick",
-      icon: <ImageIcon className="size-6" />,
+      icon: <UtensilsCrossed className="size-6" />,
       tone: "peach",
     },
     {
@@ -164,7 +166,7 @@ function Menu({ setKind, showMomo }: { setKind: (k: EntryKind) => void; showMomo
     },
     {
       k: "measure",
-      title: "type.measure",
+      title: "qa.measureTitle",
       sub: "qa.measure",
       icon: <Ruler className="size-6" />,
       tone: "sage",
@@ -176,12 +178,30 @@ function Menu({ setKind, showMomo }: { setKind: (k: EntryKind) => void; showMomo
       icon: <Package className="size-6" />,
       tone: "sage",
     },
+    {
+      k: "water",
+      title: "type.water",
+      sub: "qa.water",
+      icon: <Droplet className="size-6" />,
+      tone: "sage",
+    },
   ];
+  const order: EntryKind[] = [
+    "weight",
+    "injection",
+    "condition",
+    "memory",
+    "meal",
+    "water",
+    "purchase",
+    "measure",
+  ];
+  items.sort((a, b) => order.indexOf(a.k) - order.indexOf(b.k));
   return (
     <>
       <div className="flex items-center justify-between">
         <div>
-          <DrawerTitle className="text-[28px] font-bold">{t("qa.title")}</DrawerTitle>
+          <DrawerTitle className="text-[24px] font-bold">{t("qa.title")}</DrawerTitle>
           <DrawerDescription className="mt-1 text-[15px] text-muted-foreground">
             {t("qa.sub")}
           </DrawerDescription>
@@ -193,25 +213,26 @@ function Menu({ setKind, showMomo }: { setKind: (k: EntryKind) => void; showMomo
             aria-hidden
             width={80}
             height={80}
-            className="size-20 object-contain"
+            className="size-16 shrink-0 object-contain"
           />
         )}
       </div>
-      <ul className="feel-menu mt-4 divide-y">
+      <ul className="feel-menu mt-4 grid grid-cols-2 gap-2">
         {items.map((it) => (
           <li key={it.k}>
             <Button
               variant="unstyled"
               size="unstyled"
               onClick={() => setKind(it.k)}
-              className="press flex w-full items-center gap-4 py-4 text-left"
+              className="press flex min-h-24 w-full min-w-0 items-center gap-2 rounded-2xl border bg-card p-3 text-left"
             >
-              <IconBubble tone={it.tone}>{it.icon}</IconBubble>
-              <span className="flex-1">
-                <span className="block text-[18px] font-bold">{t(it.title)}</span>
+              <IconBubble tone={it.tone} size="sm">
+                {it.icon}
+              </IconBubble>
+              <span className="min-w-0 flex-1 break-words">
+                <span className="block text-[16px] font-bold">{t(it.title)}</span>
                 <span className="block text-sm text-muted-foreground">{t(it.sub)}</span>
               </span>
-              <ChevronRight className="size-5 text-muted-foreground" />
             </Button>
           </li>
         ))}
@@ -635,8 +656,8 @@ function EntryForm({
           <summary className="min-h-11 cursor-pointer py-3 font-medium">
             {t("ui.injectionDetails")}
           </summary>
-          <Field label={t("f.dose")} optional>
-            <div className="flex gap-2">
+          <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-2">
+            <Field label={t("f.dose")} optional>
               <input
                 inputMode="decimal"
                 className={inputCls}
@@ -644,8 +665,11 @@ function EntryForm({
                 onChange={(e) => setDose(e.target.value)}
                 placeholder={t("unknown")}
               />
+            </Field>
+            <Field label={t("ux.doseUnit")}>
               <select
-                className={cn(inputCls, "w-24")}
+                aria-label={t("ux.doseUnit")}
+                className={inputCls}
                 value={doseUnit}
                 onChange={(e) => setDoseUnit(e.target.value)}
               >
@@ -653,27 +677,31 @@ function EntryForm({
                 <option>mcg</option>
                 <option>mL</option>
               </select>
-            </div>
-          </Field>
+            </Field>
+          </div>
           <div>
             <span className="mb-1.5 block text-sm font-medium">
               {t("f.site")} <span className="text-muted-foreground">({t("f.optional")})</span>
             </span>
             <SitePicker value={site} onChange={setSite} />
           </div>
-          <Field label={t("stock.lot")}>
-            <select className={inputCls} value={lotId} onChange={(e) => setLotId(e.target.value)}>
-              <option value="">{t("stock.choose")}</option>
-              {j.inventory.lots
-                .filter((l) => l.medication === med.trim() && canDeduct(l.unit))
-                .map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.medication} · {l.product} · {l.localDate} · {l.balance} {t(`unit.${l.unit}`)}{" "}
-                    · {l.id.slice(-6)}
-                  </option>
-                ))}
-            </select>
-          </Field>
+          {j.inventory.lots.length > 0 ? (
+            <Field label={t("stock.lot")}>
+              <select className={inputCls} value={lotId} onChange={(e) => setLotId(e.target.value)}>
+                <option value="">{t("stock.choose")}</option>
+                {j.inventory.lots
+                  .filter((l) => l.medication === med.trim() && canDeduct(l.unit))
+                  .map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.medication} · {l.product} · {l.localDate} · {l.balance}{" "}
+                      {t(`unit.${l.unit}`)} · {l.id.slice(-6)}
+                    </option>
+                  ))}
+              </select>
+            </Field>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t("stock.none")}</p>
+          )}
           {rec?.type === "injection" && rec.usedStock && !rec.stockPurchaseId && (
             <p className="text-sm">{t("stock.review")}</p>
           )}
@@ -682,9 +710,12 @@ function EntryForm({
               type="checkbox"
               className="size-5"
               checked={useStock}
+              disabled={!stockOk && !useStock}
               onChange={(e) => setUseStock(e.target.checked)}
             />
-            {t("stock.deduct", { u: selectedLot ? t(`unit.${selectedLot.unit}`) : "" })}
+            {selectedLot
+              ? t("stock.deduct", { u: t(`unit.${selectedLot.unit}`) })
+              : t("ux.stockUse")}
           </label>
           {stockOk && selectedLot && (
             <p>
@@ -943,7 +974,8 @@ function EntryForm({
       {(showDate || showTime) && (
         <details open={!!editing} className="space-y-3">
           <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">
-            {t("ui.when")}
+            {t("ui.when")} · {date}
+            {timeKnown && time ? ` · ${time}` : ` · ${t("unknown")}`}
           </summary>
           {showDate && (
             <div className="grid grid-cols-2 gap-3">

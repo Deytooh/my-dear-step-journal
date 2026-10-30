@@ -439,6 +439,15 @@ const ko = {
   "chart.openInj": "주사 기록 열기",
   "toast.demoCleared": "예시를 지웠어요",
   "meas.empty": "아직 치수 기록이 없어요.",
+  "ux.doseUnit": "용량 단위",
+  "qa.measureTitle": "치수",
+  "qa.water": "마셨는지 간단히",
+  "ux.stockUse": "제품을 선택하면 재고를 차감할 수 있어요",
+  "ux.restored": "저장하지 않은 식사 초안을 복원했어요.",
+  "ux.resetSaved": "저장된 내용으로 되돌리기",
+  "ux.resetDraft": "초안 비우기",
+  "ux.removeFood": "{name} 음식 항목 삭제",
+  "ux.saveMeal": "식사 기록 저장",
   "meas.add": "치수 남기기",
 };
 export type Key = keyof typeof ko;

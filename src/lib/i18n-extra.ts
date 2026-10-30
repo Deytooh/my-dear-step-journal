@@ -2,6 +2,16 @@
 type D = Record<string, string>;
 
 export const en: D = {
+  "qa.measureTitle": "Body size",
+  "ux.doseUnit": "Dose unit",
+  "qa.water": "A quick check-in",
+  "ux.stockUse": "Select a product to use stock",
+  "ux.restored": "Your unsaved meal draft was restored.",
+  "ux.resetSaved": "Reset to saved entry",
+  "ux.resetDraft": "Clear draft",
+  "ux.removeFood": "Remove food item: {name}",
+  "ux.saveMeal": "Save meal entry",
+
   "cal.prevMonth": "Previous month",
   "cal.nextMonth": "Next month",
   "pod.morning": "Morning",
@@ -443,6 +453,16 @@ export const en: D = {
 };
 
 export const fr: D = {
+  "qa.measureTitle": "Mesures",
+  "ux.doseUnit": "Unité de dose",
+  "qa.water": "Un point rapide",
+  "ux.stockUse": "Choisissez un produit pour utiliser le stock",
+  "ux.restored": "Votre brouillon de repas non enregistré a été restauré.",
+  "ux.resetSaved": "Revenir au repas enregistré",
+  "ux.resetDraft": "Vider le brouillon",
+  "ux.removeFood": "Supprimer l’aliment : {name}",
+  "ux.saveMeal": "Enregistrer le repas",
+
   "cal.prevMonth": "Mois précédent",
   "cal.nextMonth": "Mois suivant",
   "pod.morning": "Matin",
