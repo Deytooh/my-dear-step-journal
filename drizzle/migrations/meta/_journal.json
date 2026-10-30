@@ -8,6 +8,13 @@
       "when": 1793196176124,
       "tag": "0000_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793354523656,
+      "tag": "0001_momo_quota_and_questions",
+      "breakpoints": true
     }
   ]
 }

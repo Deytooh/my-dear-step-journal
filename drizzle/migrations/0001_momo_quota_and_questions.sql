@@ -1,15 +1,36 @@
--- Additive; apply alongside 0001_momo_quota.sql. No journal rows are changed.
+create table if not exists public.momo_usage (
+  user_id uuid not null,
+  day date not null default current_date,
+  requests integer not null default 0,
+  primary key (user_id, day)
+);
+grant all on public.momo_usage to service_role;
+alter table public.momo_usage enable row level security;
+
+create or replace function public.reserve_momo_request() returns boolean
+language plpgsql security definer set search_path = public as $$
+declare n integer;
+begin
+  if auth.uid() is null then return false; end if;
+  insert into public.momo_usage(user_id, day, requests) values(auth.uid(), current_date, 1)
+  on conflict(user_id, day) do update set requests = momo_usage.requests + 1
+  where momo_usage.requests < 20 returning requests into n;
+  return n is not null;
+end;
+$$;
+revoke all on function public.reserve_momo_request() from public, anon;
+grant execute on function public.reserve_momo_request() to authenticated;
+
 create table if not exists public.momo_daily_questions (
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null,
   local_day date not null,
   locale text not null check (locale in ('ko','en','fr')),
   proposal jsonb,
   primary key (user_id, local_day)
 );
+grant all on public.momo_daily_questions to service_role;
 alter table public.momo_daily_questions enable row level security;
-revoke all on public.momo_daily_questions from anon, authenticated;
 
--- One reservation across locales/devices. Failures consume the day's reservation too.
 create or replace function public.reserve_context_question(p_timezone text, p_locale text)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare d date; inserted integer; row_data public.momo_daily_questions%rowtype;
