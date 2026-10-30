@@ -1,9 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { sanitizeCandidates, type MomoCandidate } from "./momo-schema";
-
+import { validDate } from "./snapshot";
+import { inputSchema, metaJSON, quota, ProviderError, type AIError } from "./meta-provider.server";
+import { z } from "zod";
 export type { MomoCandidate } from "./momo-schema";
-export type MomoResult = { candidates: MomoCandidate[]; reply: string; error?: "not_configured" | "service" | "parse" };
-
+export type MomoResult = {
+  candidates: MomoCandidate[];
+  reply: string;
+  model?: string;
+  error?: AIError;
+};
 const SYSTEM = `You extract journal records for a GLP-1 user from their message and any attached photos.
 Today's local date is {today}. Resolve relative dates ("오늘", "어제", "yesterday") to YYYY-MM-DD.
 Return ONLY one JSON object, no prose, no markdown:
@@ -24,54 +31,32 @@ Rules:
 - For receipts copy only legible values. A pharmacy payment does NOT prove a GLP-1 purchase: product null unless printed.
 - Never infer stock movements. Empty candidates list if nothing to record.`;
 
-type Img = string; // data URL
-type Input = { text: string; today: string; images?: Img[] };
-
-function parseJson(content: string): { reply?: unknown; candidates?: unknown } | null {
-  const cleaned = content.replace(/```(?:json)?/g, "");
-  const start = cleaned.indexOf("{"); const end = cleaned.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
-  try { return JSON.parse(cleaned.slice(start, end + 1)); } catch { return null; }
-}
-
 export const extractWithMomo = createServerFn({ method: "POST" })
-  .inputValidator((d: Input) => {
-    const images = Array.isArray(d?.images) ? d.images : [];
-    const text = typeof d?.text === "string" ? d.text : "";
-    if ((text.trim().length === 0 && images.length === 0) || text.length > 4000) throw new Error("invalid text");
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(d.today)) throw new Error("invalid date");
-    if (images.length > 3 || images.some((u) => typeof u !== "string" || !/^data:image\/(png|jpe?g|webp);base64,/.test(u) || u.length > 2_000_000)) throw new Error("invalid images");
-    return { text, today: d.today, images };
-  })
-  .handler(async ({ data }): Promise<MomoResult> => {
-    const key = process.env["BASETEN_API_KEY"];
-    if (!key) return { candidates: [], reply: "", error: "not_configured" };
-    const userContent = data.images.length
-      ? [{ type: "text", text: data.text || "(photo only)" }, ...data.images.map((url) => ({ type: "image_url", image_url: { url } }))]
-      : data.text;
-    const messages: { role: string; content: unknown }[] = [
-      { role: "system", content: SYSTEM.replace("{today}", data.today) }, { role: "user", content: userContent },
-    ];
-    // Muse Spark Open has no guaranteed JSON mode: validate here and allow one repair attempt.
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const res = await fetch("https://inference.baseten.co/v1/chat/completions", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ model: "meta-models/muse-spark-open-1026", temperature: 0, max_tokens: 3000, messages }),
-        });
-        if (!res.ok) { console.error("baseten", res.status, (await res.text()).slice(0, 300)); return { candidates: [], reply: "", error: "service" }; }
-        const json = (await res.json()) as { choices?: { message?: { content?: string | null } }[] };
-        const content = json.choices?.[0]?.message?.content ?? "";
-        const parsed = content ? parseJson(content) : null;
-        if (parsed && Array.isArray(parsed.candidates)) {
-          return { candidates: sanitizeCandidates(parsed.candidates, data.text), reply: typeof parsed.reply === "string" ? parsed.reply.slice(0, 300) : "" };
-        }
-        messages.push({ role: "assistant", content: content || "(empty)" }, { role: "user", content: "Your previous answer was not valid JSON. Reply again with ONLY the JSON object described." });
-      } catch (e) {
-        console.error("momo", e);
-        return { candidates: [], reply: "", error: "service" };
-      }
+  .middleware([requireSupabaseAuth])
+  .inputValidator(inputSchema.extend({ today: z.string().refine(validDate) }))
+  .handler(async ({ data, context }): Promise<MomoResult> => {
+    try {
+      const result = await metaJSON(
+        SYSTEM.replace("{today}", data.today),
+        { text: data.text, today: data.today, locale: data.locale },
+        data.images,
+        (raw) => {
+          const parsed = z
+            .object({ candidates: z.array(z.unknown()).max(20), reply: z.string().max(300) })
+            .parse(raw);
+          return {
+            candidates: sanitizeCandidates(parsed.candidates, data.text),
+            reply: parsed.reply,
+          };
+        },
+        quota(context.supabase),
+      );
+      return { ...result.value, model: result.model };
+    } catch (error) {
+      return {
+        candidates: [],
+        reply: "",
+        error: error instanceof ProviderError ? error.code : "service",
+      };
     }
-    return { candidates: [], reply: "", error: "parse" };
   });

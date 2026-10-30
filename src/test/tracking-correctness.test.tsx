@@ -22,7 +22,11 @@ vi.mock("@/integrations/supabase/client", () => ({
     },
   },
 }));
-vi.mock("@/lib/cloud-sync", () => ({ loadCloud: vi.fn(), pushDiff: vi.fn() }));
+vi.mock("@/lib/cloud-sync", () => ({
+  clearPhotoCache: vi.fn(),
+  loadCloud: vi.fn(),
+  pushDiff: vi.fn(),
+}));
 
 const base = {
   localDate: "2026-10-29",
@@ -226,19 +230,34 @@ describe("journal injection lifecycle", () => {
   });
 });
 
-
 describe("Momo durable batch", () => {
   beforeEach(() => localStorage.clear());
   it("retains state on storage failure and retries with the same IDs exactly once", async () => {
     const { result, unmount } = renderHook(() => useJournal(), { wrapper: JournalProvider });
     await waitFor(() => expect(result.current.ready).toBe(true));
-    const r = { ...injection("momo-batch"), usedStock: false, evidence: { method: "text" as const, text: "주사", quote: "주사", photos: [], proposed: {}, confirmed: {} } };
+    const r = {
+      ...injection("momo-batch"),
+      usedStock: false,
+      evidence: {
+        method: "text" as const,
+        text: "주사",
+        quote: "주사",
+        photos: [],
+        proposed: {},
+        confirmed: {},
+      },
+    };
     const before = result.current.records.length;
-    const fail = vi.spyOn(Storage.prototype, "setItem").mockImplementationOnce(() => { throw new Error("quota"); });
+    const fail = vi.spyOn(Storage.prototype, "setItem").mockImplementationOnce(() => {
+      throw new Error("quota");
+    });
     expect(() => act(() => result.current.saveMomoBatch([r], []))).toThrow("quota");
     expect(result.current.records).toHaveLength(before);
     fail.mockRestore();
-    act(() => { result.current.saveMomoBatch([r], []); result.current.saveMomoBatch([r], []); });
+    act(() => {
+      result.current.saveMomoBatch([r], []);
+      result.current.saveMomoBatch([r], []);
+    });
     expect(result.current.records.filter((x) => x.id === r.id)).toHaveLength(1);
     unmount();
     const reload = renderHook(() => useJournal(), { wrapper: JournalProvider });
@@ -248,23 +267,38 @@ describe("Momo durable batch", () => {
   });
 });
 
-
 it("keeps locally saved entries after cloud failure and retries the same IDs", async () => {
   localStorage.clear();
-  const cloud = { records: [], purchases: [], reminder: null, stockAdjust: 0, settings: { showMomo: true, timezone: "Asia/Seoul" } };
-  const auth = vi.spyOn(supabase.auth, "getUser").mockResolvedValue({ data: { user: { id: "test-user", email: null } }, error: null } as never);
+  const cloud = {
+    records: [],
+    purchases: [],
+    reminder: null,
+    stockAdjust: 0,
+    settings: { showMomo: true, timezone: "Asia/Seoul" },
+  };
+  const auth = vi
+    .spyOn(supabase.auth, "getUser")
+    .mockResolvedValue({ data: { user: { id: "test-user", email: null } }, error: null } as never);
   vi.mocked(loadCloud).mockResolvedValue(cloud);
   vi.mocked(pushDiff).mockRejectedValueOnce(new Error("offline")).mockResolvedValue([]);
   const log = vi.spyOn(console, "error").mockImplementation(() => {});
   const hook = renderHook(() => useJournal(), { wrapper: JournalProvider });
   try {
     await waitFor(() => expect(hook.result.current.sync).toBe("synced"));
-    act(() => hook.result.current.saveMomoBatch([{ ...injection("cloud-retry"), usedStock: false }], []));
+    act(() =>
+      hook.result.current.saveMomoBatch([{ ...injection("cloud-retry"), usedStock: false }], []),
+    );
     await waitFor(() => expect(hook.result.current.sync).toBe("error"), { timeout: 3000 });
     expect(hook.result.current.records.filter((r) => r.id === "cloud-retry")).toHaveLength(1);
     act(() => hook.result.current.retrySync());
     await waitFor(() => expect(hook.result.current.sync).toBe("synced"), { timeout: 3000 });
     expect(hook.result.current.records.filter((r) => r.id === "cloud-retry")).toHaveLength(1);
     expect(vi.mocked(pushDiff)).toHaveBeenCalledTimes(2);
-  } finally { hook.unmount(); auth.mockRestore(); log.mockRestore(); vi.mocked(pushDiff).mockReset(); vi.mocked(loadCloud).mockReset(); }
+  } finally {
+    hook.unmount();
+    auth.mockRestore();
+    log.mockRestore();
+    vi.mocked(pushDiff).mockReset();
+    vi.mocked(loadCloud).mockReset();
+  }
 });

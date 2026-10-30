@@ -30,3 +30,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Future local/server secrets. The existing tracked .env contains publishable configuration only.
+.env.*
+!.env.example

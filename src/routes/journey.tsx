@@ -36,11 +36,22 @@ function Journey() {
     <div>
       <PageTitle title={t("journey.title")} sub={t("journey.sub")} />
       <RecordFinder />
-      <button onClick={() => open("memory")} className="press mt-4 flex h-12 w-full items-center justify-center gap-1 rounded-full border border-primary font-semibold"><Plus className="size-4" />{t("pr.memoryA")}</button>
+      <button
+        onClick={() => open("memory")}
+        className="press mt-4 flex h-12 w-full items-center justify-center gap-1 rounded-full border border-primary font-semibold"
+      >
+        <Plus className="size-4" />
+        {t("pr.memoryA")}
+      </button>
       {memories.length === 0 && (
         <Card className="p-8 text-center">
           <p className="text-muted-foreground">{t("journey.empty")}</p>
-          <button onClick={() => open("memory")} className="press mt-4 h-11 rounded-full bg-primary px-5 text-primary-foreground">{t("type.memory")} 남기기</button>
+          <button
+            onClick={() => open("memory")}
+            className="press mt-4 h-11 rounded-full bg-primary px-5 text-primary-foreground"
+          >
+            {t("pr.memoryA")}
+          </button>
         </Card>
       )}
       <ol className="relative mt-4 border-l-2 border-border pl-6">
@@ -49,13 +60,36 @@ function Journey() {
           const diff = w && first ? w.value - first.value : null;
           return (
             <li key={m.id} className="mb-6">
-              <span className="absolute -left-[9px] mt-1 size-4 rounded-full bg-peach-accent" aria-hidden />
-              <button onClick={() => open("memory", m)} className="press w-full overflow-hidden rounded-[20px] bg-card text-left shadow-soft">
-                {m.photo ? <PhotoImg src={m.photo} className="max-h-72 w-full object-cover" /> : <div className="flex h-20 items-center justify-center bg-peach"><ImageIcon className="size-6" /></div>}
+              <span
+                className="absolute -left-[9px] mt-1 size-4 rounded-full bg-peach-accent"
+                aria-hidden
+              />
+              <button
+                onClick={() => open("memory", m)}
+                className="press w-full overflow-hidden rounded-[20px] bg-card text-left shadow-soft"
+              >
+                {m.photo ? (
+                  <PhotoImg src={m.photo} className="max-h-72 w-full object-cover" />
+                ) : (
+                  <div className="flex h-20 items-center justify-center bg-peach">
+                    <ImageIcon className="size-6" />
+                  </div>
+                )}
                 <div className="p-4">
-                  <div className="text-sm text-muted-foreground">{fmtMonthDay(m.localDate)}<DemoTag show={m.demo} /></div>
+                  <div className="text-sm text-muted-foreground">
+                    {fmtMonthDay(m.localDate)}
+                    <DemoTag show={m.demo} />
+                  </div>
                   {m.note && <p className="mt-1 text-[16px]">{m.note}</p>}
-                  {w && <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground"><Scale className="size-4" />{fmtNumber(w.value)} kg{diff != null && diff !== 0 && ` · ${t("journey.change", { v: `${diff > 0 ? "+" : ""}${fmtNumber(diff)}` })}`}</p>}
+                  {w && (
+                    <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
+                      <Scale className="size-4" />
+                      {fmtNumber(w.value)} kg
+                      {diff != null &&
+                        diff !== 0 &&
+                        ` · ${t("journey.change", { v: `${diff > 0 ? "+" : ""}${fmtNumber(diff)}` })}`}
+                    </p>
+                  )}
                 </div>
               </button>
             </li>
@@ -64,8 +98,15 @@ function Journey() {
         {first && (
           <li className="flex items-center gap-3">
             <span className="absolute -left-[9px] size-4 rounded-full bg-primary" aria-hidden />
-            <IconBubble size="sm"><Flag className="size-5" /></IconBubble>
-            <span><span className="block font-bold">{t("journey.start")} · {fmtNumber(first.value)} kg</span><span className="text-sm text-muted-foreground">{fmtMonthDay(first.localDate)}</span></span>
+            <IconBubble size="sm">
+              <Flag className="size-5" />
+            </IconBubble>
+            <span>
+              <span className="block font-bold">
+                {t("journey.start")} · {fmtNumber(first.value)} kg
+              </span>
+              <span className="text-sm text-muted-foreground">{fmtMonthDay(first.localDate)}</span>
+            </span>
           </li>
         )}
       </ol>

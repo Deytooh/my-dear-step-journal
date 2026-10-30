@@ -8,3 +8,16 @@
 - [x] Phase 5: en/fr translations, language switch, JSON backup export/import, page fade motion, aria labels
 - [x] Phase 6: end-to-end demo verification (Momo live call untested until key)
 - [x] Pass 7 (user brief): Today question cards, richer Momo drafts + photos, purchases/stock rules, chart injection band, memory search, polish & checks
+
+
+## Submission completion — 30 October 2026
+- [x] Additive meal record and shared capture/review/manual edit flow, deterministic pictured/eaten estimates, unknown/partial totals, history/calendar and structured export.
+- [x] Shared authenticated Meta adapter, consent, bounded JSON repair/timeout, prepared persistent quota migration, distinct recovery errors.
+- [x] Owner-scoped memory candidates and validated returned IDs; keyword fallback is labeled.
+- [x] Account-local namespaces, explicit guest import excluding demos, private source-media uploads, expiring source access, targeted Undo and conflict prompts.
+- [x] Submission copy, setup, contributions, demo script, asset/privacy notes and release checklist in docs/.
+- [ ] Owner: deploy additive quota/bucket setup and verify live configured Meta text/photo calls.
+- [ ] Owner: verify deployed RLS/private storage with two real test accounts and test physical-phone keyboard/large text.
+- [ ] Owner: asset rights, public repository decision, hosted judge access, actual video and official portal requirements/submission.
+
+Earlier phase checks describe implemented code and historical local tests; they are not proof of live provider, deployed access control, background notifications or final submission. See docs/SUBMISSION_STATUS.md for this pass's measured checks.

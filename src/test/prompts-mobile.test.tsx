@@ -17,7 +17,11 @@ vi.mock("@/integrations/supabase/client", () => ({
     },
   },
 }));
-vi.mock("@/lib/cloud-sync", () => ({ loadCloud: vi.fn(), pushDiff: vi.fn() }));
+vi.mock("@/lib/cloud-sync", () => ({
+  clearPhotoCache: vi.fn(),
+  loadCloud: vi.fn(),
+  pushDiff: vi.fn(),
+}));
 let journal: ReturnType<typeof useJournal>;
 function Capture() {
   journal = useJournal();

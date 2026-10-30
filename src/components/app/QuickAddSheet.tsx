@@ -1,14 +1,36 @@
+import { validDate } from "@/lib/snapshot";
+import { FIELDS } from "@/lib/momo-drafts";
+import { MealForm } from "./MealForm";
+import { retainPhoto, shrinkPhoto } from "@/lib/media";
 import { SourceEvidence } from "./SourceEvidence";
 import { lotIdentity, matchesLot } from "@/lib/inventory";
 import { Button } from "@/components/ui/button";
 import { PhotoImg } from "@/components/app/PhotoImg";
-import { useEffect, useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Image as ImageIcon, Mic, Package, Ruler, Scale, Smile, Syringe, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Image as ImageIcon,
+  Mic,
+  Package,
+  Ruler,
+  Scale,
+  Smile,
+  Syringe,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { t, type Key } from "@/lib/i18n";
 import { instantFromLocal, localDateOf, timeOf, todayLocal } from "@/lib/dates";
-import { canDeduct, useJournal, type JournalRecord, type Purchase, type PartOfDay, type StockUnit } from "@/lib/journal";
+import {
+  canDeduct,
+  useJournal,
+  type JournalRecord,
+  type Purchase,
+  type PartOfDay,
+  type StockUnit,
+} from "@/lib/journal";
 import { IconBubble } from "./ui";
 import momo from "@/assets/momo.png";
 import { MomoSheet } from "./MomoSheet";
@@ -16,30 +38,86 @@ import { celebrateSave } from "./AppFeel";
 import { cn } from "@/lib/utils";
 import { MedicationPicker } from "./MedicationPicker";
 
-export type EntryKind = "menu" | "weight" | "injection" | "condition" | "memory" | "purchase" | "reminder" | "stock" | "voice" | "measure" | "water";
+export type EntryKind =
+  | "meal"
+  | "menu"
+  | "weight"
+  | "injection"
+  | "condition"
+  | "memory"
+  | "purchase"
+  | "reminder"
+  | "stock"
+  | "voice"
+  | "measure"
+  | "water";
 
-type Props = { open: boolean; onOpenChange: (v: boolean) => void; kind: EntryKind; setKind: (k: EntryKind) => void; editing?: JournalRecord | Purchase | undefined };
+type Props = {
+  initialDate?: string | undefined;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  kind: EntryKind;
+  setKind: (k: EntryKind) => void;
+  editing?: JournalRecord | Purchase | undefined;
+};
 
-export function QuickAddSheet({ open, onOpenChange, kind, setKind, editing }: Props) {
-  const { settings } = useJournal();
+export function QuickAddSheet({ open, onOpenChange, kind, setKind, editing, initialDate }: Props) {
+  const { settings, user } = useJournal();
+  const [mealSeed, setMealSeed] = useState<{ images: string[]; note: string }>({
+    images: [],
+    note: "",
+  });
   // edits are keyed by record id so the form remounts with fresh values
   const close = () => onOpenChange(false);
+  useEffect(() => {
+    if (!open) setMealSeed({ images: [], note: "" });
+  }, [open]);
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="mx-auto max-h-[92dvh] max-w-md rounded-t-[28px] border-0 bg-background">
         <div className="min-h-0 overflow-y-auto overscroll-contain px-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="flex justify-between pt-2">
             {kind !== "menu" && !editing ? (
-              <Button variant="unstyled" size="unstyled" onClick={() => setKind("menu")} className="press -ml-2 flex size-11 items-center justify-center" aria-label={t("ui.back")}>
+              <Button
+                variant="unstyled"
+                size="unstyled"
+                onClick={() => setKind("menu")}
+                className="press -ml-2 flex size-11 items-center justify-center"
+                aria-label={t("ui.back")}
+              >
                 <ChevronLeft className="size-6" />
               </Button>
-            ) : <span />}
-            <Button variant="unstyled" size="unstyled" onClick={close} className="press -mr-2 flex size-11 items-center justify-center" aria-label={t("evidence.close")}><X className="size-6" /></Button>
+            ) : (
+              <span />
+            )}
+            <Button
+              variant="unstyled"
+              size="unstyled"
+              onClick={close}
+              className="press -mr-2 flex size-11 items-center justify-center"
+              aria-label={t("evidence.close")}
+            >
+              <X className="size-6" />
+            </Button>
           </div>
           {kind === "menu" ? (
-            <div key="menu" className="feel-panel"><Menu setKind={setKind} showMomo={settings.showMomo} /></div>
+            <div key="menu" className="feel-panel">
+              <Menu setKind={setKind} showMomo={settings.showMomo} />
+            </div>
           ) : (
-            <EntryForm key={`${kind}-${editing && "id" in editing ? editing.id : "new"}`} kind={kind} editing={editing} onDone={close} onManual={() => setKind("menu")} />
+            <EntryForm
+              key={`${kind}-${editing && "id" in editing ? editing.id : "new"}-${user?.id ?? "guest"}`}
+              initialDate={initialDate}
+              mealSeed={mealSeed}
+              onMeal={(images, note) => {
+                setMealSeed({ images, note });
+                setKind("meal");
+              }}
+              kind={kind}
+              editing={editing}
+              onDone={close}
+              onManual={() => setKind("menu")}
+            />
           )}
         </div>
       </DrawerContent>
@@ -49,26 +127,85 @@ export function QuickAddSheet({ open, onOpenChange, kind, setKind, editing }: Pr
 
 function Menu({ setKind, showMomo }: { setKind: (k: EntryKind) => void; showMomo: boolean }) {
   const items: { k: EntryKind; title: Key; sub: Key; icon: ReactNode; tone: "sage" | "peach" }[] = [
-    { k: "weight", title: "type.weight", sub: "qa.weight", icon: <Scale className="size-6" />, tone: "sage" },
-    { k: "injection", title: "type.injection", sub: "qa.injection", icon: <Syringe className="size-6" />, tone: "peach" },
-    { k: "condition", title: "type.condition", sub: "qa.condition", icon: <Smile className="size-6" />, tone: "sage" },
-    { k: "memory", title: "type.memory", sub: "qa.memory", icon: <ImageIcon className="size-6" />, tone: "peach" },
-    { k: "measure", title: "type.measure", sub: "qa.measure", icon: <Ruler className="size-6" />, tone: "sage" },
-    { k: "purchase", title: "type.purchase", sub: "qa.purchase", icon: <Package className="size-6" />, tone: "sage" },
+    {
+      k: "meal",
+      title: "type.meal",
+      sub: "meal.quick",
+      icon: <ImageIcon className="size-6" />,
+      tone: "peach",
+    },
+    {
+      k: "weight",
+      title: "type.weight",
+      sub: "qa.weight",
+      icon: <Scale className="size-6" />,
+      tone: "sage",
+    },
+    {
+      k: "injection",
+      title: "type.injection",
+      sub: "qa.injection",
+      icon: <Syringe className="size-6" />,
+      tone: "peach",
+    },
+    {
+      k: "condition",
+      title: "type.condition",
+      sub: "qa.condition",
+      icon: <Smile className="size-6" />,
+      tone: "sage",
+    },
+    {
+      k: "memory",
+      title: "type.memory",
+      sub: "qa.memory",
+      icon: <ImageIcon className="size-6" />,
+      tone: "peach",
+    },
+    {
+      k: "measure",
+      title: "type.measure",
+      sub: "qa.measure",
+      icon: <Ruler className="size-6" />,
+      tone: "sage",
+    },
+    {
+      k: "purchase",
+      title: "type.purchase",
+      sub: "qa.purchase",
+      icon: <Package className="size-6" />,
+      tone: "sage",
+    },
   ];
   return (
     <>
       <div className="flex items-center justify-between">
         <div>
           <DrawerTitle className="text-[28px] font-bold">{t("qa.title")}</DrawerTitle>
-          <DrawerDescription className="mt-1 text-[15px] text-muted-foreground">{t("qa.sub")}</DrawerDescription>
+          <DrawerDescription className="mt-1 text-[15px] text-muted-foreground">
+            {t("qa.sub")}
+          </DrawerDescription>
         </div>
-        {showMomo && <img src={momo} alt="" aria-hidden width={80} height={80} className="size-20 object-contain" />}
+        {showMomo && (
+          <img
+            src={momo}
+            alt=""
+            aria-hidden
+            width={80}
+            height={80}
+            className="size-20 object-contain"
+          />
+        )}
       </div>
       <ul className="feel-menu mt-4 divide-y">
         {items.map((it) => (
           <li key={it.k}>
-            <Button variant="unstyled" size="unstyled" onClick={() => setKind(it.k)} className="press flex w-full items-center gap-4 py-4 text-left">
+            <Button
+              variant="unstyled"
+              size="unstyled"
+              onClick={() => setKind(it.k)}
+              className="press flex w-full items-center gap-4 py-4 text-left"
+            >
               <IconBubble tone={it.tone}>{it.icon}</IconBubble>
               <span className="flex-1">
                 <span className="block text-[18px] font-bold">{t(it.title)}</span>
@@ -84,10 +221,25 @@ function Menu({ setKind, showMomo }: { setKind: (k: EntryKind) => void; showMomo
   );
 }
 
-export function VoiceCard({ title, sub, onClick }: { title: string; sub: string; onClick: () => void }) {
+export function VoiceCard({
+  title,
+  sub,
+  onClick,
+}: {
+  title: string;
+  sub: string;
+  onClick: () => void;
+}) {
   return (
-    <Button variant="unstyled" size="unstyled" onClick={onClick} className="press mt-4 flex w-full items-center gap-4 rounded-[24px] bg-secondary p-4 text-left">
-      <span className="flex size-14 items-center justify-center rounded-full bg-[var(--voice-bubble)]"><Mic className="size-6" /></span>
+    <Button
+      variant="unstyled"
+      size="unstyled"
+      onClick={onClick}
+      className="press mt-4 flex w-full items-center gap-4 rounded-[24px] bg-secondary p-4 text-left"
+    >
+      <span className="flex size-14 items-center justify-center rounded-full bg-[var(--voice-bubble)]">
+        <Mic className="size-6" />
+      </span>
       <span className="flex-1">
         <span className="block font-bold">{title}</span>
         <span className="block text-sm text-muted-foreground">{sub}</span>
@@ -97,36 +249,86 @@ export function VoiceCard({ title, sub, onClick }: { title: string; sub: string;
   );
 }
 
-const FEELINGS = ["feel.calm", "feel.meh", "feel.uncomf", "feel.ok", "feel.tired", "feel.nausea", "feel.low"] as const;
+const FEELINGS = [
+  "feel.calm",
+  "feel.meh",
+  "feel.uncomf",
+  "feel.ok",
+  "feel.tired",
+  "feel.nausea",
+  "feel.low",
+] as const;
 import { SitePicker } from "./SitePicker";
 
-function Field({ label, children, optional }: { label: string; children: ReactNode; optional?: boolean }) {
+function Field({
+  label,
+  children,
+  optional,
+}: {
+  label: string;
+  children: ReactNode;
+  optional?: boolean;
+}) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-medium">{label}{optional && <span className="ml-1 text-muted-foreground">({t("f.optional")})</span>}</span>
+      <span className="mb-1.5 block text-sm font-medium">
+        {label}
+        {optional && <span className="ml-1 text-muted-foreground">({t("f.optional")})</span>}
+      </span>
       {children}
     </label>
   );
 }
-const inputCls = "h-12 w-full rounded-[12px] border bg-card px-4 text-[16px] outline-none focus:border-primary";
-const chipCls = (on: boolean) => cn("feel-chip press min-h-11 rounded-full border px-4 text-[15px]", on ? "border-primary bg-primary text-primary-foreground" : "bg-card");
+const inputCls =
+  "h-12 w-full rounded-[12px] border bg-card px-4 text-[16px] outline-none focus:border-primary";
+const chipCls = (on: boolean) =>
+  cn(
+    "feel-chip press min-h-11 rounded-full border px-4 text-[15px]",
+    on ? "border-primary bg-primary text-primary-foreground" : "bg-card",
+  );
 
-function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editing?: JournalRecord | Purchase | undefined; onDone: () => void; onManual: () => void }) {
+function EntryForm({
+  kind,
+  editing,
+  onDone,
+  onManual,
+  initialDate,
+  mealSeed,
+  onMeal,
+}: {
+  initialDate?: string | undefined;
+  mealSeed: { images: string[]; note: string };
+  onMeal: (images: string[], note: string) => void;
+  kind: EntryKind;
+  editing?: JournalRecord | Purchase | undefined;
+  onDone: () => void;
+  onManual: () => void;
+}) {
   const j = useJournal();
   const tz = j.tz;
   const rec = editing && "type" in editing ? editing : undefined;
   const pur = editing && !("type" in editing) ? editing : undefined;
 
-  const [date, setDate] = useState(rec?.localDate ?? pur?.localDate ?? todayLocal(tz));
+  const [date, setDate] = useState(
+    rec?.localDate ?? pur?.localDate ?? initialDate ?? todayLocal(tz),
+  );
   const [timeKnown, setTimeKnown] = useState(rec ? rec.precision === "exact" : true);
-  const [time, setTime] = useState(rec?.at ? timeOf(rec.at, tz) : timeOf(new Date().toISOString(), tz));
+  const [time, setTime] = useState(
+    rec?.at ? timeOf(rec.at, tz) : timeOf(new Date().toISOString(), tz),
+  );
   const [weight, setWeight] = useState(rec?.type === "weight" ? String(rec.value) : "");
-  const [med, setMed] = useState(rec?.type === "injection" ? rec.medication ?? "" : pur?.medication ?? "");
-  const [dose, setDose] = useState(rec?.type === "injection" && rec.doseValue != null ? String(rec.doseValue) : "");
-  const [doseUnit, setDoseUnit] = useState(rec?.type === "injection" ? rec.doseUnit ?? "mg" : "mg");
+  const [med, setMed] = useState(
+    rec?.type === "injection" ? (rec.medication ?? "") : (pur?.medication ?? ""),
+  );
+  const [dose, setDose] = useState(
+    rec?.type === "injection" && rec.doseValue != null ? String(rec.doseValue) : "",
+  );
+  const [doseUnit, setDoseUnit] = useState(
+    rec?.type === "injection" ? (rec.doseUnit ?? "mg") : "mg",
+  );
   const [site, setSite] = useState<string | null>(rec?.type === "injection" ? rec.site : null);
   const [useStock, setUseStock] = useState(rec?.type === "injection" ? rec.usedStock : false);
-  const [lotId, setLotId] = useState(rec?.type === "injection" ? rec.stockPurchaseId ?? "" : "");
+  const [lotId, setLotId] = useState(rec?.type === "injection" ? (rec.stockPurchaseId ?? "") : "");
   const selectedLot = j.inventory.lots.find((l) => l.id === lotId);
   const [water, setWater] = useState<"yes" | "not_yet">(rec?.type === "water" ? rec.answer : "yes");
   const [unit, setUnit] = useState<StockUnit | "">(pur?.stockUnit ?? (pur ? "" : "single"));
@@ -134,11 +336,23 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
   const [product, setProduct] = useState(pur?.product ?? "");
   const [merchant, setMerchant] = useState(pur?.merchant ?? "");
   const [feel, setFeel] = useState(rec?.type === "condition" ? rec.label : t("feel.calm"));
-  const [note, setNote] = useState(rec?.type === "condition" ? rec.note ?? "" : rec?.type === "memory" ? rec.note : "");
-  const [photo, setPhoto] = useState<string | null>(rec?.type === "memory" ? rec.photo ?? null : null);
+  const [note, setNote] = useState(
+    rec?.type === "condition" ? (rec.note ?? "") : rec?.type === "memory" ? rec.note : "",
+  );
+  const [photo, setPhoto] = useState<string | null>(
+    rec?.type === "memory" ? (rec.photo ?? null) : null,
+  );
   const [amount, setAmount] = useState(pur ? String(pur.amount) : "");
-  const [doses, setDoses] = useState(pur && pur.addsStock !== false ? String(pur.doses) : "");
-  const [remDate, setRemDate] = useState(j.reminder ? localDateOf(j.reminder.at, tz) : todayLocal(tz));
+  const [doses, setDoses] = useState(
+    pur?.quantity != null
+      ? String(pur.quantity)
+      : pur && pur.addsStock !== false
+        ? String(pur.doses)
+        : "",
+  );
+  const [remDate, setRemDate] = useState(
+    j.reminder ? localDateOf(j.reminder.at, tz) : todayLocal(tz),
+  );
   const [remTime, setRemTime] = useState(j.reminder ? timeOf(j.reminder.at, tz) : "20:00");
   const [stock, setStock] = useState("");
   const [meas, setMeas] = useState(() => {
@@ -146,136 +360,373 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
     const f = (v: number | null | undefined) => (v != null ? String(v) : "");
     return { waist: f(m?.waist), hip: f(m?.hip), chest: f(m?.chest), thigh: f(m?.thigh) };
   });
+  const composing = useRef(false);
   const [err, setErr] = useState<string | null>(null);
-  const stockOk = kind === "injection" && !!selectedLot && canDeduct(selectedLot.unit) && med.trim() === selectedLot.medication;
+  const stockOk =
+    kind === "injection" &&
+    !!selectedLot &&
+    canDeduct(selectedLot.unit) &&
+    med.trim() === selectedLot.medication;
 
   useEffect(() => setErr(null), [weight, amount, doses]);
 
   const titles: Record<EntryKind, string> = {
-    menu: "", weight: t("type.weight"), injection: t("type.injection"), condition: t("type.condition"), memory: t("type.memory"),
-    purchase: t("type.purchase"), water: t("type.water"), reminder: t("reminder.set"), stock: t("inv.edit"), voice: t("voice.all"), measure: t("type.measure"),
+    meal: t("type.meal"),
+    menu: "",
+    weight: t("type.weight"),
+    injection: t("type.injection"),
+    condition: t("type.condition"),
+    memory: t("type.memory"),
+    purchase: t("type.purchase"),
+    water: t("type.water"),
+    reminder: t("reminder.set"),
+    stock: t("inv.edit"),
+    voice: t("voice.all"),
+    measure: t("type.measure"),
   };
 
+  const editedEvidence = () => {
+    if (!rec?.evidence) return undefined;
+    const values: Record<string, string> = {
+      date,
+      time: timeKnown ? time : "",
+      value: weight,
+      medication: med,
+      doseValue: dose,
+      doseUnit,
+      site: site ?? "",
+      label: feel,
+      note,
+      ...meas,
+    };
+    const confirmed = { ...rec.evidence.confirmed };
+    for (const field of FIELDS[kind as keyof typeof FIELDS] ?? [])
+      confirmed[field.k] = values[field.k] ?? confirmed[field.k] ?? "";
+    return { ...rec.evidence, confirmed };
+  };
   const base = () => ({
-    ...(rec?.evidence ? { evidence: rec.evidence } : {}),
+    ...(rec ?? {}),
+    ...(rec?.evidence ? { evidence: editedEvidence()! } : {}),
     ...(rec?.demo ? { demo: true } : {}),
-    id: rec?.id ?? j.newId(), localDate: date, createdAt: rec?.createdAt ?? new Date().toISOString(), source: "manual_text" as const,
-    precision: timeKnown ? ("exact" as const) : rec && rec.precision !== "exact" ? rec.precision : ("date_only" as const),
-    at: timeKnown ? instantFromLocal(date, time, tz) : null, partOfDay: !timeKnown ? rec?.partOfDay ?? null : null as PartOfDay | null,
+    id: rec?.id ?? j.newId(),
+    localDate: date,
+    createdAt: rec?.createdAt ?? new Date().toISOString(),
+    source: "manual_text" as const,
+    precision: timeKnown
+      ? ("exact" as const)
+      : rec && rec.precision !== "exact"
+        ? rec.precision
+        : ("date_only" as const),
+    at: timeKnown ? instantFromLocal(date, time, tz) : null,
+    partOfDay: !timeKnown ? (rec?.partOfDay ?? null) : (null as PartOfDay | null),
   });
 
   const save = () => {
-    const before = j.snapshot();
-    if (kind === "weight") {
-      const v = Number(weight.replace(",", "."));
-      if (!weight || !Number.isFinite(v) || v < 20 || v > 400) return setErr(t("validation.manual0"));
-      j.saveRecord({ ...base(), type: "weight", value: Math.round(v * 10) / 10, unit: "kg" });
-    } else if (kind === "injection") {
-      const dv = dose ? Number(dose.replace(",", ".")) : null;
-      if (dose && !Number.isFinite(dv)) return setErr(t("validation.manual1"));
-      if (useStock && !stockOk) return setErr(t("stock.choose"));
-      j.saveRecord({ ...base(), type: "injection", medication: med.trim() || null, doseValue: dv, doseUnit: dv != null ? doseUnit : null, site, usedStock: useStock, stockPurchaseId: useStock ? lotId : null, stockIdentity: useStock && selectedLot ? lotIdentity(selectedLot) : null });
-    } else if (kind === "water") {
-      j.saveRecord({ ...base(), type: "water", answer: water });
-    } else if (kind === "condition") {
-      j.saveRecord({ ...base(), type: "condition", label: feel, ...(note.trim() ? { note: note.trim() } : {}) });
-    } else if (kind === "memory") {
-      if (!note.trim() && !photo) return setErr(t("validation.manual2"));
-      j.saveRecord({ ...base(), type: "memory", note: note.trim(), photo });
-    } else if (kind === "measure") {
-      const vals: Record<string, number | null> = {};
-      for (const [k, raw] of Object.entries(meas)) {
-        if (!raw.trim()) { vals[k] = null; continue; }
-        const v = Number(raw.replace(",", "."));
-        if (!Number.isFinite(v) || v < 10 || v > 300) return setErr(t("validation.manual3"));
-        vals[k] = Math.round(v * 10) / 10;
+    try {
+      if (
+        ["weight", "injection", "condition", "memory", "purchase", "measure", "water"].includes(
+          kind,
+        ) &&
+        !validDate(date)
+      )
+        return setErr(t("validation.date"));
+      if (
+        timeKnown &&
+        ["weight", "injection", "condition", "memory", "measure", "water"].includes(kind) &&
+        !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)
+      )
+        return setErr(t("validation.date"));
+      const before = j.snapshot();
+      if (kind === "weight") {
+        const v = Number(weight.replace(",", "."));
+        if (!weight || !Number.isFinite(v) || v < 20 || v > 400)
+          return setErr(t("validation.manual0"));
+        j.saveRecord({ ...base(), type: "weight", value: Math.round(v * 10) / 10, unit: "kg" });
+      } else if (kind === "injection") {
+        const dv = dose ? Number(dose.replace(",", ".")) : null;
+        if (dose && (!Number.isFinite(dv) || (dv !== null && dv < 0)))
+          return setErr(t("validation.manual1"));
+        if (useStock && !stockOk) return setErr(t("stock.choose"));
+        j.saveRecord({
+          ...base(),
+          type: "injection",
+          medication: med.trim() || null,
+          doseValue: dv,
+          doseUnit: dv != null ? doseUnit : null,
+          site,
+          usedStock: useStock,
+          stockPurchaseId: useStock ? lotId : null,
+          stockIdentity: useStock && selectedLot ? lotIdentity(selectedLot) : null,
+        });
+      } else if (kind === "water") {
+        j.saveRecord({ ...base(), type: "water", answer: water });
+      } else if (kind === "condition") {
+        j.saveRecord({
+          ...base(),
+          type: "condition",
+          label: feel,
+          ...(note.trim() ? { note: note.trim() } : {}),
+        });
+      } else if (kind === "memory") {
+        if (!note.trim() && !photo) return setErr(t("validation.manual2"));
+        j.saveRecord({ ...base(), type: "memory", note: note.trim(), photo });
+      } else if (kind === "measure") {
+        const vals: Record<string, number | null> = {};
+        for (const [k, raw] of Object.entries(meas)) {
+          if (!raw.trim()) {
+            vals[k] = null;
+            continue;
+          }
+          const v = Number(raw.replace(",", "."));
+          if (!Number.isFinite(v) || v < 10 || v > 300) return setErr(t("validation.manual3"));
+          vals[k] = Math.round(v * 10) / 10;
+        }
+        if (Object.values(vals).every((v) => v == null)) return setErr(t("validation.manual4"));
+        j.saveRecord({
+          ...base(),
+          type: "measure",
+          unit: "cm",
+          waist: vals["waist"] ?? null,
+          hip: vals["hip"] ?? null,
+          chest: vals["chest"] ?? null,
+          thigh: vals["thigh"] ?? null,
+        });
+      } else if (kind === "purchase") {
+        const a = Number(amount.replace(/[^\d]/g, ""));
+        const hasQty = doses.trim() !== "";
+        const n = hasQty ? Number(doses) : 0;
+        if (!a) return setErr(t("validation.manual5"));
+        if (hasQty && (!Number.isInteger(n) || n <= 0)) return setErr(t("validation.manual6"));
+        const stockOn = hasQty && addsStock;
+        j.savePurchase({
+          ...(pur?.evidence
+            ? {
+                evidence: {
+                  ...pur.evidence,
+                  confirmed: {
+                    ...pur.evidence.confirmed,
+                    date,
+                    amount: String(a),
+                    quantity: hasQty ? String(n) : "",
+                    product,
+                    merchant,
+                    currency: pur.currency,
+                  },
+                },
+              }
+            : {}),
+          id: pur?.id ?? j.newId(),
+          localDate: date,
+          amount: a,
+          currency: pur?.currency ?? "KRW",
+          quantity: hasQty ? n : null,
+          doses: stockOn ? n : 0,
+          medication: med.trim() || null,
+          product: product.trim() || null,
+          stockUnit: hasQty ? unit || null : null,
+          addsStock: stockOn,
+          merchant: merchant.trim() || null,
+          ...(pur?.demo ? { demo: true } : {}),
+        });
+      } else if (kind === "reminder") {
+        j.setReminder(instantFromLocal(remDate, remTime, tz));
+      } else if (kind === "stock") {
+        const n = Number(stock);
+        if (!stock.trim() || !Number.isInteger(n) || n < 0) return setErr(t("validation.manual7"));
+        if (!selectedLot) return setErr(t("stock.choose"));
+        j.setStock(n, selectedLot.id);
       }
-      if (Object.values(vals).every((v) => v == null)) return setErr(t("validation.manual4"));
-      j.saveRecord({ ...base(), type: "measure", unit: "cm", waist: vals["waist"] ?? null, hip: vals["hip"] ?? null, chest: vals["chest"] ?? null, thigh: vals["thigh"] ?? null });
-    } else if (kind === "purchase") {
-      const a = Number(amount.replace(/[^\d]/g, "")); const hasQty = doses.trim() !== ""; const n = hasQty ? Number(doses) : 0;
-      if (!a) return setErr(t("validation.manual5"));
-      if (hasQty && (!Number.isInteger(n) || n <= 0)) return setErr(t("validation.manual6"));
-      const stockOn = hasQty && addsStock;
-      j.savePurchase({ ...(pur?.evidence ? { evidence: pur.evidence } : {}), ...(pur?.quantity != null ? { quantity: pur.quantity } : {}), id: pur?.id ?? j.newId(), localDate: date, amount: a, currency: pur?.currency ?? "KRW", doses: stockOn ? n : 0, medication: med.trim() || null,
-        product: product.trim() || null, stockUnit: hasQty ? unit || null : null, addsStock: stockOn, merchant: merchant.trim() || null, ...(pur?.demo ? { demo: true } : {}) });
-    } else if (kind === "reminder") {
-      j.setReminder(instantFromLocal(remDate, remTime, tz));
-    } else if (kind === "stock") {
-      const n = Number(stock);
-      if (!stock.trim() || !Number.isInteger(n) || n < 0) return setErr(t("validation.manual7"));
-      if (!selectedLot) return setErr(t("stock.choose"));
-      j.setStock(n, selectedLot.id);
+      celebrateSave();
+      toast.success(t("toast.saved"), {
+        action: { label: t("toast.undo"), onClick: j.undoFor(before) },
+      });
+      onDone();
+    } catch {
+      setErr(t("evidence.saveFailed"));
     }
-    celebrateSave();
-    toast.success(t("toast.saved"), { action: { label: t("toast.undo"), onClick: () => j.restoreSnapshot(before) } });
-    onDone();
   };
 
   const remove = () => {
-    const before = j.snapshot();
-    if (rec) j.deleteRecord(rec.id);
-    else if (pur) j.deletePurchase(pur.id);
-    else if (kind === "reminder") j.setReminder(null);
-    toast(t("toast.deleted"), { action: { label: t("toast.undo"), onClick: () => j.restoreSnapshot(before) } });
-    onDone();
+    try {
+      const before = j.snapshot();
+      if (rec) j.deleteRecord(rec.id);
+      else if (pur) j.deletePurchase(pur.id);
+      else if (kind === "reminder") j.setReminder(null);
+      toast(t("toast.deleted"), { action: { label: t("toast.undo"), onClick: j.undoFor(before) } });
+      onDone();
+    } catch {
+      setErr(t("evidence.saveFailed"));
+    }
   };
 
-  if (kind === "voice") return <MomoSheet onDone={onDone} onManual={onManual} />;
+  if (kind === "voice") return <MomoSheet onMeal={onMeal} onDone={onDone} onManual={onManual} />;
 
-  const showDate = ["weight", "injection", "condition", "memory", "purchase", "measure", "water"].includes(kind);
-  const showTime = ["weight", "injection", "condition", "memory", "measure", "water"].includes(kind);
+  if (kind === "meal")
+    return (
+      <MealForm
+        editing={rec?.type === "meal" ? rec : undefined}
+        images={mealSeed.images}
+        note={mealSeed.note}
+        initialDate={initialDate}
+        onDone={onDone}
+      />
+    );
+
+  const showDate = [
+    "weight",
+    "injection",
+    "condition",
+    "memory",
+    "purchase",
+    "measure",
+    "water",
+  ].includes(kind);
+  const showTime = ["weight", "injection", "condition", "memory", "measure", "water"].includes(
+    kind,
+  );
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); save(); }} className="feel-form space-y-5">
-      <DrawerTitle className="text-[24px] font-bold">{titles[kind]}{editing && ` · ${t("ui.edit")}`}</DrawerTitle>
-      {(rec?.evidence ?? pur?.evidence) && <SourceEvidence evidence={(rec?.evidence ?? pur?.evidence)!} />}
+    <form
+      onCompositionStart={() => {
+        composing.current = true;
+      }}
+      onCompositionEnd={() => {
+        composing.current = false;
+      }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!composing.current) save();
+      }}
+      className="feel-form space-y-5"
+    >
+      <DrawerTitle className="text-[24px] font-bold">
+        {titles[kind]}
+        {editing && ` · ${t("ui.edit")}`}
+      </DrawerTitle>
+      {(rec?.evidence ?? pur?.evidence) && (
+        <SourceEvidence evidence={(rec?.evidence ?? pur?.evidence)!} />
+      )}
       <DrawerDescription className="sr-only">{titles[kind]}</DrawerDescription>
 
       {kind === "weight" && (
         <Field label={t("f.value")}>
-          <input autoFocus inputMode="decimal" className={cn(inputCls, "h-16 text-[28px] font-bold")} value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="78.4" />
+          <input
+            autoFocus
+            inputMode="decimal"
+            className={cn(inputCls, "h-16 text-[28px] font-bold")}
+            value={weight}
+            onChange={(e) => setWeight(e.target.value)}
+            placeholder="78.4"
+          />
         </Field>
       )}
 
       {(kind === "injection" || kind === "purchase") && (
         <div>
-          <span className="mb-1.5 block text-sm font-medium">{t("f.medication")} <span className="text-muted-foreground">({t("f.optional")})</span></span>
+          <span className="mb-1.5 block text-sm font-medium">
+            {t("f.medication")} <span className="text-muted-foreground">({t("f.optional")})</span>
+          </span>
           <MedicationPicker value={med} onChange={setMed} />
         </div>
       )}
 
       {kind === "injection" && (
-        <details open={!!editing} className="space-y-3"><summary className="min-h-11 cursor-pointer py-3 font-medium">{t("ui.injectionDetails")}</summary>
+        <details open={!!editing} className="space-y-3">
+          <summary className="min-h-11 cursor-pointer py-3 font-medium">
+            {t("ui.injectionDetails")}
+          </summary>
           <Field label={t("f.dose")} optional>
             <div className="flex gap-2">
-              <input inputMode="decimal" className={inputCls} value={dose} onChange={(e) => setDose(e.target.value)} placeholder={t("unknown")} />
-              <select className={cn(inputCls, "w-24")} value={doseUnit} onChange={(e) => setDoseUnit(e.target.value)}>
-                <option>mg</option><option>mcg</option><option>mL</option>
+              <input
+                inputMode="decimal"
+                className={inputCls}
+                value={dose}
+                onChange={(e) => setDose(e.target.value)}
+                placeholder={t("unknown")}
+              />
+              <select
+                className={cn(inputCls, "w-24")}
+                value={doseUnit}
+                onChange={(e) => setDoseUnit(e.target.value)}
+              >
+                <option>mg</option>
+                <option>mcg</option>
+                <option>mL</option>
               </select>
             </div>
           </Field>
           <div>
-            <span className="mb-1.5 block text-sm font-medium">{t("f.site")} <span className="text-muted-foreground">({t("f.optional")})</span></span>
+            <span className="mb-1.5 block text-sm font-medium">
+              {t("f.site")} <span className="text-muted-foreground">({t("f.optional")})</span>
+            </span>
             <SitePicker value={site} onChange={setSite} />
           </div>
-          <Field label={t("stock.lot")}><select className={inputCls} value={lotId} onChange={(e) => setLotId(e.target.value)}>
-            <option value="">{t("stock.choose")}</option>
-            {j.inventory.lots.filter((l) => l.medication === med.trim() && canDeduct(l.unit)).map((l) => <option key={l.id} value={l.id}>{l.medication} · {l.product} · {l.localDate} · {l.balance} {t(`unit.${l.unit}`)} · {l.id.slice(-6)}</option>)}
-          </select></Field>
-          {rec?.type === "injection" && rec.usedStock && !rec.stockPurchaseId && <p className="text-sm">{t("stock.review")}</p>}
-          <label className="flex min-h-11 items-center gap-3"><input type="checkbox" className="size-5" checked={useStock} onChange={(e) => setUseStock(e.target.checked)} />{t("stock.deduct", { u: selectedLot ? t(`unit.${selectedLot.unit}`) : "" })}</label>
-          {stockOk && selectedLot && <p>{t("stock.before")} {selectedLot.balance + (rec?.type === "injection" && rec.usedStock && matchesLot(rec, selectedLot) ? 1 : 0)} → {t("stock.after")} {selectedLot.balance + (rec?.type === "injection" && rec.usedStock && matchesLot(rec, selectedLot) ? 1 : 0) - (useStock ? 1 : 0)}</p>}
+          <Field label={t("stock.lot")}>
+            <select className={inputCls} value={lotId} onChange={(e) => setLotId(e.target.value)}>
+              <option value="">{t("stock.choose")}</option>
+              {j.inventory.lots
+                .filter((l) => l.medication === med.trim() && canDeduct(l.unit))
+                .map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.medication} · {l.product} · {l.localDate} · {l.balance} {t(`unit.${l.unit}`)}{" "}
+                    · {l.id.slice(-6)}
+                  </option>
+                ))}
+            </select>
+          </Field>
+          {rec?.type === "injection" && rec.usedStock && !rec.stockPurchaseId && (
+            <p className="text-sm">{t("stock.review")}</p>
+          )}
+          <label className="flex min-h-11 items-center gap-3">
+            <input
+              type="checkbox"
+              className="size-5"
+              checked={useStock}
+              onChange={(e) => setUseStock(e.target.checked)}
+            />
+            {t("stock.deduct", { u: selectedLot ? t(`unit.${selectedLot.unit}`) : "" })}
+          </label>
+          {stockOk && selectedLot && (
+            <p>
+              {t("stock.before")}{" "}
+              {selectedLot.balance +
+                (rec?.type === "injection" && rec.usedStock && matchesLot(rec, selectedLot)
+                  ? 1
+                  : 0)}{" "}
+              → {t("stock.after")}{" "}
+              {selectedLot.balance +
+                (rec?.type === "injection" && rec.usedStock && matchesLot(rec, selectedLot)
+                  ? 1
+                  : 0) -
+                (useStock ? 1 : 0)}
+            </p>
+          )}
         </details>
       )}
 
       {kind === "condition" && (
         <>
           <div className="flex flex-wrap gap-2">
-            {FEELINGS.map((k) => <Button variant="unstyled" size="unstyled" type="button" key={k} aria-pressed={feel === t(k)} className={chipCls(feel === t(k))} onClick={() => setFeel(t(k))}>{t(k)}</Button>)}
+            {FEELINGS.map((k) => (
+              <Button
+                variant="unstyled"
+                size="unstyled"
+                type="button"
+                key={k}
+                aria-pressed={feel === t(k)}
+                className={chipCls(feel === t(k))}
+                onClick={() => setFeel(t(k))}
+              >
+                {t(k)}
+              </Button>
+            ))}
           </div>
           <Field label={t("f.note")} optional>
-            <textarea className={cn(inputCls, "h-24 py-3")} value={note} onChange={(e) => setNote(e.target.value)} />
+            <textarea
+              className={cn(inputCls, "h-24 py-3")}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
           </Field>
         </>
       )}
@@ -283,23 +734,56 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
       {kind === "memory" && (
         <>
           <div>
-            <span className="mb-1.5 block text-sm font-medium">{t("f.photo")} <span className="text-muted-foreground">({t("f.optional")})</span></span>
-            {photo && <PhotoImg src={photo} alt={t("f.photo")} className="mb-2 max-h-56 w-full rounded-[16px] object-cover" />}
+            <span className="mb-1.5 block text-sm font-medium">
+              {t("f.photo")} <span className="text-muted-foreground">({t("f.optional")})</span>
+            </span>
+            {photo && (
+              <PhotoImg
+                src={photo}
+                alt={t("f.photo")}
+                className="mb-2 max-h-56 w-full rounded-[16px] object-cover"
+              />
+            )}
             <div className="flex gap-2">
               <label className="press flex min-h-14 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[16px] border-2 border-dashed border-primary/40 bg-card px-4 text-[15px] font-semibold focus-within:ring-2 focus-within:ring-ring">
-                <ImageIcon className="size-5" />{photo ? t("photo.change") : t("photo.pick")}
-                <input type="file" accept="image/*" className="sr-only" onChange={(e) => {
-                  const f = e.target.files?.[0]; e.target.value = ""; if (!f) return;
-                  if (f.size > 5 * 1024 * 1024) return setErr(t("validation.manual8"));
-                  const rd = new FileReader(); rd.onload = () => setPhoto(String(rd.result)); rd.readAsDataURL(f);
-                }} />
+                <ImageIcon className="size-5" />
+                {photo ? t("photo.change") : t("photo.pick")}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!f) return;
+                    shrinkPhoto(f)
+                      .then((data) => retainPhoto(data, j.user?.id ?? "guest"))
+                      .then(setPhoto)
+                      .catch(() => setErr(t("validation.manual8")));
+                  }}
+                />
               </label>
-              {photo && <Button variant="unstyled" size="unstyled" type="button" onClick={() => setPhoto(null)} className="press min-h-14 rounded-[16px] border px-4 text-[15px]">{t("photo.remove")}</Button>}
+              {photo && (
+                <Button
+                  variant="unstyled"
+                  size="unstyled"
+                  type="button"
+                  onClick={() => setPhoto(null)}
+                  className="press min-h-14 rounded-[16px] border px-4 text-[15px]"
+                >
+                  {t("photo.remove")}
+                </Button>
+              )}
             </div>
             {!photo && <p className="mt-1 text-sm text-muted-foreground">{t("photo.hint")}</p>}
           </div>
           <Field label={t("f.note")}>
-            <textarea className={cn(inputCls, "h-24 py-3")} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("pr.memoryQ")} />
+            <textarea
+              className={cn(inputCls, "h-24 py-3")}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder={t("pr.memoryQ")}
+            />
           </Field>
         </>
       )}
@@ -308,7 +792,12 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
         <div className="grid grid-cols-2 gap-3">
           {(["waist", "hip", "chest", "thigh"] as const).map((k) => (
             <Field key={k} label={t(`f.${k}`)} optional>
-              <input inputMode="decimal" className={inputCls} value={meas[k]} onChange={(e) => setMeas({ ...meas, [k]: e.target.value })} />
+              <input
+                inputMode="decimal"
+                className={inputCls}
+                value={meas[k]}
+                onChange={(e) => setMeas({ ...meas, [k]: e.target.value })}
+              />
             </Field>
           ))}
         </div>
@@ -316,29 +805,84 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
 
       {kind === "purchase" && (
         <>
-          <Field label={t("stock.product")} optional><input className={inputCls} value={product} onChange={(e) => setProduct(e.target.value)} /></Field>
-          <Field label={t("f.merchant")} optional><input className={inputCls} value={merchant} onChange={(e) => setMerchant(e.target.value)} /></Field>
-          <Field label={t("f.amount")}><input inputMode="numeric" className={inputCls} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="320000" /></Field>
+          <Field label={t("stock.product")} optional>
+            <input
+              className={inputCls}
+              value={product}
+              onChange={(e) => setProduct(e.target.value)}
+            />
+          </Field>
+          <Field label={t("f.merchant")} optional>
+            <input
+              className={inputCls}
+              value={merchant}
+              onChange={(e) => setMerchant(e.target.value)}
+            />
+          </Field>
+          <Field label={t("f.amount")}>
+            <input
+              inputMode="numeric"
+              className={inputCls}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="320000"
+            />
+          </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label={t("f.qty")} optional><input inputMode="numeric" className={inputCls} value={doses} onChange={(e) => setDoses(e.target.value)} placeholder={t("f.qtyHint")} /></Field>
+            <Field label={t("f.qty")} optional>
+              <input
+                inputMode="numeric"
+                className={inputCls}
+                value={doses}
+                onChange={(e) => setDoses(e.target.value)}
+                placeholder={t("f.qtyHint")}
+              />
+            </Field>
             <Field label={t("f.unit")}>
-              <select className={inputCls} value={unit} onChange={(e) => setUnit(e.target.value as StockUnit | "")}>
-                <option value="">{t("stock.review")}</option><option value="single">{t("unit.single")}</option><option value="pen">{t("unit.pen")}</option><option value="dose">{t("unit.dose")}</option>
+              <select
+                className={inputCls}
+                value={unit}
+                onChange={(e) => setUnit(e.target.value as StockUnit | "")}
+              >
+                <option value="">{t("stock.review")}</option>
+                <option value="single">{t("unit.single")}</option>
+                <option value="pen">{t("unit.pen")}</option>
+                <option value="dose">{t("unit.dose")}</option>
               </select>
             </Field>
           </div>
           <label className="flex min-h-11 items-center gap-3 text-[15px]">
-            <input type="checkbox" className="size-5 accent-[var(--color-primary)]" disabled={!doses.trim()} checked={!!doses.trim() && addsStock} onChange={(e) => setAddsStock(e.target.checked)} />
+            <input
+              type="checkbox"
+              className="size-5 accent-[var(--color-primary)]"
+              disabled={!doses.trim()}
+              checked={!!doses.trim() && addsStock}
+              onChange={(e) => setAddsStock(e.target.checked)}
+            />
             {t("f.addsStock")}
           </label>
-          {!doses.trim() && <p className="-mt-3 text-sm text-muted-foreground">{t("f.expenseOnly")}</p>}
+          {!doses.trim() && (
+            <p className="-mt-3 text-sm text-muted-foreground">{t("f.expenseOnly")}</p>
+          )}
         </>
       )}
 
       {kind === "water" && (
         <div>
           <div className="flex flex-wrap gap-2">
-            {(["yes", "not_yet"] as const).map((a) => <Button variant="unstyled" size="unstyled" type="button" key={a} aria-pressed={water === a} className={chipCls(water === a)} onClick={() => setWater(a)}>{t(a === "yes" ? "pr.water.yes" : "pr.water.notYet")}</Button>)}
+            {(["yes", "not_yet"] as const).map((a) => (
+              <Button
+                variant="unstyled"
+                size="unstyled"
+                type="button"
+                key={a}
+                aria-pressed={water === a}
+                className={chipCls(water === a)}
+                onClick={() => setWater(a)}
+              >
+                {t(a === "yes" ? "pr.water.yes" : "pr.water.notYet")}
+              </Button>
+            ))}
           </div>
           <p className="mt-2 text-sm text-muted-foreground">{t("water.note")}</p>
         </div>
@@ -347,44 +891,122 @@ function EntryForm({ kind, editing, onDone, onManual }: { kind: EntryKind; editi
       {kind === "reminder" && (
         <Field label={t("f.reminderAt")}>
           <div className="grid grid-cols-2 gap-3">
-            <input type="date" className={inputCls} value={remDate} onChange={(e) => setRemDate(e.target.value)} />
-            <input type="time" className={inputCls} value={remTime} onChange={(e) => setRemTime(e.target.value)} />
+            <input
+              type="date"
+              className={inputCls}
+              value={remDate}
+              onChange={(e) => setRemDate(e.target.value)}
+            />
+            <input
+              type="time"
+              className={inputCls}
+              value={remTime}
+              onChange={(e) => setRemTime(e.target.value)}
+            />
           </div>
         </Field>
       )}
 
       {kind === "stock" && (
-        <><Field label={t("stock.lot")}><select className={inputCls} value={lotId} onChange={(e) => { setLotId(e.target.value); setStock(String(j.inventory.lots.find((l) => l.id === e.target.value)?.balance ?? "")); }}>
-          <option value="">{t("stock.choose")}</option>{j.inventory.lots.map((l) => <option key={l.id} value={l.id}>{l.medication} · {l.product} · {l.localDate} · {t(`unit.${l.unit}`)} · {l.id.slice(-6)}</option>)}
-        </select></Field><Field label={t("f.stockCount")}><input inputMode="numeric" className={inputCls} value={stock} onChange={(e) => setStock(e.target.value)} /></Field></>
+        <>
+          <Field label={t("stock.lot")}>
+            <select
+              className={inputCls}
+              value={lotId}
+              onChange={(e) => {
+                setLotId(e.target.value);
+                setStock(
+                  String(j.inventory.lots.find((l) => l.id === e.target.value)?.balance ?? ""),
+                );
+              }}
+            >
+              <option value="">{t("stock.choose")}</option>
+              {j.inventory.lots.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.medication} · {l.product} · {l.localDate} · {t(`unit.${l.unit}`)} ·{" "}
+                  {l.id.slice(-6)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t("f.stockCount")}>
+            <input
+              inputMode="numeric"
+              className={inputCls}
+              value={stock}
+              onChange={(e) => setStock(e.target.value)}
+            />
+          </Field>
+        </>
       )}
 
-      {(showDate || showTime) && <details open={!!editing} className="space-y-3"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">{t("ui.when")}</summary>
-      {showDate && (
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={t("f.date")}><input type="date" className={inputCls} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-          {showTime && (
-            <Field label={t("f.time")}>
-              <input type="time" disabled={!timeKnown} className={cn(inputCls, !timeKnown && "opacity-40")} value={time} onChange={(e) => setTime(e.target.value)} />
-            </Field>
+      {(showDate || showTime) && (
+        <details open={!!editing} className="space-y-3">
+          <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">
+            {t("ui.when")}
+          </summary>
+          {showDate && (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t("f.date")}>
+                <input
+                  type="date"
+                  className={inputCls}
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </Field>
+              {showTime && (
+                <Field label={t("f.time")}>
+                  <input
+                    type="time"
+                    disabled={!timeKnown}
+                    className={cn(inputCls, !timeKnown && "opacity-40")}
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                  />
+                </Field>
+              )}
+            </div>
           )}
-        </div>
+          {showTime && (
+            <label className="flex min-h-11 items-center gap-3 text-[15px]">
+              <input
+                type="checkbox"
+                className="size-5 accent-[var(--color-primary)]"
+                checked={!timeKnown}
+                onChange={(e) => setTimeKnown(!e.target.checked)}
+              />
+              {t("f.timeUnknown")}
+            </label>
+          )}
+        </details>
       )}
-      {showTime && (
-        <label className="flex min-h-11 items-center gap-3 text-[15px]">
-          <input type="checkbox" className="size-5 accent-[var(--color-primary)]" checked={!timeKnown} onChange={(e) => setTimeKnown(!e.target.checked)} />
-          {t("f.timeUnknown")}
-        </label>
+      {err && (
+        <p role="alert" className="feel-error text-sm text-destructive">
+          {err}
+        </p>
       )}
-
-      </details>}
-      {err && <p role="alert" className="feel-error text-sm text-destructive">{err}</p>}
 
       <div className="sticky bottom-0 z-10 flex gap-3 border-t bg-background pt-3 pb-[max(.75rem,env(safe-area-inset-bottom))]">
         {(editing || (kind === "reminder" && j.reminder)) && (
-          <Button variant="unstyled" size="unstyled" type="button" onClick={remove} className="press h-12 rounded-full border border-destructive/40 px-5 text-destructive">{t("f.delete")}</Button>
+          <Button
+            variant="unstyled"
+            size="unstyled"
+            type="button"
+            onClick={remove}
+            className="press h-12 rounded-full border border-destructive/40 px-5 text-destructive"
+          >
+            {t("f.delete")}
+          </Button>
         )}
-        <Button variant="unstyled" size="unstyled" type="submit" className="press h-12 flex-1 rounded-full bg-primary font-semibold text-primary-foreground">{t("f.save")}</Button>
+        <Button
+          variant="unstyled"
+          size="unstyled"
+          type="submit"
+          className="press h-12 flex-1 rounded-full bg-primary font-semibold text-primary-foreground"
+        >
+          {t("f.save")}
+        </Button>
       </div>
     </form>
   );

@@ -174,3 +174,6 @@ input[type=checkbox]:checked { animation: feel-pop 250ms var(--ease-spring); }
   .press:active, .press:hover, .feel-icon { transform: none !important; }
   .feel-touch, .feel-celebration { display: none; }
 }
+
+/* Metric cards reflow with enlarged root text instead of clipping values. */
+.home-metrics { grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); }

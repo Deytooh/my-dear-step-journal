@@ -28,10 +28,7 @@ function Questions() {
     toast.success(label, {
       action: {
         label: t("toast.undo"),
-        onClick: () => {
-          lock.current = false;
-          j.restoreSnapshot(before);
-        },
+        onClick: j.undoFor(before),
       },
     });
   const answer = (id: PromptId, value?: string) => {
