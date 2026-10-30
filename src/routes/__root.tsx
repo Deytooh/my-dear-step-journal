@@ -22,7 +22,10 @@ function NotFoundComponent() {
       <div className="max-w-md text-center">
         <h1 className="text-5xl font-bold text-foreground">404</h1>
         <p className="mt-3 text-muted-foreground">찾는 페이지가 없어요.</p>
-        <Link to="/today" className="mt-6 inline-flex h-11 items-center rounded-full bg-primary px-5 text-primary-foreground">
+        <Link
+          to="/today"
+          className="mt-6 inline-flex h-11 items-center rounded-full bg-primary px-5 text-primary-foreground"
+        >
           오늘로 가기
         </Link>
       </div>
@@ -42,7 +45,10 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
         <h1 className="text-xl font-semibold text-foreground">화면을 불러오지 못했어요</h1>
         <p className="mt-2 text-sm text-muted-foreground">잠시 후 다시 시도해 주세요.</p>
         <button
-          onClick={() => { router.invalidate(); reset(); }}
+          onClick={() => {
+            router.invalidate();
+            reset();
+          }}
           className="mt-6 inline-flex h-11 items-center rounded-full bg-primary px-5 text-primary-foreground"
         >
           다시 시도
@@ -66,7 +72,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap",
+      },
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],

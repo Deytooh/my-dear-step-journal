@@ -20,7 +20,11 @@ export function useReducedMotion() {
 
 /** Values remain truthful: animate the reveal, never intermediate medical numbers. */
 export function AnimatedValue({ value, digits = 1 }: { value: number; digits?: number }) {
-  return <span key={value} className="feel-value inline-block tabular-nums">{fmtNumber(value, digits)}</span>;
+  return (
+    <span key={value} className="feel-value inline-block tabular-nums">
+      {fmtNumber(value, digits)}
+    </span>
+  );
 }
 
 export function AppFeel() {
@@ -48,11 +52,18 @@ export function AppFeel() {
       ring.addEventListener("animationend", () => ring.remove(), { once: true });
     };
     const input = (event: Event) => {
-      if (reduced || !(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)) return;
+      if (
+        reduced ||
+        !(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
+      )
+        return;
       const field = event.target;
       if (["checkbox", "file", "radio"].includes(field.type)) return;
       field.getAnimations().forEach((a) => a.cancel());
-      field.animate([{ borderColor: "var(--peach-accent)" }, { borderColor: "var(--primary)" }], { duration: 300, easing: "ease-out" });
+      field.animate([{ borderColor: "var(--peach-accent)" }, { borderColor: "var(--primary)" }], {
+        duration: 300,
+        easing: "ease-out",
+      });
     };
     document.addEventListener("pointerdown", press, { passive: true });
     document.addEventListener("input", input);
@@ -68,9 +79,15 @@ export function AppFeel() {
   if (!celebration || reduced) return null;
   return (
     <div key={celebration} className="feel-celebration" aria-hidden="true">
-      <div className="feel-stamp"><Check className="size-7" strokeWidth={3} /></div>
+      <div className="feel-stamp">
+        <Check className="size-7" strokeWidth={3} />
+      </div>
       <span className="feel-saved-label">{t("toast.saved")}</span>
-      <div className="feel-petals">{Array.from({ length: 8 }, (_, i) => <i key={i} />)}</div>
+      <div className="feel-petals">
+        {Array.from({ length: 8 }, (_, i) => (
+          <i key={i} />
+        ))}
+      </div>
     </div>
   );
 }

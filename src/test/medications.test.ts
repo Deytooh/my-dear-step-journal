@@ -3,7 +3,16 @@ import { findMedication, MEDICATIONS } from "@/lib/medications";
 
 describe("official medication selection", () => {
   it("offers established GLP-1 brands and approved dual agonists", () => {
-    for (const name of ["Mounjaro", "Wegovy", "Ozempic", "Saxenda", "Zepbound", "Trulicity", "Victoza", "Rybelsus"]) {
+    for (const name of [
+      "Mounjaro",
+      "Wegovy",
+      "Ozempic",
+      "Saxenda",
+      "Zepbound",
+      "Trulicity",
+      "Victoza",
+      "Rybelsus",
+    ]) {
       expect(findMedication(name)?.source).toMatch(/^https:\/\//);
     }
   });

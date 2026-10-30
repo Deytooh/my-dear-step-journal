@@ -3,9 +3,32 @@ import { canDeduct, computeStock, type InjectionRec, type Purchase } from "@/lib
 import { pickPrompts } from "@/lib/prompts";
 
 const today = "2026-10-28";
-const inj = (id: string, usedStock: boolean): InjectionRec => ({ id, type: "injection", medication: "M", doseValue: null, doseUnit: null, site: null, usedStock, stockPurchaseId: "p4", stockIdentity: JSON.stringify(["M", "single", null]),
-  localDate: today, precision: "date_only", at: null, createdAt: "", source: "manual_text" });
-const buy = (doses: number, addsStock?: boolean): Purchase => ({ id: "p" + doses, localDate: today, amount: 1000, currency: "KRW", doses, medication: "M", stockUnit: "single", ...(addsStock === undefined ? {} : { addsStock }) });
+const inj = (id: string, usedStock: boolean): InjectionRec => ({
+  id,
+  type: "injection",
+  medication: "M",
+  doseValue: null,
+  doseUnit: null,
+  site: null,
+  usedStock,
+  stockPurchaseId: "p4",
+  stockIdentity: JSON.stringify(["M", "single", null]),
+  localDate: today,
+  precision: "date_only",
+  at: null,
+  createdAt: "",
+  source: "manual_text",
+});
+const buy = (doses: number, addsStock?: boolean): Purchase => ({
+  id: "p" + doses,
+  localDate: today,
+  amount: 1000,
+  currency: "KRW",
+  doses,
+  medication: "M",
+  stockUnit: "single",
+  ...(addsStock === undefined ? {} : { addsStock }),
+});
 
 describe("stock", () => {
   it("an expense-only purchase leaves stock unchanged", () => {
@@ -31,7 +54,17 @@ describe("daily questions", () => {
     expect(pickPrompts([], { done: { water: "2026-10-27" } }, today)).toContain("water");
   });
   it("hides the weight question once a weight is recorded today", () => {
-    const w = { id: "w", type: "weight" as const, value: 70, unit: "kg" as const, localDate: today, precision: "date_only" as const, at: null, createdAt: "", source: "manual_text" as const };
+    const w = {
+      id: "w",
+      type: "weight" as const,
+      value: 70,
+      unit: "kg" as const,
+      localDate: today,
+      precision: "date_only" as const,
+      at: null,
+      createdAt: "",
+      source: "manual_text" as const,
+    };
     expect(pickPrompts([w], { done: { feel: today } }, today)).not.toContain("weight");
   });
   it("hiding the section shows nothing", () => {

@@ -7,13 +7,23 @@ export const MAX_PROMPTS = 3;
  * Deterministic daily question picker. A question is hidden when it was answered or skipped
  * today, turned off by the user, or (weight / memory) already recorded today.
  */
-export function pickPrompts(records: JournalRecord[], settings: PromptSettings | undefined, today: string): PromptId[] {
+export function pickPrompts(
+  records: JournalRecord[],
+  settings: PromptSettings | undefined,
+  today: string,
+): PromptId[] {
   if (settings?.hidden) return [];
   const off = new Set(settings?.off ?? []);
   const done = settings?.done ?? {};
   const todays = records.filter((r) => r.localDate === today);
   return PROMPT_ORDER.filter((id) => {
-    if (off.has(id) || done[id] === today || settings?.answered?.[id] === today || settings?.skipped?.[id] === today) return false;
+    if (
+      off.has(id) ||
+      done[id] === today ||
+      settings?.answered?.[id] === today ||
+      settings?.skipped?.[id] === today
+    )
+      return false;
     if (id === "feel" && todays.some((r) => r.type === "condition")) return false;
     if (id === "water" && todays.some((r) => r.type === "water")) return false;
     if (id === "weight" && todays.some((r) => r.type === "weight")) return false;
