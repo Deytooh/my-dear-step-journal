@@ -191,6 +191,7 @@ export function RecordRow({
       size="unstyled"
       onClick={onEdit}
       data-record={r.type}
+      data-record-id={r.id}
       className="record-row press flex w-full items-center py-4 text-left"
     >
       {photo ? (

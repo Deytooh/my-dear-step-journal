@@ -372,6 +372,7 @@ html[data-motion-paused="true"] :is(.feel-busy, .feel-indeterminate),
 .record-row > svg {
   flex-shrink: 0;
 }
+.record-row[data-fresh-record="true"] { animation: feel-value-update 400ms var(--ease-calm); }
 .record-row .record-value {
   font-size: 19px;
   letter-spacing: 0;

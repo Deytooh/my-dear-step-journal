@@ -1,7 +1,7 @@
 import { validateSnapshot } from "@/lib/snapshot";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { CalendarDays, ChartNoAxesColumn, Home, Plus, Syringe, Settings2 } from "lucide-react";
 import { t, type Key } from "@/lib/i18n";
@@ -35,6 +35,24 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [kind, setKind] = useState<EntryKind>("menu");
   const [editing, setEditing] = useState<JournalRecord | Purchase | undefined>();
   const j = useJournal();
+  const previousRows = useRef<{ owner: string; ids: Set<string> } | null>(null);
+  useEffect(() => {
+    if (!j.ready) return;
+    const owner = j.user?.id ?? "guest";
+    const previous = previousRows.current;
+    const ids = new Set(j.records.map((r) => r.id));
+    previousRows.current = { owner, ids };
+    if (!previous || previous.owner !== owner) return;
+    const fresh = j.records.filter((r) => !previous.ids.has(r.id));
+    if (!fresh.length) return;
+    const elements = fresh.flatMap((r) => Array.from(document.querySelectorAll<HTMLElement>(`[data-record-id="${CSS.escape(r.id)}"]`)));
+    elements.forEach((element) => element.dataset["freshRecord"] = "true");
+    const timer = setTimeout(() => elements.forEach((element) => element.removeAttribute("data-fresh-record")), 400);
+    return () => {
+      clearTimeout(timer);
+      elements.forEach((element) => element.removeAttribute("data-fresh-record"));
+    };
+  }, [j.records, j.ready, j.user?.id]);
   useEffect(() => {
     document.documentElement.lang = j.settings.locale ?? "ko";
   }, [j.settings.locale]);
