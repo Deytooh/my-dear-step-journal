@@ -2,6 +2,41 @@
 export type Locale = "ko" | "en" | "fr";
 
 const ko = {
+  "mg.intro": "전부 이야기하지 않아도 괜찮아요. 작은 것 하나부터 남겨 볼까요?",
+  "mg.local": "시작을 돕는 안내예요 · AI 응답이 아니에요",
+  "mg.choices": "시작 도움말",
+  "mg.day": "오늘 이야기하기",
+  "mg.meal": "식사 남기기",
+  "mg.injection": "주사 기록하기",
+  "mg.dayHint": "오늘의 기분이나 기억하고 싶은 순간부터 시작할까요?",
+  "mg.mealHint": "식사 사진을 추가하거나 무엇을 먹었는지 적어 주세요.",
+  "mg.injectionHint": "언제 주사를 맞았나요? 기억나는 정보만 이야기해 주세요.",
+  "mg.feeling": "오늘의 기분",
+  "mg.moment": "기억할 순간",
+  "mg.describe": "식사 설명하기",
+  "mg.when": "언제였나요?",
+  "mg.photo": "사진 추가",
+  "mg.back": "처음으로",
+  "mg.feelingStart": "오늘 나는 이런 기분이에요…",
+  "mg.momentStart": "이 순간을 남기고 싶어요…",
+  "mg.mealStart": "이번 식사에는…",
+  "mg.injectionStart": "주사를 맞은 때는…",
+  "mg.placeholderOnly": "입력 예시일 뿐이에요. 직접 적은 내용만 보내요.",
+  "mv.listening": "듣고 있어요…",
+  "mv.interrupted": "음성 입력이 중단됐어요",
+  "mv.connecting": "음성 입력에 연결 중…",
+  "mv.pauses":
+    "잠시 쉬어도 괜찮아요. 브라우저가 끊으면 다시 연결을 시도해요. 최대 4,000자이며 자동 전송하지 않아요.",
+  "mv.provisional": "임시 받아쓰기예요. 인식 중 바뀔 수 있으며 직접 수정할 수 있어요.",
+  "mv.finish": "완료",
+  "mv.cancel": "취소",
+  "mv.resume": "다시 듣기",
+  "mv.unsupported":
+    "이 브라우저에서는 음성 입력을 시작할 수 없어요. 글이나 사진으로 이어서 남겨 주세요.",
+  "mv.blocked":
+    "마이크 권한 또는 장치를 확인해 주세요. 자동으로 재시도하지 않아요. 글이나 사진으로도 남길 수 있어요.",
+  "mv.limit":
+    "4,000자를 넘어서 음성 입력을 멈췄어요. 내용은 보존했어요. 분석 전에 4,000자 이내로 줄여 주세요.",
   "mm.estimate": "추정 · 확인이 필요해요",
   "mm.title": "오늘은 무엇을 남길까요?",
   "mm.subtitle": "말하거나 사진을 보내면, 모모가 정리해 드려요.",

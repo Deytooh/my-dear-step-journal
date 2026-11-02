@@ -44,19 +44,8 @@ import { SitePicker } from "./SitePicker";
 import { MealItemsEditor } from "./MealItemsEditor";
 import { draftMealSchema, type MealDetails } from "@/lib/meals";
 import { MedicationPicker } from "./MedicationPicker";
+import { useMomoVoice, type VoiceRecovery } from "./useMomoVoice";
 import momo from "@/assets/momo-hamster.png.asset.json";
-
-type SR = {
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-  lang: string;
-  interimResults: boolean;
-  continuous: boolean;
-  onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void;
-  onend: () => void;
-  onerror: () => void;
-};
 
 type CaptureRecovery = {
   key: string;
@@ -67,6 +56,7 @@ type CaptureRecovery = {
   drafts: Draft[] | null;
   usedVoice: boolean;
   signature: string | null;
+  voiceSession: VoiceRecovery | null;
 };
 function persistCapture(state: CaptureRecovery | null) {
   if (!state?.recovered) return;
@@ -82,6 +72,7 @@ function persistCapture(state: CaptureRecovery | null) {
           drafts: state.drafts ?? [],
           usedVoice: state.usedVoice,
           signature: state.signature,
+          voiceSession: state.voiceSession,
         }),
       );
   } catch {
@@ -116,22 +107,34 @@ export function MomoSheet({
   const [failure, setFailure] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [step, setStep] = useState<"input" | "review">("input");
-  const [listening, setListening] = useState(false);
   const [saving, setSaving] = useState(false);
-  const recRef = useRef<SR | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const photoVersion = useRef(0);
   const photoGuard = useRef(false);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [dismissedQuestion, setDismissedQuestion] = useState<string | null>(null);
-  const beforeRec = useRef("");
   const inflight = useRef(false);
   const requestVersion = useRef(0);
+  const [invitation, setInvitation] = useState<"day" | "meal" | "injection" | null>(null);
+  const [starter, setStarter] = useState<Key | null>(null);
+  const updateText = (value: string) => {
+    requestVersion.current++;
+    inflight.current = false;
+    setBusy(false);
+    setText(value);
+  };
+  const voice = useMomoVoice({
+    text,
+    usedVoice,
+    lang: { ko: "ko-KR", en: "en-US", fr: "fr-FR" }[getLocale()],
+    owner: j.user?.id ?? "guest",
+    onText: updateText,
+    onVoice: setUsedVoice,
+  });
   useEffect(
     () => () => {
       requestVersion.current++;
       photoVersion.current++;
-      recRef.current?.abort();
     },
     [],
   );
@@ -144,9 +147,8 @@ export function MomoSheet({
     requestVersion.current++;
     photoVersion.current++;
     inflight.current = false;
-    recRef.current?.abort();
+    voice.finish();
     setBusy(false);
-    setListening(false);
     setConsent(false);
     setFailure(null);
     setText("");
@@ -156,6 +158,8 @@ export function MomoSheet({
     setSaved(false);
     setUsedVoice(false);
     cache.current = null;
+    setInvitation(null);
+    setStarter(null);
     try {
       const raw = sessionStorage.getItem(recoveryKey);
       if (raw) {
@@ -180,6 +184,12 @@ export function MomoSheet({
           setImages(data.images);
           setDrafts(data.drafts.length ? data.drafts : null);
           setUsedVoice(!!data.usedVoice);
+          if (
+            data.voiceSession &&
+            typeof data.voiceSession.before === "string" &&
+            typeof data.voiceSession.wasVoice === "boolean"
+          )
+            voice.restore(data.voiceSession);
           setStep(data.drafts.length ? "review" : "input");
         }
       }
@@ -187,6 +197,8 @@ export function MomoSheet({
       /* Recovery is best effort; never block manual recording. */
     }
     setRecoveredKey(recoveryKey);
+    // Voice lifecycle follows the same account boundary as capture recovery.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recoveryKey]);
   const recovery = useRef<CaptureRecovery | null>(null);
   recovery.current = {
@@ -198,6 +210,7 @@ export function MomoSheet({
     drafts,
     usedVoice,
     signature: cache.current?.sig ?? null,
+    voiceSession: voice.recovery,
   };
   useEffect(() => {
     // Avoid serializing every attached image on every keystroke. Records still commit synchronously.
@@ -207,7 +220,7 @@ export function MomoSheet({
     }
     const timer = setTimeout(() => persistCapture(recovery.current), 180);
     return () => clearTimeout(timer);
-  }, [drafts, text, images, usedVoice, saved, recoveryKey, recoveredKey]);
+  }, [drafts, text, images, usedVoice, saved, recoveryKey, recoveredKey, voice.recovery]);
   useEffect(() => {
     const flush = () => persistCapture(recovery.current);
     const hidden = () => {
@@ -222,80 +235,12 @@ export function MomoSheet({
     };
   }, []);
 
-  const startMic = () => {
-    const W = window as unknown as {
-      SpeechRecognition?: new () => SR;
-      webkitSpeechRecognition?: new () => SR;
-    };
-    const Ctor = W.SpeechRecognition ?? W.webkitSpeechRecognition;
-    if (!Ctor) {
-      toast(t("momo.noMic"));
-      return;
-    }
-    let r: SR;
-    try {
-      r = new Ctor();
-    } catch {
-      toast(t("momo.noMic"));
-      textareaRef.current?.focus();
-      return;
-    }
-    r.lang = { ko: "ko-KR", en: "en-US", fr: "fr-FR" }[getLocale()];
-    r.interimResults = false;
-    r.continuous = true;
-    beforeRec.current = text;
-    const version = ++requestVersion.current;
-    inflight.current = false;
-    setBusy(false);
-    r.onresult = (e) => {
-      if (version !== requestVersion.current) return;
-      setUsedVoice(true);
-      setText(
-        (beforeRec.current ? beforeRec.current + " " : "") +
-          Array.from(e.results)
-            .map((x) => x[0]?.transcript ?? "")
-            .join(" "),
-      );
-    };
-    r.onend = () => {
-      if (version === requestVersion.current) setListening(false);
-    };
-    r.onerror = () => {
-      if (version !== requestVersion.current) return;
-      setListening(false);
-      toast(t("momo.noMic"));
-    };
-    recRef.current = r;
-    try {
-      r.start();
-      setListening(true);
-    } catch {
-      recRef.current = null;
-      setListening(false);
-      toast(t("momo.noMic"));
-      textareaRef.current?.focus();
-    }
-  };
   const manual = () => {
     requestVersion.current++;
-    recRef.current?.abort();
+    voice.interrupt();
     inflight.current = false;
     setBusy(false);
-    setListening(false);
     onManual();
-  };
-  const stopMic = () => {
-    try {
-      recRef.current?.stop();
-    } catch {
-      setListening(false);
-    }
-  };
-  const cancelMic = () => {
-    requestVersion.current++;
-    recRef.current?.abort();
-    setText(beforeRec.current);
-    setListening(false);
   };
 
   const addPhotos = async (files: FileList | null) => {
@@ -323,7 +268,15 @@ export function MomoSheet({
   };
 
   const run = async () => {
-    if (!j.user || !consent || photoBusy || inflight.current || (!text.trim() && !images.length))
+    if (
+      !j.user ||
+      !consent ||
+      photoBusy ||
+      voice.active ||
+      text.length > 4000 ||
+      inflight.current ||
+      (!text.trim() && !images.length)
+    )
       return;
     const sig = JSON.stringify([text, images, today, j.tz]);
     // Repeating the same request reuses the previous result instead of asking again.
@@ -480,6 +433,9 @@ export function MomoSheet({
       )
     : undefined;
   const resetCapture = () => {
+    voice.finish();
+    setInvitation(null);
+    setStarter(null);
     requestVersion.current++;
     photoVersion.current++;
     cache.current = null;
@@ -564,44 +520,190 @@ export function MomoSheet({
       )}
       {step === "input" && !saved && (
         <>
-          <div>
+          <div className="space-y-2">
+            {!text.trim() && !voice.active ? (
+              <div className="space-y-2">
+                <p className="text-sm leading-relaxed text-foreground">
+                  {t(invitation ? `mg.${invitation}Hint` : "mg.intro")}
+                </p>
+                <p className="text-xs text-muted-foreground">{t("mg.local")}</p>
+                <div className="flex flex-wrap gap-1" role="group" aria-label={t("mg.choices")}>
+                  {!invitation ? (
+                    (["day", "meal", "injection"] as const).map((choice) => (
+                      <Button
+                        key={choice}
+                        type="button"
+                        variant="outline"
+                        className="min-h-11 h-auto rounded-full px-3 py-2 text-sm whitespace-normal text-left"
+                        onClick={() => {
+                          setInvitation(choice);
+                          setStarter(null);
+                        }}
+                      >
+                        {t(`mg.${choice}`)}
+                      </Button>
+                    ))
+                  ) : (
+                    <>
+                      {(invitation === "day"
+                        ? (["mg.feeling", "mg.moment"] as const)
+                        : invitation === "meal"
+                          ? (["mg.describe"] as const)
+                          : (["mg.when"] as const)
+                      ).map((key) => (
+                        <Button
+                          key={key}
+                          type="button"
+                          variant="outline"
+                          className="min-h-11 h-auto rounded-full px-3 py-2 text-sm whitespace-normal text-left"
+                          onClick={() => {
+                            setStarter(
+                              key === "mg.feeling"
+                                ? "mg.feelingStart"
+                                : key === "mg.moment"
+                                  ? "mg.momentStart"
+                                  : key === "mg.describe"
+                                    ? "mg.mealStart"
+                                    : "mg.injectionStart",
+                            );
+                            textareaRef.current?.focus();
+                          }}
+                        >
+                          {t(key)}
+                        </Button>
+                      ))}
+                      {invitation === "meal" && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="min-h-11 rounded-full text-sm"
+                          onClick={() =>
+                            textareaRef.current
+                              ?.closest(".journal-form")
+                              ?.querySelector<HTMLInputElement>('input[type="file"]')
+                              ?.click()
+                          }
+                        >
+                          {t("mg.photo")}
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="min-h-11 rounded-full text-sm"
+                        onClick={() => {
+                          setInvitation(null);
+                          setStarter(null);
+                        }}
+                      >
+                        {t("mg.back")}
+                      </Button>
+                    </>
+                  )}
+                </div>
+                {starter && (
+                  <p className="text-xs text-muted-foreground">{t("mg.placeholderOnly")}</p>
+                )}
+              </div>
+            ) : (
+              !voice.active && (
+                <details className="text-sm">
+                  <summary className="flex min-h-11 cursor-pointer items-center text-muted-foreground">
+                    {t("mg.choices")}
+                  </summary>
+                  <div className="flex flex-wrap gap-1">
+                    {(["day", "meal", "injection"] as const).map((choice) => (
+                      <Button
+                        key={choice}
+                        type="button"
+                        variant="outline"
+                        className="min-h-11 h-auto rounded-full px-3 py-2 text-sm whitespace-normal"
+                        onClick={() => {
+                          setInvitation(choice);
+                          setStarter(null);
+                        }}
+                      >
+                        {t(`mg.${choice}`)}
+                      </Button>
+                    ))}
+                  </div>
+                  {invitation && <p className="py-2 text-sm">{t(`mg.${invitation}Hint`)}</p>}
+                </details>
+              )
+            )}
             <textarea
               ref={textareaRef}
               aria-label={t("momo.input")}
               value={text}
-              onChange={(e) => {
-                requestVersion.current++;
-                inflight.current = false;
-                setBusy(false);
-                setText(e.target.value);
-              }}
+              onChange={(e) => voice.edit(e.target.value)}
+              onCompositionStart={voice.interrupt}
               rows={3}
               maxLength={4000}
-              placeholder={t("mm.placeholder")}
+              placeholder={t(starter ?? "mm.placeholder")}
+              aria-describedby={voice.active ? "momo-voice-status" : undefined}
               className="momo-composer w-full border bg-card p-4 text-[16px] placeholder:text-muted-foreground"
             />
-            {listening ? (
-              <div className="flex items-center gap-2 rounded-[16px] bg-peach p-3" role="status">
-                <span className="feel-busy size-3 rounded-full bg-destructive" aria-hidden />
-                <span className="flex-1 text-[15px]">{t("momo.listening")}</span>
-                <Button
-                  variant="unstyled"
-                  size="unstyled"
-                  onClick={stopMic}
-                  className="press flex h-11 items-center gap-1 rounded-full bg-primary px-4 text-primary-foreground"
+            {text.length > 4000 && (
+              <p role="alert" className="text-sm text-destructive">
+                {t("mv.limit")}
+              </p>
+            )}
+            {voice.active ? (
+              <div className="mt-2 space-y-2 rounded-[16px] bg-secondary p-3">
+                <p
+                  id="momo-voice-status"
+                  role="status"
+                  aria-live="polite"
+                  className="flex items-center gap-2 text-sm font-medium"
                 >
-                  <Square className="size-4" />
-                  {t("momo.stop")}
-                </Button>
-                <Button
-                  variant="unstyled"
-                  size="unstyled"
-                  onClick={cancelMic}
-                  aria-label={t("momo.cancelRec")}
-                  className="press flex size-11 items-center justify-center rounded-full border bg-card"
-                >
-                  <X className="size-5" />
-                </Button>
+                  {voice.status === "listening" && (
+                    <span className="size-2 shrink-0 rounded-full bg-primary" aria-hidden />
+                  )}
+                  {t(
+                    voice.status === "listening"
+                      ? "mv.listening"
+                      : voice.status === "interrupted"
+                        ? "mv.interrupted"
+                        : "mv.connecting",
+                  )}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {t(voice.issue ? `mv.${voice.issue}` : "mv.pauses")}
+                </p>
+                {voice.provisional && (
+                  <p className="text-xs text-muted-foreground">{t("mv.provisional")}</p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      voice.finish();
+                      textareaRef.current?.focus();
+                    }}
+                    className="min-h-11 flex-1 gap-1 rounded-full"
+                  >
+                    <Square className="size-4" />
+                    {t("mv.finish")}
+                  </Button>
+                  {voice.status === "interrupted" && !voice.issue && text.length <= 4000 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={voice.start}
+                      className="min-h-11 flex-1 rounded-full"
+                    >
+                      {t("mv.resume")}
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={voice.cancel}
+                    className="min-h-11 rounded-full"
+                  >
+                    {t("mv.cancel")}
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="flex gap-2">
@@ -609,7 +711,11 @@ export function MomoSheet({
                   variant="unstyled"
                   size="unstyled"
                   type="button"
-                  onClick={startMic}
+                  disabled={text.length > 4000}
+                  onClick={() => {
+                    setStarter(null);
+                    voice.start();
+                  }}
                   className="press flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-[18px] bg-secondary px-2 py-1 text-[14px] font-medium leading-snug"
                 >
                   <Mic className="size-5 shrink-0" />
@@ -652,7 +758,7 @@ export function MomoSheet({
                 </Button>
               </div>
             )}
-            {usedVoice && text && !listening && beforeRec.current !== text && (
+            {usedVoice && text && !voice.active && (
               <p className="mt-1 text-sm text-muted-foreground">{t("momo.check")}</p>
             )}
           </div>
@@ -782,7 +888,12 @@ export function MomoSheet({
                 }
               }}
               disabled={
-                !j.user || busy || photoBusy || listening || (!text.trim() && !images.length)
+                !j.user ||
+                busy ||
+                photoBusy ||
+                voice.active ||
+                text.length > 4000 ||
+                (!text.trim() && !images.length)
               }
               className="press h-12 w-full rounded-full bg-primary font-semibold text-primary-foreground disabled:opacity-50"
               aria-busy={busy}

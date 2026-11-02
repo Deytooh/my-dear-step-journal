@@ -35,3 +35,12 @@ Earlier phase checks describe implemented code and historical local tests; they 
 - [x] Surface de capture partagée dans /today, repas dans le lot existant, corrections/sources, confirmation unique, garde de propriétaire et recherche séparée ; suivi et saisie manuelle conservés.
 - [x] Inspection locale des vues 360/390/430 px, sources conservées après navigation/rechargement, recherche locale et éditeur repas partagé. Aucun test écrit/lancé. Voir docs/MOMO_HOME.md pour les limites précises.
 - [ ] Vérifier le parcours Meta complet avec une session authentifiée, une clé configurée et un vrai clavier mobile ; aucune validation IA/cloud réelle n’est revendiquée pour cette passe.
+
+
+### Composer accompagné et dictée — 2 novembre 2026
+- [x] Invitations locales journée/repas/injection, exemples en placeholders uniquement, retour aux choix sans effacer la saisie ; ko/en/fr.
+- [x] SpeechRecognition partagé : hypothèses provisoires remplaçables, corrections prioritaires, reprises bornées (2/minute), interruption explicite, Terminer/Annuler, arrêt des ressources et récupération du brouillon par compte. Aucun envoi automatique.
+- [x] TypeScript, build et lint ciblé ; aucun test écrit ou lancé. Contrôles navigateur à 390 px : champ vide après suggestions, aide réduite à la saisie, brouillon conservé au changement de choix.
+- [ ] Microphone réel et pauses sur appareils : non exercés ici. Capture visuelle indisponible (timeout du navigateur) ; aucune validation par screenshot revendiquée.
+
+La gestion des résultats suit la [spécification Web Speech](https://webaudio.github.io/web-speech-api/) : les hypothèses intermédiaires remplacent leurs emplacements, les résultats finaux restent stables. Les reprises dépendent du navigateur ; en cas d’échec, le texte reste présent et la reprise est explicite. La limite existante de 4 000 caractères est annoncée ; un dépassement vocal conserve tout le texte et demande de le raccourcir avant analyse.

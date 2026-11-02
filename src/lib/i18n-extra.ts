@@ -2,6 +2,41 @@
 type D = Record<string, string>;
 
 export const en: D = {
+  "mg.intro": "No need to tell everything. Shall we start with one small thing?",
+  "mg.local": "Local writing guide · not an AI response",
+  "mg.choices": "Help getting started",
+  "mg.day": "Tell my day",
+  "mg.meal": "Keep a meal",
+  "mg.injection": "Add an injection",
+  "mg.dayHint": "Would you like to start with how you feel or a moment from your day?",
+  "mg.mealHint": "Add a photo or describe what you ate.",
+  "mg.injectionHint": "When did the injection happen? Share only what you remember.",
+  "mg.feeling": "How I feel",
+  "mg.moment": "A moment to keep",
+  "mg.describe": "Describe my meal",
+  "mg.when": "When it happened",
+  "mg.photo": "Add a photo",
+  "mg.back": "Start again",
+  "mg.feelingStart": "Today, I feel…",
+  "mg.momentStart": "I would like to keep this moment…",
+  "mg.mealStart": "For this meal, I ate…",
+  "mg.injectionStart": "My injection happened…",
+  "mg.placeholderOnly": "Just a writing example. Only your own text will be sent.",
+  "mv.listening": "I’m listening…",
+  "mv.interrupted": "Listening was interrupted",
+  "mv.connecting": "Connecting to dictation…",
+  "mv.pauses":
+    "Pauses are fine. If the browser disconnects, we try to reconnect. Up to 4,000 characters; nothing is sent automatically.",
+  "mv.provisional": "Provisional transcription may change. You can edit it.",
+  "mv.finish": "Finish",
+  "mv.cancel": "Cancel",
+  "mv.resume": "Resume",
+  "mv.unsupported": "Dictation could not start in this browser. Continue with text or photos.",
+  "mv.blocked":
+    "Check microphone permission or your device. We won’t retry automatically. You can use text or photos.",
+  "mv.limit":
+    "Dictation paused above 4,000 characters. All text is kept. Shorten it to 4,000 characters before analysis.",
+
   "mm.estimate": "Estimate · review before saving",
   "mm.title": "What would you like to keep today?",
   "mm.subtitle": "Tell Momo or send a photo. Review the journal entries, then confirm.",
@@ -529,6 +564,43 @@ export const en: D = {
 };
 
 export const fr: D = {
+  "mg.intro": "Pas besoin de tout raconter. On commence par une petite chose ?",
+  "mg.local": "Aide de saisie locale · pas une réponse IA",
+  "mg.choices": "Besoin d’un point de départ ?",
+  "mg.day": "Raconter ma journée",
+  "mg.meal": "Garder un repas",
+  "mg.injection": "Ajouter une injection",
+  "mg.dayHint": "Tu veux commencer par ton ressenti ou un moment de ta journée ?",
+  "mg.mealHint": "Ajoute une photo ou décris ce que tu as mangé.",
+  "mg.injectionHint":
+    "Quand l’injection a-t-elle eu lieu ? Raconte les informations dont tu te souviens.",
+  "mg.feeling": "Mon ressenti",
+  "mg.moment": "Un moment à garder",
+  "mg.describe": "Décrire mon repas",
+  "mg.when": "Quand elle a eu lieu",
+  "mg.photo": "Ajouter une photo",
+  "mg.back": "Revenir au choix",
+  "mg.feelingStart": "Aujourd’hui, je me sens…",
+  "mg.momentStart": "Je voudrais garder ce moment…",
+  "mg.mealStart": "Pour ce repas, j’ai mangé…",
+  "mg.injectionStart": "Mon injection a eu lieu…",
+  "mg.placeholderOnly": "Un simple exemple de saisie. Seul ton propre texte sera envoyé.",
+  "mv.listening": "Je t’écoute…",
+  "mv.interrupted": "L’écoute s’est interrompue",
+  "mv.connecting": "Connexion à la dictée…",
+  "mv.pauses":
+    "Les pauses sont possibles. Si le navigateur coupe, on tente de reprendre. Maximum 4 000 caractères ; aucun envoi automatique.",
+  "mv.provisional": "Transcription provisoire, susceptible de changer. Tu peux la corriger.",
+  "mv.finish": "Terminer",
+  "mv.cancel": "Annuler",
+  "mv.resume": "Reprendre",
+  "mv.unsupported":
+    "La dictée ne peut pas démarrer dans ce navigateur. Continue avec du texte ou des photos.",
+  "mv.blocked":
+    "Vérifie l’autorisation ou le microphone. Pas de reprise automatique. Tu peux continuer avec du texte ou des photos.",
+  "mv.limit":
+    "La dictée s’est arrêtée au-delà de 4 000 caractères. Tout le texte est conservé. Raccourcis-le avant l’analyse.",
+
   "mm.estimate": "Estimation · à vérifier",
   "mm.title": "Que souhaitez-vous garder aujourd’hui ?",
   "mm.subtitle": "Racontez ou envoyez une photo à Momo. Vérifiez ses propositions, puis confirmez.",
