@@ -45,7 +45,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <Comp
         className={
           variant === "unstyled"
-            ? cn("press cursor-pointer disabled:pointer-events-none disabled:opacity-50", className)
+            ? cn("press cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed", className)
             : cn(buttonVariants({ variant, size, className }))
         }
         ref={ref}

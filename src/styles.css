@@ -43,7 +43,7 @@
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
   --ease-calm: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --ease-spring: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.18, 0.9, 0.3, 1.12);
 }
 
 :root {
@@ -73,7 +73,7 @@
   --destructive-foreground: var(--background);
   --border: oklch(0.851246 0.03987 74.741);
   --input: var(--border);
-  --ring: oklch(0.53 0.11 258); /* focus #416EAF */
+  --ring: var(--primary);
   --chart-1: var(--primary);
   --chart-2: var(--honey);
   --chart-3: var(--secondary);
@@ -87,6 +87,12 @@
   --shadow-focus: 0 0 0 4px color-mix(in oklab, var(--primary) 12%, transparent);
   --touch-feedback: color-mix(in oklab, var(--peach-accent) 65%, transparent);
   --voice-bubble: color-mix(in oklab, var(--chart-4) 25%, transparent);
+  --motion-press: 100ms;
+  --motion-select: 160ms;
+  --motion-content: 200ms;
+  --motion-sheet: 280ms;
+  --motion-success: 360ms;
+  --feedback-surface: color-mix(in oklab, var(--honey) 22%, var(--card));
 }
 
 @layer base {
@@ -117,10 +123,11 @@
 }
 @utility press {
   transition:
-    background-color 140ms var(--ease-calm),
-    border-color 140ms var(--ease-calm),
-    box-shadow 140ms var(--ease-calm),
-    color 140ms var(--ease-calm);
+    scale var(--motion-select) var(--ease-spring),
+    background-color var(--motion-select) var(--ease-calm),
+    border-color var(--motion-select) var(--ease-calm),
+    box-shadow var(--motion-select) var(--ease-calm),
+    color var(--motion-select) var(--ease-calm);
   &:active:not(:disabled) {
     box-shadow: inset 0 0 0 100vmax color-mix(in oklab, var(--primary) 7%, transparent);
   }
@@ -188,7 +195,6 @@
   animation: feel-enter 180ms var(--ease-calm) both;
 }
 .feel-panel,
-.feel-list > :nth-child(-n + 8),
 .feel-menu > li {
   animation: feel-enter 180ms var(--ease-calm) both;
 }
@@ -202,6 +208,13 @@
 .feel-value {
   animation: feel-pop 180ms var(--ease-calm) both;
 }
+.feel-value {
+  animation-name: feel-value-update;
+}
+@keyframes feel-value-update {
+  from { background-color: var(--feedback-surface); }
+  to { background-color: transparent; }
+}
 .feel-page,
 .feel-panel {
   min-width: 0;
@@ -213,8 +226,10 @@
     scale 100ms var(--ease-calm),
     opacity 160ms var(--ease-calm);
 }
-.press:active:not(:disabled) > :is(svg, img, .feel-icon) {
-  scale: 0.95;
+.press[data-feel-pressed="true"]:not(:disabled) {
+  scale: 0.98;
+  transition-duration: var(--motion-press);
+  box-shadow: inset 0 0 0 100vmax color-mix(in oklab, var(--primary) 7%, transparent);
 }
 .feel-nav-icon {
   transition:
@@ -235,7 +250,10 @@
   transition:
     box-shadow 140ms var(--ease-calm),
     background-color 140ms var(--ease-calm);
+  scale: 1;
 }
+.feel-add[data-feel-pressed="true"] { scale: 1; }
+.feel-add[data-feel-pressed="true"] > span { scale: 0.97; }
 .feel-add:active > span {
   box-shadow:
     0 1px 4px color-mix(in oklab, var(--foreground) 10%, transparent),
@@ -262,7 +280,7 @@
   border-radius: 999px;
   box-shadow: var(--shadow-soft);
   pointer-events: none;
-  animation: feel-stamp 320ms var(--ease-calm) both;
+  animation: feel-stamp var(--motion-success) var(--ease-calm) both;
 }
 .feel-stamp {
   width: 32px;
@@ -310,6 +328,7 @@ html[data-motion-paused="true"] :is(.feel-busy, .feel-indeterminate),
   padding: 12px;
   background: color-mix(in oklab, var(--destructive) 5%, var(--card));
   border-radius: 14px;
+  animation: feel-enter var(--motion-content) var(--ease-calm);
 }
 
 /* Shared surfaces, fields and disclosure: stable outer geometry, tactile inner detail. */
@@ -417,6 +436,23 @@ input[type="checkbox"],
 input[type="radio"] {
   accent-color: var(--primary);
 }
+label:focus-within > :is(span, p),
+.journal-form label:focus-within {
+  color: var(--primary);
+}
+.journal-form label {
+  transition: color var(--motion-select) var(--ease-calm);
+}
+:is(input, textarea, select)[aria-invalid="true"] {
+  border-color: var(--destructive);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 12%, transparent);
+}
+:is(input, textarea, select):disabled,
+:is(input, textarea)[readonly] {
+  background-color: var(--secondary);
+  color: var(--muted-foreground);
+  cursor: default;
+}
 .feel-chip {
   transition:
     color 160ms var(--ease-calm),
@@ -506,6 +542,9 @@ input[type="radio"] {
 .momo-drafts > li:nth-child(2n) {
   animation-delay: 20ms;
 }
+.momo-drafts > li:nth-child(3) { animation-delay: 40ms; }
+.momo-drafts > li:nth-child(4) { animation-delay: 60ms; }
+.momo-drafts > li:nth-child(n + 5) { animation-delay: 80ms; }
 .meal-food {
   border-left: 3px solid var(--peach-accent);
   animation: feel-enter 180ms var(--ease-calm);
@@ -542,6 +581,30 @@ input[type="radio"] {
     fill 160ms var(--ease-calm),
     stroke 160ms var(--ease-calm);
 }
+.site-check { animation: feel-check var(--motion-select) var(--ease-calm); transform-box: fill-box; transform-origin: center; }
+.site-label { animation: feel-enter var(--motion-select) var(--ease-calm); }
+.photo-frame { position: relative; overflow: hidden; background: var(--secondary); }
+.photo-frame > img {
+  width: 100%; height: 100%; object-fit: inherit;
+  transition: opacity var(--motion-content) var(--ease-calm), scale var(--motion-content) var(--ease-calm);
+}
+.photo-frame[data-loaded="false"] > img { opacity: 0; scale: 0.985; }
+.photo-frame[data-loaded="true"] > img { opacity: 1; scale: 1; }
+.photo-frame > .photo-failure { display: grid; height: 100%; place-items: center; font-size: 12px; text-align: center; }
+[role="checkbox"] { transition: background-color var(--motion-select), border-color var(--motion-select); }
+[role="checkbox"][data-state="checked"] svg { animation: feel-check var(--motion-select) var(--ease-calm); }
+[role="switch"] > span { transition-timing-function: var(--ease-calm); }
+.momo-pending { animation: momo-pending 1800ms var(--ease-calm) infinite; }
+@keyframes momo-pending { 50% { transform: translateY(-2px) rotate(2deg); } }
+html[data-motion-paused="true"] .momo-pending { animation-play-state: paused; }
+@supports (interpolate-size: allow-keywords) {
+  .journal-disclosure, .journal-form details { interpolate-size: allow-keywords; }
+  .journal-disclosure::details-content, .journal-form details::details-content {
+    height: 0; opacity: 0; overflow: clip;
+    transition: height var(--motion-content) var(--ease-calm), opacity var(--motion-select) var(--ease-calm), content-visibility var(--motion-content) allow-discrete;
+  }
+  .journal-disclosure[open]::details-content, .journal-form details[open]::details-content { height: auto; opacity: 1; overflow: visible; }
+}
 @media (hover: hover) {
   .press:hover:not(:disabled) {
     box-shadow: inset 0 0 0 100vmax color-mix(in oklab, var(--primary) 2%, transparent);
@@ -558,7 +621,9 @@ input[type="radio"] {
     scroll-behavior: auto !important;
   }
   .press:active > *,
-  .feel-icon {
+  .feel-icon,
+  .press[data-feel-pressed="true"],
+  .feel-add[data-feel-pressed="true"] > span {
     scale: 1 !important;
   }
   .feel-celebration {
@@ -641,13 +706,13 @@ input[type="checkbox"]:checked {
   max-height: 92dvh;
 }
 .entry-sheet[data-state="open"] {
-  animation: entry-sheet-in 180ms var(--ease-calm);
+  animation: entry-sheet-in var(--motion-sheet) var(--ease-calm);
 }
 .entry-sheet[data-state="closed"] {
-  animation: entry-sheet-out 140ms var(--ease-calm);
+  animation: entry-sheet-out 240ms var(--ease-calm);
 }
 .entry-overlay[data-state="open"] {
-  animation: feel-enter 140ms var(--ease-calm);
+  animation: entry-fade-in var(--motion-content) var(--ease-calm);
 }
 .entry-overlay[data-state="closed"] {
   animation: entry-fade-out 140ms var(--ease-calm);
@@ -684,3 +749,4 @@ input[type="checkbox"]:checked {
     opacity: 0;
   }
 }
+@keyframes entry-fade-in { from { opacity: 0; } to { opacity: 1; } }
