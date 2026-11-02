@@ -26,3 +26,4 @@
 - Today's default question cards use pure `pickPrompts` (src/lib/prompts.ts). Opt-in contextual questions use pure opportunities (src/lib/context-prompts.ts), server-verified owner facts, code-owned actions and constrained localized wording. Cache once per account/local day, keep deterministic fallback, and never create records on display.
 
 - Confirmed Momo batches use stable draft IDs and durable local writes before success. Evidence retains original input, exact text quotes, supplied photo references, proposed fields and confirmed edits; shared manual edits must preserve it. Never invent a missing date or silently move inventory.
+- Onboarding stores optional completion, interests and hint dismissals in existing journal settings; only new guests auto-open it, and all first actions use Quick Add, so existing accounts/records remain untouched and no parallel persistence or forms arise.

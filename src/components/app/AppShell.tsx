@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { toast } from "sonner";
 import { AppFeel } from "./AppFeel";
 import { Switch } from "@/components/ui/switch";
+import { Onboarding, FirstUseHint, InterestChoices } from "./Onboarding";
 
 import { QuickAddCtx, type Opener } from "./quick-add-context";
 export { useQuickAdd } from "./quick-add-context";
@@ -35,6 +36,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [kind, setKind] = useState<EntryKind>("menu");
   const [editing, setEditing] = useState<JournalRecord | Purchase | undefined>();
   const j = useJournal();
+  const [replayIntroduction, setReplayIntroduction] = useState(false);
+  const introductionOpen = replayIntroduction || (j.ready && j.introductionPending && !j.settings.onboarding && pathname !== "/auth");
   const previousRows = useRef<{ owner: string; ids: Set<string> } | null>(null);
   useEffect(() => {
     if (!j.ready) return;
@@ -68,7 +71,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <QuickAddCtx.Provider value={opener}>
       <div className="mx-auto min-h-screen max-w-md bg-background pb-[calc(8rem+env(safe-area-inset-bottom))]">
-        <Header hero={pathname === "/today"} />
+        <Header hero={pathname === "/today"} onIntroduction={() => setReplayIntroduction(true)} />
         <main key={`${pathname}-${j.settings.locale ?? "ko"}`} className="feel-page px-5">
           {(j.sync === "error" || j.storageBlocked) && (
             <div
@@ -95,7 +98,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
       <AppFeel />
-      <BottomNav expanded={open} onAdd={() => opener("menu")} />
+      <BottomNav expanded={open} onAdd={() => opener("menu")} showHint={!introductionOpen && !open && pathname === "/today"} />
+      {introductionOpen && <Onboarding open onClose={() => setReplayIntroduction(false)} />}
       <QuickAddSheet
         session={entrySession}
         initialDate={entryDate}
@@ -132,7 +136,7 @@ function PageSkeleton({ hero }: { hero: boolean }) {
   );
 }
 
-function Header({ hero = false }: { hero?: boolean }) {
+function Header({ hero = false, onIntroduction }: { hero?: boolean; onIntroduction: () => void }) {
   const j = useJournal();
   const navigate = useNavigate();
   return (
@@ -150,7 +154,7 @@ function Header({ hero = false }: { hero?: boolean }) {
         >
           <Settings2 className="size-5" />
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-64 rounded-[20px] p-4">
+        <PopoverContent align="end" className="max-h-[80dvh] w-72 overflow-y-auto rounded-[20px] p-4">
           <div className="mb-3 rounded-[14px] bg-secondary p-3 text-xs">
             <p className="font-medium">{t(`sync.${j.sync}`)}</p>
             {j.storageBlocked && (
@@ -206,12 +210,15 @@ function Header({ hero = false }: { hero?: boolean }) {
                 {t("sync.signout")}
               </Button>
             ) : (
+              <>
+              <p className="mt-2 text-muted-foreground">{t("intro.cloud")}</p>
               <Link
                 to="/auth"
                 className="press mt-2 flex h-9 w-full items-center justify-center rounded-full bg-primary text-primary-foreground"
               >
                 {t("sync.signin")}
               </Link>
+              </>
             )}
           </div>
           {j.user ? (
@@ -258,6 +265,14 @@ function Header({ hero = false }: { hero?: boolean }) {
               <option value="fr">Français</option>
             </select>
           </label>
+          <fieldset className="mt-4 space-y-2">
+            <legend className="mb-2 text-sm font-medium">{t("intro.shortcuts")}</legend>
+            <InterestChoices value={j.settings.trackingInterests ?? []} locale={j.settings.locale ?? "ko"}
+              onChange={(value) => j.setSetting("trackingInterests", value)} />
+          </fieldset>
+          <Button variant="outline" className="mt-3 min-h-11 w-full whitespace-normal" onClick={onIntroduction}>
+            {t("intro.replay")}
+          </Button>
           <p className="mt-2 text-xs text-muted-foreground">
             {t("set.tz")}: {j.tz}
           </p>
@@ -359,7 +374,7 @@ function Sprout({ hero = false }: { hero?: boolean }) {
   );
 }
 
-function BottomNav({ onAdd, expanded }: { onAdd: () => void; expanded: boolean }) {
+function BottomNav({ onAdd, expanded, showHint }: { onAdd: () => void; expanded: boolean; showHint: boolean }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const activePath = pathname === "/journey" || pathname === "/history" ? "/progress" : pathname;
   const item =
@@ -390,6 +405,7 @@ function BottomNav({ onAdd, expanded }: { onAdd: () => void; expanded: boolean }
   };
   return (
     <nav className="app-nav fixed inset-x-0 bottom-0 z-40 border-t border-primary/10 bg-card pb-[env(safe-area-inset-bottom)]">
+      {showHint && <div className="absolute inset-x-4 bottom-[calc(100%+1.5rem)] mx-auto max-w-sm"><FirstUseHint kind="manual" /></div>}
       <div className="mx-auto flex max-w-md items-end px-2 pt-2 pb-2">
         {tabs.slice(0, 2).map(render)}
         <Button

@@ -88,6 +88,11 @@ const schema = z
       .object({
         showMomo: z.boolean(),
         locale: z.enum(["ko", "en", "fr"]).optional(),
+        trackingInterests: z.array(z.enum(["injection", "weight", "condition", "meal", "memory"])).max(5).optional(),
+        onboarding: z.object({
+          status: z.enum(["completed", "skipped"]),
+          dismissedHints: z.array(z.enum(["manual", "momo"])).max(2).optional(),
+        }).optional(),
         demoMode: z.boolean().optional(),
         stockAdjustments: z.record(z.object({ identity: z.string(), delta: num })).optional(),
         prompts: z
