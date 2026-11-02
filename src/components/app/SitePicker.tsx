@@ -99,7 +99,7 @@ export function SitePicker({
                     fill="none"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="text-primary"
+                    className="site-check text-primary"
                   />
                 ) : (
                   <circle cx={z.x} cy={z.y} r="4" className="fill-primary/65" />
@@ -112,7 +112,7 @@ export function SitePicker({
           className="mt-1 flex min-h-8 items-center rounded-full bg-card/80 px-4 text-[15px] font-semibold"
           aria-live="polite"
         >
-          {value ? `✓ ${siteLabel(value)}` : t("site.unknown")}
+          <span key={value ?? "unknown"} className="site-label">{value ? `✓ ${siteLabel(value)}` : t("site.unknown")}</span>
         </p>
       </div>
       <details className="mt-2">

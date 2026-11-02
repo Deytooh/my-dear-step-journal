@@ -13,6 +13,7 @@ import {
   Square,
   X,
   LoaderCircle,
+  Check,
   ImagePlus,
   AlertTriangle,
   Undo2,
@@ -37,6 +38,7 @@ import { celebrateSave } from "./AppFeel";
 import { t, getLocale, type Key } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { MedicationPicker } from "./MedicationPicker";
+import momo from "@/assets/momo-hamster.png.asset.json";
 
 type SR = {
   start: () => void;
@@ -350,8 +352,8 @@ export function MomoSheet({
       </DrawerDescription>
 
       {saved && (
-        <div role="status" className="rounded-[20px] bg-secondary p-4 space-y-3">
-          <p>{t("evidence.localSaved")}</p>
+        <div role="status" className="feel-panel rounded-[20px] bg-secondary p-4 space-y-3">
+          <p className="flex items-center gap-2"><Check className="size-5 text-primary" />{t("evidence.localSaved")}</p>
           <p>{t(`sync.${j.sync}`)}</p>
           {j.sync === "error" && <Button onClick={j.retrySync}>{t("momo.retry")}</Button>}
           <Button onClick={onDone}>{t("evidence.close")}</Button>
@@ -443,7 +445,7 @@ export function MomoSheet({
             <div>
               <ul className="flex gap-3 overflow-x-auto py-2 [scrollbar-width:none]">
                 {images.map((src, i) => (
-                  <li key={i} className="relative shrink-0">
+                  <li key={src} className="feel-pop relative shrink-0">
                     <img
                       src={src}
                       alt={`${t("f.photo")} ${i + 1}`}
@@ -542,14 +544,16 @@ export function MomoSheet({
                 !j.user || !consent || busy || listening || (!text.trim() && !images.length)
               }
               className="press h-12 w-full rounded-full bg-primary font-semibold text-primary-foreground disabled:opacity-50"
+              aria-busy={busy}
             >
-              {busy && <LoaderCircle className="feel-busy mr-2 size-5" />}
+              <span className="inline-flex size-5 shrink-0 items-center justify-center" aria-hidden>{busy && <LoaderCircle className="animate-spin size-5" />}</span>
               {busy ? t("momo.thinking") : t("momo.extract")}
             </Button>
           </div>
           {busy && (
-            <div role="progressbar" aria-label={t("momo.thinking")} className="feel-progress h-1.5">
-              <div className="feel-indeterminate h-full w-1/3 rounded-full bg-primary" />
+            <div role="status" className="feel-panel flex min-h-12 items-center gap-3 text-sm text-muted-foreground">
+              {j.settings.showMomo && <img src={momo.url} alt="" className="momo-pending size-10 object-contain" />}
+              <span>{t("momo.thinking")}</span>
             </div>
           )}
         </>
@@ -562,7 +566,7 @@ export function MomoSheet({
           {drafts.length === 0 && (
             <p className="text-[15px] text-muted-foreground">{t("momo.none")}</p>
           )}
-          <ul className="feel-list space-y-3">
+          <ul className="momo-drafts space-y-3">
             {drafts.map((d) => (
               <DraftCard
                 key={d.key}
@@ -786,7 +790,7 @@ function DraftCard({
         )}
       </details>
       {d.on && expanded && (
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="feel-panel mt-3 grid grid-cols-2 gap-2">
           {FIELDS[d.type].map((f) =>
             f.k === "medication" ? (
               <div key={f.k} className="col-span-2">

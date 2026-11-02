@@ -15,11 +15,13 @@ export function PhotoImg({
   const resolvedOwner = useRef<string | undefined>(undefined);
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [retry, setRetry] = useState(0);
   useEffect(() => {
     let live = true;
     setUrl(null);
     setFailed(false);
+    setLoaded(false);
     const resolve = () =>
       photoUrl(src)
         .then((value) => {
@@ -39,28 +41,23 @@ export function PhotoImg({
       clearInterval(timer);
     };
   }, [src, user?.id, retry]);
-  if (resolvedOwner.current !== user?.id)
-    return <div className={`${className ?? ""} bg-secondary`} />;
-  if (failed)
-    return (
-      <span className={className} role="img" aria-label={t("photo.unavailable")}>
-        {t("photo.unavailable")}
-      </span>
-    );
-  if (!url) return <div className={`${className ?? ""} bg-secondary`} aria-busy="true" />;
+  const visibleUrl = resolvedOwner.current === user?.id ? url : null;
   return (
-    <img
-      src={url}
+    <span className={`photo-frame block ${className ?? ""}`} data-loaded={loaded && !!visibleUrl} aria-busy={!failed && !loaded}>
+    {failed ? <span className="photo-failure" role="img" aria-label={t("photo.unavailable")}>{t("photo.unavailable")}</span> : visibleUrl ? <img
+      src={visibleUrl}
       loading="lazy"
       decoding="async"
       alt={alt}
-      className={className}
+      onLoad={() => setLoaded(true)}
       onError={() => {
+        setLoaded(false);
         if (!retry) {
           clearPhotoCache();
           setRetry(1);
         } else setFailed(true);
       }}
-    />
+    /> : null}
+    </span>
   );
 }

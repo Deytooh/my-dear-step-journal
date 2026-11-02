@@ -26,7 +26,7 @@ import {
   type WeightRec,
 } from "@/lib/journal";
 import { useQuickAdd } from "@/components/app/AppShell";
-import { AnimatedValue, useReducedMotion } from "@/components/app/AppFeel";
+import { AnimatedValue } from "@/components/app/AppFeel";
 import {
   Card,
   EmptyState,
@@ -59,7 +59,6 @@ export const Route = createFileRoute("/progress")({
 
 function Progress() {
   const j = useJournal();
-  const reducedMotion = useReducedMotion();
   const open = useQuickAdd();
   const [metric, setMetric] = useState<"weight" | "measure" | "photo">("weight");
   const [range, setRange] = useState<"1m" | "3m" | "all">("1m");
@@ -243,9 +242,7 @@ function Progress() {
                         strokeWidth={2.5}
                         fill="url(#wf)"
                         dot={{ r: 3.5, fill: "var(--color-primary)" }}
-                        isAnimationActive={!reducedMotion}
-                        animationDuration={180}
-                        animationEasing="ease-out"
+                        isAnimationActive={false}
                       >
                         {data.length <= 8 && (
                           <LabelList

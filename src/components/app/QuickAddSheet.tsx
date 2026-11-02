@@ -681,6 +681,8 @@ function EntryForm({
         <Field label={t("f.value")}>
           <input
             inputMode="decimal"
+            aria-invalid={err === t("validation.manual0") || undefined}
+            aria-describedby={err === t("validation.manual0") ? "entry-error" : undefined}
             className={cn(inputCls, "h-16 text-[28px] font-bold")}
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
@@ -1074,6 +1076,7 @@ function EntryForm({
           ref={errorRef}
           tabIndex={-1}
           role="alert"
+          id="entry-error"
           className="feel-error rounded-xl text-sm text-destructive"
         >
           {err}
