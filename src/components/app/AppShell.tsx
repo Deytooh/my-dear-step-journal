@@ -37,7 +37,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [editing, setEditing] = useState<JournalRecord | Purchase | undefined>();
   const j = useJournal();
   const [replayIntroduction, setReplayIntroduction] = useState(false);
-  const introductionOpen = replayIntroduction || (j.ready && j.introductionPending && !j.settings.onboarding && pathname !== "/auth");
+  const introductionOpen =
+    replayIntroduction ||
+    (j.ready && j.introductionPending && !j.settings.onboarding && pathname !== "/auth");
   const previousRows = useRef<{ owner: string; ids: Set<string> } | null>(null);
   useEffect(() => {
     if (!j.ready) return;
@@ -48,9 +50,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (!previous || previous.owner !== owner) return;
     const fresh = j.records.filter((r) => !previous.ids.has(r.id));
     if (!fresh.length) return;
-    const elements = fresh.flatMap((r) => Array.from(document.querySelectorAll<HTMLElement>(`[data-record-id="${CSS.escape(r.id)}"]`)));
-    elements.forEach((element) => element.dataset["freshRecord"] = "true");
-    const timer = setTimeout(() => elements.forEach((element) => element.removeAttribute("data-fresh-record")), 400);
+    const elements = fresh.flatMap((r) =>
+      Array.from(document.querySelectorAll<HTMLElement>(`[data-record-id="${CSS.escape(r.id)}"]`)),
+    );
+    elements.forEach((element) => (element.dataset["freshRecord"] = "true"));
+    const timer = setTimeout(
+      () => elements.forEach((element) => element.removeAttribute("data-fresh-record")),
+      400,
+    );
     return () => {
       clearTimeout(timer);
       elements.forEach((element) => element.removeAttribute("data-fresh-record"));
@@ -71,7 +78,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <QuickAddCtx.Provider value={opener}>
       <div className="mx-auto min-h-screen max-w-md bg-background pb-[calc(8rem+env(safe-area-inset-bottom))]">
-        <Header hero={pathname === "/today"} onIntroduction={() => setReplayIntroduction(true)} />
+        <Header hero={false} onIntroduction={() => setReplayIntroduction(true)} />
         <main key={`${pathname}-${j.settings.locale ?? "ko"}`} className="feel-page px-5">
           {(j.sync === "error" || j.storageBlocked) && (
             <div
@@ -98,7 +105,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
       <AppFeel />
-      <BottomNav expanded={open} onAdd={() => opener("menu")} showHint={!introductionOpen && !open && pathname === "/today"} />
+      <BottomNav
+        expanded={open}
+        onAdd={() => opener("menu")}
+        showHint={!introductionOpen && !open && pathname === "/today"}
+      />
       {introductionOpen && <Onboarding open onClose={() => setReplayIntroduction(false)} />}
       <QuickAddSheet
         session={entrySession}
@@ -115,22 +126,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 function PageSkeleton({ hero }: { hero: boolean }) {
   return (
-    <div role="status" aria-label={t("ui.loading")} className="pointer-events-none">
+    <div role="status" aria-label={t("ui.loading")} className="pointer-events-none py-4">
       <span className="sr-only">{t("ui.loading")}</span>
-      {hero ? (
-        <div className="-mx-5 h-[188px] rounded-b-[30px] bg-primary" />
-      ) : (
-        <div className="flex h-28 items-center">
-          <span className="feel-busy h-7 w-40 rounded-xl bg-secondary" />
-        </div>
-      )}
-      <div aria-hidden className={hero ? "mt-5 grid grid-cols-2 gap-3" : "grid gap-4"}>
-        {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className={`feel-busy rounded-[24px] border border-primary/5 bg-card ${hero ? "h-[132px]" : "h-28"}`}
-          />
-        ))}
+      <div aria-hidden className="space-y-4">
+        <div className="feel-busy h-8 w-40 rounded-xl bg-secondary" />
+        <div className={`feel-busy rounded-[28px] border bg-card ${hero ? "h-96" : "h-40"}`} />
+        <div className="feel-busy h-24 rounded-2xl bg-secondary" />
       </div>
     </div>
   );
@@ -154,7 +155,10 @@ function Header({ hero = false, onIntroduction }: { hero?: boolean; onIntroducti
         >
           <Settings2 className="size-5" />
         </PopoverTrigger>
-        <PopoverContent align="end" className="max-h-[80dvh] w-72 overflow-y-auto rounded-[20px] p-4">
+        <PopoverContent
+          align="end"
+          className="max-h-[80dvh] w-72 overflow-y-auto rounded-[20px] p-4"
+        >
           <div className="mb-3 rounded-[14px] bg-secondary p-3 text-xs">
             <p className="font-medium">{t(`sync.${j.sync}`)}</p>
             {j.storageBlocked && (
@@ -211,13 +215,13 @@ function Header({ hero = false, onIntroduction }: { hero?: boolean; onIntroducti
               </Button>
             ) : (
               <>
-              <p className="mt-2 text-muted-foreground">{t("intro.cloud")}</p>
-              <Link
-                to="/auth"
-                className="press mt-2 flex h-9 w-full items-center justify-center rounded-full bg-primary text-primary-foreground"
-              >
-                {t("sync.signin")}
-              </Link>
+                <p className="mt-2 text-muted-foreground">{t("intro.cloud")}</p>
+                <Link
+                  to="/auth"
+                  className="press mt-2 flex h-9 w-full items-center justify-center rounded-full bg-primary text-primary-foreground"
+                >
+                  {t("sync.signin")}
+                </Link>
               </>
             )}
           </div>
@@ -267,10 +271,17 @@ function Header({ hero = false, onIntroduction }: { hero?: boolean; onIntroducti
           </label>
           <fieldset className="mt-4 space-y-2">
             <legend className="mb-2 text-sm font-medium">{t("intro.shortcuts")}</legend>
-            <InterestChoices value={j.settings.trackingInterests ?? []} locale={j.settings.locale ?? "ko"}
-              onChange={(value) => j.setSetting("trackingInterests", value)} />
+            <InterestChoices
+              value={j.settings.trackingInterests ?? []}
+              locale={j.settings.locale ?? "ko"}
+              onChange={(value) => j.setSetting("trackingInterests", value)}
+            />
           </fieldset>
-          <Button variant="outline" className="mt-3 min-h-11 w-full whitespace-normal" onClick={onIntroduction}>
+          <Button
+            variant="outline"
+            className="mt-3 min-h-11 w-full whitespace-normal"
+            onClick={onIntroduction}
+          >
             {t("intro.replay")}
           </Button>
           <p className="mt-2 text-xs text-muted-foreground">
@@ -374,7 +385,15 @@ function Sprout({ hero = false }: { hero?: boolean }) {
   );
 }
 
-function BottomNav({ onAdd, expanded, showHint }: { onAdd: () => void; expanded: boolean; showHint: boolean }) {
+function BottomNav({
+  onAdd,
+  expanded,
+  showHint,
+}: {
+  onAdd: () => void;
+  expanded: boolean;
+  showHint: boolean;
+}) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const activePath = pathname === "/journey" || pathname === "/history" ? "/progress" : pathname;
   const item =
@@ -405,7 +424,11 @@ function BottomNav({ onAdd, expanded, showHint }: { onAdd: () => void; expanded:
   };
   return (
     <nav className="app-nav fixed inset-x-0 bottom-0 z-40 border-t border-primary/10 bg-card pb-[env(safe-area-inset-bottom)]">
-      {showHint && <div className="absolute inset-x-4 bottom-[calc(100%+1.5rem)] mx-auto max-w-sm"><FirstUseHint kind="manual" /></div>}
+      {showHint && (
+        <div className="absolute inset-x-4 bottom-[calc(100%+1.5rem)] mx-auto max-w-sm">
+          <FirstUseHint kind="manual" />
+        </div>
+      )}
       <div className="mx-auto flex max-w-md items-end px-2 pt-2 pb-2">
         {tabs.slice(0, 2).map(render)}
         <Button

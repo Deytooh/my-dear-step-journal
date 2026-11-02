@@ -1,3 +1,4 @@
+import { useRouterState } from "@tanstack/react-router";
 import { validDate } from "@/lib/snapshot";
 import { FIELDS } from "@/lib/momo-drafts";
 import { MealForm } from "./MealForm";
@@ -75,6 +76,15 @@ export function QuickAddSheet({
   initialDate,
 }: Props) {
   const { settings, user } = useJournal();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const homeVoice = kind === "voice" && pathname === "/today";
+  useEffect(() => {
+    if (!open || !homeVoice) return;
+    onOpenChange(false);
+    const surface = document.getElementById("momo-workspace");
+    surface?.scrollIntoView({ block: "start" });
+    surface?.querySelector<HTMLTextAreaElement>("textarea")?.focus({ preventScroll: true });
+  }, [open, homeVoice, onOpenChange]);
   const scrollPane = useRef<HTMLDivElement>(null);
   // A new sheet view begins below its fixed header; expanding fields never resets it.
   useLayoutEffect(() => {
@@ -91,7 +101,7 @@ export function QuickAddSheet({
   }, [open]);
   return (
     <EntrySheet
-      open={open}
+      open={open && !homeVoice}
       onOpenChange={onOpenChange}
       header={
         <div className="relative z-30 flex shrink-0 justify-between border-b border-primary/5 bg-background px-5 py-1">
@@ -128,7 +138,7 @@ export function QuickAddSheet({
           <div key="menu" className="feel-panel">
             <Menu setKind={setKind} showMomo={settings.showMomo} />
           </div>
-        ) : (
+        ) : homeVoice ? null : (
           <EntryForm
             key={`${session}-${kind}-${editing && "id" in editing ? editing.id : "new"}-${user?.id ?? "guest"}`}
             initialDate={initialDate}
@@ -220,10 +230,12 @@ function Menu({ setKind, showMomo }: { setKind: (k: EntryKind) => void; showMomo
   ];
   const preferred = settings.trackingInterests ?? [];
   items.sort((a, b) => {
-    const aRank = preferred.indexOf(a.k as typeof preferred[number]);
-    const bRank = preferred.indexOf(b.k as typeof preferred[number]);
-    return (aRank < 0 ? preferred.length + order.indexOf(a.k) : aRank)
-      - (bRank < 0 ? preferred.length + order.indexOf(b.k) : bRank);
+    const aRank = preferred.indexOf(a.k as (typeof preferred)[number]);
+    const bRank = preferred.indexOf(b.k as (typeof preferred)[number]);
+    return (
+      (aRank < 0 ? preferred.length + order.indexOf(a.k) : aRank) -
+      (bRank < 0 ? preferred.length + order.indexOf(b.k) : bRank)
+    );
   });
   return (
     <>

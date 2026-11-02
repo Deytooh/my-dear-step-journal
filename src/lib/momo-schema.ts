@@ -1,9 +1,11 @@
+import { parseMealAnalysis, type MealDetails } from "./meals";
 import { validDate } from "./snapshot";
 // Server-side validation of model output. Anything not matching the expected types becomes null.
 type S = string | null;
 type N = number | null;
-type Common = { date: S; quote: S };
+type Common = { date: S; quote: S; photoIndices?: number[]; time?: S; timeHint?: S };
 export type MomoCandidate =
+  | (Common & { type: "meal"; meal: MealDetails })
   | (Common & { type: "weight"; value: N; time: S; timeHint: S })
   | (Common & {
       type: "injection";
@@ -22,14 +24,19 @@ export type MomoCandidate =
 const str = (v: unknown, max = 200): S =>
   typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null;
 const num = (v: unknown): N => {
-  const n = typeof v === "string" ? Number(v.replace(/,/g, "")) : v;
+  // JSON numbers and unambiguous decimal strings only. Never turn a decimal comma dose into a larger dose.
+  const n = typeof v === "string" && /^[+-]?\d+(?:\.\d+)?$/.test(v.trim()) ? Number(v) : v;
   return typeof n === "number" && Number.isFinite(n) ? n : null;
 };
 const date = (v: unknown): S => (typeof v === "string" && validDate(v) ? v : null);
 const time = (v: unknown): S =>
   typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : null;
 
-export function sanitizeCandidates(raw: unknown[], sourceText: string): MomoCandidate[] {
+export function sanitizeCandidates(
+  raw: unknown[],
+  sourceText: string,
+  imageCount = 0,
+): MomoCandidate[] {
   const out: MomoCandidate[] = [];
   for (const r of raw.slice(0, 20)) {
     if (!r || typeof r !== "object") continue;
@@ -37,8 +44,33 @@ export function sanitizeCandidates(raw: unknown[], sourceText: string): MomoCand
     let quote = str(c["quote"], 300);
     // A quote must come from the user's words (or describe a photo); otherwise drop it rather than show invented evidence.
     if (quote && !sourceText.includes(quote)) quote = null;
-    const common = { date: date(c["date"]), quote };
+    const photoIndices = Array.isArray(c["photoIndices"])
+      ? [
+          ...new Set(
+            c["photoIndices"].filter(
+              (i): i is number =>
+                typeof i === "number" && Number.isInteger(i) && i >= 0 && i < imageCount,
+            ),
+          ),
+        ]
+      : [];
+    const common = {
+      date: date(c["date"]),
+      quote,
+      photoIndices,
+      time: time(c["time"]),
+      timeHint:
+        typeof c["timeHint"] === "string" && sourceText.includes(c["timeHint"])
+          ? str(c["timeHint"], 40)
+          : null,
+    };
+
     switch (c["type"]) {
+      case "meal": {
+        const meal = parseMealAnalysis(c["meal"], "pending");
+        if (meal) out.push({ ...common, type: "meal", meal });
+        break;
+      }
       case "weight":
         out.push({
           ...common,

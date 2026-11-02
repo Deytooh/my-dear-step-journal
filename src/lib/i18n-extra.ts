@@ -2,6 +2,30 @@
 type D = Record<string, string>;
 
 export const en: D = {
+  "mm.estimate": "Estimate · review before saving",
+  "mm.title": "What would you like to keep today?",
+  "mm.subtitle": "Tell Momo or send a photo. Review the journal entries, then confirm.",
+  "mm.placeholder": "Tell Momo in your own words",
+  "mm.voice": "Voice",
+  "mm.message": "Message",
+  "mm.voiceHint":
+    "Your browser transcribes speech. Only text and selected photos go to Meta after consent.",
+  "mm.privacy": "AI analysis · consent and privacy",
+  "mm.review": "Shall we keep these?",
+  "mm.received": "Your information is organized into drafts. Review before saving.",
+  "mm.selected": "{n} entries selected",
+  "mm.confirm": "Confirm and save {n} entries",
+  "mm.clarify": "Please check {field}. You can edit it in the card below.",
+  "mm.portionQuestion": "How much of this meal did you eat? It can stay unknown.",
+  "mm.duplicateHint":
+    "Open the existing entry, or select Include to intentionally keep another similar entry.",
+  "mm.resume": "Return to your edited drafts",
+  "mm.saved": "Your entries are saved",
+  "mm.new": "Start a new capture",
+  "mm.find": "Find my entries",
+  "mm.recent": "Recent entries",
+  "mm.empty": "No entries yet. Tell Momo about your day, or add an entry manually.",
+
   "intro.welcome": "Welcome to my dear step",
   "intro.about": "A personal journal for injections, everyday feelings, meals and memories.",
   "intro.start": "Let’s start",
@@ -444,7 +468,7 @@ export const en: D = {
   unknown: "Unknown",
   missing: "Not entered",
   "momo.photos": "Add photos (up to 3)",
-  "momo.photoHint": "For receipts, only visible details are used.",
+  "momo.photoHint": "Photos remain sources. Review food and calorie estimates before saving.",
   "momo.listening": "Listening… stop when you're done.",
   "momo.cancelRec": "Cancel recording",
   "momo.check": "Check and fix the transcript.",
@@ -505,12 +529,39 @@ export const en: D = {
 };
 
 export const fr: D = {
+  "mm.estimate": "Estimation · à vérifier",
+  "mm.title": "Que souhaitez-vous garder aujourd’hui ?",
+  "mm.subtitle": "Racontez ou envoyez une photo à Momo. Vérifiez ses propositions, puis confirmez.",
+  "mm.placeholder": "Racontez librement à Momo",
+  "mm.voice": "Vocal",
+  "mm.message": "Message",
+  "mm.voiceHint":
+    "Le navigateur transcrit votre voix. Après accord, seuls le texte et les photos choisies sont envoyés à Meta.",
+  "mm.privacy": "Analyse IA · consentement et confidentialité",
+  "mm.review": "On garde ces entrées ?",
+  "mm.received": "Vos informations sont organisées en brouillons. Vérifiez avant d’enregistrer.",
+  "mm.selected": "{n} entrées sélectionnées",
+  "mm.confirm": "Confirmer et enregistrer {n} entrées",
+  "mm.clarify": "Vérifiez le champ {field}. Vous pouvez le modifier dans la carte ci-dessous.",
+  "mm.portionQuestion":
+    "Quelle quantité de ce repas avez-vous mangée ? Vous pouvez laisser cette information inconnue.",
+  "mm.duplicateHint":
+    "Ouvrez l’entrée existante, ou cochez Inclure pour conserver volontairement une entrée similaire.",
+  "mm.resume": "Revenir aux propositions corrigées",
+  "mm.saved": "Vos entrées sont enregistrées",
+  "mm.new": "Raconter autre chose",
+  "mm.find": "Retrouver mes entrées",
+  "mm.recent": "Dernières entrées",
+  "mm.empty":
+    "Aucune entrée pour le moment. Racontez votre journée à Momo, ou ajoutez une entrée manuellement.",
+
   "intro.welcome": "Bienvenue dans my dear step",
   "intro.about": "Un journal personnel pour vos injections, ressentis, repas et souvenirs.",
   "intro.start": "Commençons",
   "intro.explore": "Explorer d’abord",
   "intro.yours": "À votre image",
-  "intro.optional": "Choisissez seulement ce qui vous convient. Tout reste modifiable dans les réglages.",
+  "intro.optional":
+    "Choisissez seulement ce qui vous convient. Tout reste modifiable dans les réglages.",
   "intro.interests": "Que souhaitez-vous noter ?",
   "intro.next": "Continuer",
   "intro.first": "Votre premier petit pas",
@@ -523,9 +574,11 @@ export const fr: D = {
   "intro.replay": "Revoir l’introduction",
   "intro.shortcuts": "Mes centres d’intérêt",
   "intro.manualHint": "Le + central ouvre la saisie manuelle.",
-  "intro.momoHint": "Momo prépare des brouillons modifiables à partir de texte ou de photos compatibles.",
+  "intro.momoHint":
+    "Momo prépare des brouillons modifiables à partir de texte ou de photos compatibles.",
   "intro.dismiss": "Fermer l’astuce",
-  "intro.cloud": "Créez un compte plus tard pour retrouver vos notes et photos sur vos autres appareils.",
+  "intro.cloud":
+    "Créez un compte plus tard pour retrouver vos notes et photos sur vos autres appareils.",
   "ui.loading": "Chargement de vos notes…",
   "ctx.options": "Options de la question",
   "ctx.invite": "Une question selon vos notes ?",
@@ -951,7 +1004,8 @@ export const fr: D = {
   unknown: "Inconnu",
   missing: "Non saisi",
   "momo.photos": "Ajouter des photos (3 max)",
-  "momo.photoHint": "Pour un reçu, seules les informations visibles sont reprises.",
+  "momo.photoHint":
+    "Les photos restent des sources. Vérifiez les estimations des aliments et des calories avant d’enregistrer.",
   "momo.listening": "Écoute… arrêtez quand vous avez fini.",
   "momo.cancelRec": "Annuler l'enregistrement",
   "momo.check": "Vérifiez et corrigez la transcription.",

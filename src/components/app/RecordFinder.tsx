@@ -22,6 +22,12 @@ export function recordText(r: JournalRecord) {
       return `${r.label} ${r.note ?? ""}`;
     case "injection":
       return `${r.medication ?? ""} ${r.site ?? ""}`;
+    case "weight":
+      return `${r.value} ${String(r.value).replace(".", ",")} ${r.unit}`;
+    case "measure":
+      return `${r.waist ?? ""} ${r.hip ?? ""} ${r.chest ?? ""} ${r.thigh ?? ""} ${r.unit}`;
+    case "water":
+      return t(r.answer === "yes" ? "pr.water.yes" : "pr.water.notYet");
     default:
       return "";
   }
@@ -32,7 +38,7 @@ export function findRecords(records: JournalRecord[], q: string) {
   if (!words.length) return [];
   return records
     .filter((r) => {
-      const txt = recordText(r).toLowerCase();
+      const txt = `${r.localDate} ${r.type} ${t(`type.${r.type}`)} ${recordText(r)}`.toLowerCase();
       return words.every((w) => txt.includes(w));
     })
     .sort(sortByTime);
@@ -89,7 +95,20 @@ export function RecordFinder() {
       : [];
   const purchaseResults = aiKeys
     ? j.purchases.filter((p) => aiKeys.includes(`purchase:${p.id}`))
-    : [];
+    : asked
+      ? j.purchases.filter((p) =>
+          asked
+            .trim()
+            .toLowerCase()
+            .split(/\s+/)
+            .filter(Boolean)
+            .every((word) =>
+              `${p.localDate} ${p.medication ?? ""} ${p.product ?? ""} ${p.merchant ?? ""} ${p.amount} ${p.currency}`
+                .toLowerCase()
+                .includes(word),
+            ),
+        )
+      : [];
   return (
     <section
       aria-labelledby="find-title"
@@ -115,6 +134,7 @@ export function RecordFinder() {
           onChange={(e) => {
             request.current++;
             setQ(e.target.value);
+            setAsked(null);
             setAIKeys(null);
             setBusy(false);
           }}

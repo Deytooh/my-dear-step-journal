@@ -30,3 +30,8 @@ Earlier phase checks describe implemented code and historical local tests; they 
 - [x] Cache compte/langue/jour, réservation SQL additive, invalidation et actions/Undo existants.
 - [x] Tests ciblés et vérifications mobiles isolées ; voir docs/CONTEXT_QUESTIONS.md.
 - [ ] Appliquer 0001 + 0003, configurer la clé Meta et vérifier le parcours connecté sur deux comptes.
+
+## Accueil Momo — 2 novembre 2026
+- [x] Surface de capture partagée dans /today, repas dans le lot existant, corrections/sources, confirmation unique, garde de propriétaire et recherche séparée ; suivi et saisie manuelle conservés.
+- [x] Inspection locale des vues 360/390/430 px, sources conservées après navigation/rechargement, recherche locale et éditeur repas partagé. Aucun test écrit/lancé. Voir docs/MOMO_HOME.md pour les limites précises.
+- [ ] Vérifier le parcours Meta complet avec une session authentifiée, une clé configurée et un vrai clavier mobile ; aucune validation IA/cloud réelle n’est revendiquée pour cette passe.

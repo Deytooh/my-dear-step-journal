@@ -7,6 +7,23 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  vite: {
+    server: {
+      // Keep the canonical Lovable asset pointer working in local previews too.
+      proxy: {
+        "/__l5e/assets-v1/": {
+          target: "https://id-preview--0e8ecf7b-bcc5-435d-a927-f51d157f4667.lovable.app",
+          changeOrigin: true,
+          configure(proxy) {
+            proxy.on("proxyReq", (request) => {
+              request.removeHeader("cookie");
+              request.removeHeader("authorization");
+            });
+          },
+        },
+      },
+    },
+  },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this

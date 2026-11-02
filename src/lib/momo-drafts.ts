@@ -1,6 +1,7 @@
 // Editable Momo drafts. Model output never becomes a record until the user confirms a draft.
 import type { MomoCandidate } from "./momo-schema";
 import type { Evidence, JournalRecord, PartOfDay, Purchase } from "./journal";
+import { mealSchema } from "./meals";
 import { instantFromLocal } from "./dates";
 
 export type DraftType = MomoCandidate["type"];
@@ -18,6 +19,11 @@ export type Draft = {
 };
 
 export const FIELDS: Record<DraftType, FieldDef[]> = {
+  meal: [
+    { k: "meal", label: "type.meal", kind: "text" },
+    { k: "date", label: "f.date", kind: "date", important: true },
+    { k: "time", label: "f.time", kind: "time" },
+  ],
   weight: [
     { k: "value", label: "f.value", kind: "num", important: true },
     { k: "date", label: "f.date", kind: "date" },
@@ -43,10 +49,12 @@ export const FIELDS: Record<DraftType, FieldDef[]> = {
     { k: "chest", label: "f.chest", kind: "num" },
     { k: "thigh", label: "f.thigh", kind: "num" },
     { k: "date", label: "f.date", kind: "date" },
+    { k: "time", label: "f.time", kind: "time" },
   ],
   memory: [
     { k: "note", label: "f.note", kind: "text", important: true },
     { k: "date", label: "f.date", kind: "date" },
+    { k: "time", label: "f.time", kind: "time" },
   ],
   expense: [
     { k: "currency", label: "evidence.currency", kind: "text", important: true },
@@ -69,11 +77,18 @@ export function candidateToDraft(
   const f: Record<string, string> = {};
   const rec = c as unknown as Record<string, unknown>;
   for (const def of FIELDS[c.type]) f[def.k] = def.k === "date" ? s(rec["date"]) : s(rec[def.k]);
+  const photos = c.photoIndices?.length
+    ? c.photoIndices.flatMap((i) => (input?.photos[i] ? [input.photos[i]!] : []))
+    : c.quote
+      ? []
+      : (input?.photos ?? []);
+  if (c.type === "meal") f["meal"] = JSON.stringify({ ...c.meal, photoRefs: photos });
   return {
     ...(input
       ? {
           evidence: {
             ...input,
+            photos,
             quote: c.quote && input.text.includes(c.quote) ? c.quote : null,
             proposed: { ...f },
             confirmed: {},
@@ -84,7 +99,7 @@ export function candidateToDraft(
     type: c.type,
     on: true,
     quote: c.quote,
-    timeHint: "timeHint" in c ? c.timeHint : null,
+    timeHint: c.timeHint ?? null,
     f,
   };
 }
@@ -137,6 +152,20 @@ export function draftToEntry(d: Draft, id: string, tz: string, today: string): E
   // The journal requires a calendar day: ask for it rather than silently using today.
   if (!date) return bad("date");
   switch (d.type) {
+    case "meal": {
+      try {
+        const parsed = mealSchema.safeParse(JSON.parse(f["meal"] ?? ""));
+        if (!parsed.success) return bad("meal");
+        const meal = {
+          ...parsed.data,
+          photoRefs: d.evidence?.photos ?? parsed.data.photoRefs,
+          ...(d.evidence?.analysis ? { analysis: d.evidence.analysis } : {}),
+        };
+        return { record: { ...base, type: "meal", meal } };
+      } catch {
+        return bad("meal");
+      }
+    }
     case "weight": {
       const v = n(f["value"]);
       if (v == null || Number.isNaN(v) || v < 20 || v > 400) return bad("value");
@@ -190,7 +219,7 @@ export function draftToEntry(d: Draft, id: string, tz: string, today: string): E
     case "memory": {
       const note = f["note"]?.trim();
       if (!note) return bad("note");
-      return { record: { ...base, type: "memory", note, photo: null } };
+      return { record: { ...base, type: "memory", note, photo: evidence?.photos[0] ?? null } };
     }
     case "expense": {
       const a = n(f["amount"]);
@@ -198,7 +227,7 @@ export function draftToEntry(d: Draft, id: string, tz: string, today: string): E
       if (!date) return bad("date");
       if (!/^[A-Z]{3}$/.test(f["currency"] ?? "")) return bad("currency");
       const q = n(f["quantity"]);
-      if (Number.isNaN(q)) return bad("quantity");
+      if (q !== null && (!Number.isInteger(q) || q <= 0)) return bad("quantity");
       // Receipts are recorded as expenses only; inventory is never changed from a photo.
       return {
         purchase: {
@@ -206,7 +235,7 @@ export function draftToEntry(d: Draft, id: string, tz: string, today: string): E
           quantity: q,
           id,
           localDate: date,
-          amount: Math.round(a),
+          amount: a,
           currency: f["currency"]!,
           doses: 0,
           medication: null,
@@ -232,6 +261,7 @@ export function isDuplicate(e: Entry, records: JournalRecord[], purchases: Purch
     if (x.type !== r.type || x.localDate !== r.localDate) return false;
     if (r.type === "weight" && x.type === "weight") return x.value === r.value;
     if (r.type === "condition" && x.type === "condition") return x.label === r.label;
+    if (r.type === "meal" && x.type === "meal") return x.meal.title === r.meal.title;
     if (r.type === "memory" && x.type === "memory") return x.note === r.note;
     return r.type === "injection" || r.type === "measure";
   });

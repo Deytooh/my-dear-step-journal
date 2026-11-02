@@ -321,7 +321,11 @@ export type JournalContextValue = State & {
   resetDemo: () => void;
   undoFor: (before: State) => () => void;
   respondPrompt: (id: PromptId, day: string, record?: JournalRecord, contextId?: string) => void;
-  saveMomoBatch: (records: JournalRecord[], purchases: Purchase[]) => void;
+  saveMomoBatch: (
+    records: JournalRecord[],
+    purchases: Purchase[],
+    expectedOwner?: string | null,
+  ) => void;
   retrySync: () => void;
   ready: boolean;
   introductionPending: boolean;
@@ -692,7 +696,9 @@ export function JournalProvider({ children }: { children: ReactNode }) {
       };
       commit(() => next);
     },
-    saveMomoBatch: (records, purchases) => {
+    saveMomoBatch: (records, purchases, expectedOwner) => {
+      if (expectedOwner !== undefined && expectedOwner !== owner.current)
+        throw new Error("momo_owner_changed");
       const current = latest.current;
       const next = {
         ...current,
