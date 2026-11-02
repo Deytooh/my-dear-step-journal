@@ -239,11 +239,14 @@ export function Segmented<T extends string>({
   return (
     <div
       role="tablist"
+      data-tone={size}
+      style={{ "--segment-count": options.length, "--segment-index": Math.max(0, options.findIndex((o) => o.value === value)) } as React.CSSProperties}
       className={cn(
         "segmented flex rounded-[18px]",
         size === "lg" ? "bg-secondary" : "border bg-card",
       )}
     >
+      <span className="segment-indicator" aria-hidden="true" />
       {options.map((o) => {
         const active = o.value === value;
         return (
@@ -259,8 +262,8 @@ export function Segmented<T extends string>({
               size === "lg" ? "h-12 text-[17px]" : "h-10 text-[15px]",
               active
                 ? size === "lg"
-                  ? "bg-primary font-semibold text-primary-foreground"
-                  : "bg-secondary font-semibold"
+                  ? "font-semibold text-primary-foreground"
+                  : "font-semibold"
                 : "text-muted-foreground",
             )}
           >

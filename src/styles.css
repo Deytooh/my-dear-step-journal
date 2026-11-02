@@ -376,11 +376,14 @@ html[data-motion-paused="true"] :is(.feel-busy, .feel-indeterminate),
   letter-spacing: 0;
 }
 .segmented {
+  position: relative;
+  isolation: isolate;
   gap: 4px;
   border: 1px solid color-mix(in oklab, var(--border) 75%, transparent);
   padding: 4px;
 }
 .segmented [role="tab"] {
+  position: relative;
   min-width: 0;
   min-height: 44px;
   height: auto;
@@ -391,8 +394,23 @@ html[data-motion-paused="true"] :is(.feel-busy, .feel-indeterminate),
   border-radius: 14px;
 }
 .segmented [aria-selected="true"] {
-  box-shadow: 0 2px 6px color-mix(in oklab, var(--foreground) 6%, transparent);
+  box-shadow: none;
 }
+.segment-indicator {
+  position: absolute;
+  z-index: -1;
+  inset-block: 4px;
+  left: 4px;
+  width: calc((100% - 8px - (var(--segment-count) - 1) * 4px) / var(--segment-count));
+  translate: calc(var(--segment-index) * (100% + 4px)) 0;
+  border-radius: 14px;
+  background: var(--primary);
+  box-shadow: var(--shadow-soft);
+  transition: translate var(--motion-content) var(--ease-calm);
+  pointer-events: none;
+}
+.segmented[data-tone="sm"] .segment-indicator { background: var(--secondary); }
+.recharts-tooltip-wrapper { transition: opacity var(--motion-select) var(--ease-calm); }
 .journal-form {
   padding-bottom: 2px;
 }
