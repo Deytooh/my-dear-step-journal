@@ -48,37 +48,41 @@
 
 :root {
   --radius: 20px;
-  --background: oklch(0.979 0.011 91); /* canvas #FAF7EF */
-  --foreground: oklch(0.335 0.045 170); /* forest #183F35 */
-  --card: oklch(0.996 0.004 80); /* surface #FFFDFA */
-  --card-foreground: oklch(0.335 0.045 170);
-  --popover: oklch(0.996 0.004 80);
-  --popover-foreground: oklch(0.335 0.045 170);
-  --primary: oklch(0.335 0.045 170);
-  --primary-foreground: oklch(0.985 0.008 91);
-  --primary-active: oklch(0.42 0.05 168);
-  --secondary: oklch(0.952 0.014 125); /* sage tint #EEF2E7 */
-  --secondary-foreground: oklch(0.335 0.045 170);
-  --muted: oklch(0.952 0.014 125);
-  --muted-foreground: oklch(0.43 0.015 235);
-  --accent: oklch(0.967 0.022 70); /* peach tint #FFF0E2 */
-  --accent-foreground: oklch(0.335 0.045 170);
-  --sage: oklch(0.952 0.014 125);
-  --peach: oklch(0.967 0.022 70);
-  --peach-accent: oklch(0.75 0.095 52); /* #E3A17A */
+  --background: oklch(0.980524 0.021102 85.942); /* cream #FFF8E9 */
+  --foreground: oklch(0.334702 0.045086 53.209); /* espresso #493020 */
+  --card: oklch(0.991447 0.009763 87.47);
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.555959 0.092547 61.675); /* caramel #9A6636 */
+  --primary-foreground: var(--background);
+  --primary-active: oklch(0.476681 0.080977 56.675);
+  --secondary: oklch(0.93478 0.035896 83.775); /* biscuit #F5E8CF */
+  --secondary-foreground: var(--foreground);
+  --muted: var(--secondary);
+  --muted-foreground: oklch(0.474107 0.051085 58.318);
+  --accent: color-mix(in oklab, var(--honey) 24%, var(--background));
+  --accent-foreground: var(--foreground);
+  --honey: oklch(0.793573 0.087784 75.1); /* honey #DDB47B */
+  /* Compatibility aliases keep existing presentation variants storage-agnostic. */
+  --sage: var(--secondary);
+  --peach: var(--accent);
+  --peach-accent: var(--honey);
   --weekend-sat: oklch(0.55 0.06 175);
   --destructive: oklch(0.5 0.15 27); /* #A63C35 */
-  --destructive-foreground: oklch(0.985 0.008 91);
-  --border: oklch(0.89 0.01 140); /* #D8DDD5 */
-  --input: oklch(0.89 0.01 140);
+  --destructive-foreground: var(--background);
+  --border: oklch(0.851246 0.03987 74.741);
+  --input: var(--border);
   --ring: oklch(0.53 0.11 258); /* focus #416EAF */
-  --chart-1: oklch(0.335 0.045 170);
-  --chart-2: oklch(0.75 0.095 52);
-  --chart-3: oklch(0.9 0.03 140);
-  --chart-4: oklch(0.6 0.05 160);
-  --chart-5: oklch(0.8 0.05 90);
+  --chart-1: var(--primary);
+  --chart-2: var(--honey);
+  --chart-3: var(--secondary);
+  --chart-4: oklch(0.66659 0.087907 68.228);
+  --chart-5: var(--foreground);
   --shadow-soft:
-    0 1px 2px oklch(0.335 0.045 170 / 4%), 0 6px 20px -12px oklch(0.335 0.045 170 / 14%);
+    0 1px 2px color-mix(in oklab, var(--foreground) 4%, transparent),
+    0 6px 20px -12px color-mix(in oklab, var(--foreground) 14%, transparent);
+  --shadow-sheet: 0 -8px 36px color-mix(in oklab, var(--foreground) 10%, transparent);
   --shadow-lift: 0 8px 24px -10px color-mix(in oklab, var(--primary) 25%, transparent);
   --shadow-focus: 0 0 0 4px color-mix(in oklab, var(--primary) 12%, transparent);
   --touch-feedback: color-mix(in oklab, var(--peach-accent) 65%, transparent);
@@ -220,22 +224,22 @@
 .app-nav a[aria-current="page"] .feel-nav-icon {
   background: var(--primary);
   color: var(--primary-foreground);
-  box-shadow: inset 0 1px 0 #ffffff18;
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--card) 10%, transparent);
 }
 .feel-add {
   transition: color 140ms var(--ease-calm);
 }
 .feel-add > span {
   border: 5px solid var(--background);
-  box-shadow: 0 4px 14px #183f351a;
+  box-shadow: 0 4px 14px color-mix(in oklab, var(--foreground) 10%, transparent);
   transition:
     box-shadow 140ms var(--ease-calm),
     background-color 140ms var(--ease-calm);
 }
 .feel-add:active > span {
   box-shadow:
-    0 1px 4px #183f351a,
-    inset 0 0 0 100px #ffffff10;
+    0 1px 4px color-mix(in oklab, var(--foreground) 10%, transparent),
+    inset 0 0 0 100px color-mix(in oklab, var(--card) 6%, transparent);
 }
 .feel-add[aria-expanded="true"] svg {
   rotate: 45deg;
@@ -311,7 +315,7 @@ html[data-motion-paused="true"] :is(.feel-busy, .feel-indeterminate),
 /* Shared surfaces, fields and disclosure: stable outer geometry, tactile inner detail. */
 .app-surface {
   border: 1px solid color-mix(in oklab, var(--border) 65%, transparent);
-  background-image: linear-gradient(145deg, #ffffff65, transparent 70%);
+  background-image: linear-gradient(145deg, color-mix(in oklab, var(--card) 40%, transparent), transparent 70%);
 }
 .page-heading {
   padding-block: 20px;
@@ -319,7 +323,7 @@ html[data-motion-paused="true"] :is(.feel-busy, .feel-indeterminate),
 }
 .page-heading h1 {
   font-size: 29px;
-  letter-spacing: -0.035em;
+  letter-spacing: 0;
 }
 .page-heading p {
   max-width: 28ch;
@@ -330,13 +334,14 @@ html[data-motion-paused="true"] :is(.feel-busy, .feel-indeterminate),
   height: 68px;
   margin-bottom: 0;
   flex-shrink: 0;
+  object-fit: contain;
 }
 .section-heading {
   gap: 12px;
 }
 .section-heading h2 {
   font-size: 19px;
-  letter-spacing: -0.025em;
+  letter-spacing: 0;
 }
 .record-row {
   border-radius: 16px;
@@ -348,7 +353,7 @@ html[data-motion-paused="true"] :is(.feel-busy, .feel-indeterminate),
 }
 .record-row .record-value {
   font-size: 19px;
-  letter-spacing: -0.025em;
+  letter-spacing: 0;
 }
 .segmented {
   gap: 4px;
@@ -366,7 +371,7 @@ html[data-motion-paused="true"] :is(.feel-busy, .feel-indeterminate),
   border-radius: 14px;
 }
 .segmented [aria-selected="true"] {
-  box-shadow: 0 2px 6px #183f3510;
+  box-shadow: 0 2px 6px color-mix(in oklab, var(--foreground) 6%, transparent);
 }
 .journal-form {
   padding-bottom: 2px;
@@ -421,8 +426,8 @@ input[type="radio"] {
 }
 .feel-chip[aria-pressed="true"] {
   box-shadow:
-    inset 0 1px 0 #ffffff18,
-    0 0 0 3px #183f3509;
+    inset 0 1px 0 color-mix(in oklab, var(--card) 10%, transparent),
+    0 0 0 3px color-mix(in oklab, var(--primary) 4%, transparent);
 }
 .journal-disclosure,
 .journal-form details {
@@ -481,8 +486,8 @@ input[type="radio"] {
   border-radius: 16px;
 }
 .question-card {
-  border: 1px solid #183f3509;
-  background-image: linear-gradient(140deg, #ffffff40, transparent);
+  border: 1px solid color-mix(in oklab, var(--primary) 12%, transparent);
+  background-image: linear-gradient(140deg, color-mix(in oklab, var(--card) 25%, transparent), transparent);
 }
 .question-card [role="status"] {
   animation: feel-enter 180ms var(--ease-calm);
@@ -493,7 +498,7 @@ input[type="radio"] {
 .momo-composer {
   border: 1px solid var(--border);
   border-radius: 22px;
-  box-shadow: inset 0 1px 0 #fff;
+  box-shadow: inset 0 1px 0 var(--card);
 }
 .momo-drafts > li {
   animation: feel-enter 180ms var(--ease-calm) both;
@@ -519,7 +524,7 @@ input[type="radio"] {
     box-shadow 160ms var(--ease-calm);
 }
 .calendar-day[aria-pressed="true"] > span {
-  box-shadow: 0 3px 8px #183f351c;
+  box-shadow: 0 3px 8px color-mix(in oklab, var(--primary) 11%, transparent);
 }
 .history-group {
   border: 1px solid var(--border);
@@ -539,7 +544,7 @@ input[type="radio"] {
 }
 @media (hover: hover) {
   .press:hover:not(:disabled) {
-    box-shadow: inset 0 0 0 100vmax #183f3504;
+    box-shadow: inset 0 0 0 100vmax color-mix(in oklab, var(--primary) 2%, transparent);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -579,7 +584,7 @@ input[type="radio"] {
   font-size: 32px;
   font-weight: 600;
   height: 72px;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
   font-variant-numeric: tabular-nums;
 }
 input[type="checkbox"] {
@@ -588,17 +593,11 @@ input[type="checkbox"] {
     accent-color 160ms var(--ease-calm);
 }
 input[type="checkbox"]:checked {
-  box-shadow: 0 0 0 3px #183f3508;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 3%, transparent);
 }
 [role="switch"],
 [role="switch"] > span {
   transition-duration: 160ms;
-}
-@media (max-width: 380px) {
-  .page-heading img {
-    width: 56px;
-    height: 56px;
-  }
 }
 
 /* Keep capture and correction feedback on the shared, reduced-motion-aware profile. */

@@ -1,4 +1,5 @@
 # My Dear Step roadmap
+- [x] Honey/caramel rebrand: shared tokens, supplied transparent Momo hamster, compact home; phone-sized pages, Quick Add and injection silhouette visually inspected with no overflow/runtime errors (no tests written or run).
 - [x] Medication picker: source-linked GLP-1 list shared by purchases, injections and editable Momo drafts; brand/ingredient search, unknown/custom entry and preserved existing names. Local purchase flow and rule tests checked; not an exhaustive worldwide brand registry.
 - [x] App-feel pass: tactile controls, smooth reveals, animated values/charts, save feedback and reduced motion; local save/validation/undo, tabs, desktop/mobile checks passed (sound, device haptics and signed-in sync not part of this pass)
 - [x] Phase 1: design system, app shell, Today / Calendar / Injections / Progress, Quick Add with working manual forms (local storage)

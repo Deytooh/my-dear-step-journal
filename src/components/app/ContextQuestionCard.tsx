@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { t, type Key } from "@/lib/i18n";
 import type { Opportunity, DailyState } from "@/lib/context-prompts";
 import { QuestionMenu } from "./QuestionMenu";
-import momo from "@/assets/momo.png";
+import momo from "@/assets/momo-hamster.png.asset.json";
 
 /** Presentation stays independently verifiable without signing in or sending journal data. */
 export function ContextQuestionCard({
@@ -41,7 +41,7 @@ export function ContextQuestionCard({
     <section aria-label={t("pr.title")} className="mt-5">
       <div className="question-card grid min-h-[224px] grid-rows-[1fr_auto_auto] gap-2 rounded-[24px] bg-secondary p-4">
         <div className="flex items-center gap-3">
-          <img src={momo} alt="" className="size-12 shrink-0 object-contain" />
+          <img src={momo.url} alt="" className="size-10 shrink-0 object-contain" />
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground">
               {t(origin === "meta" ? "ctx.meta" : "ctx.local")}
