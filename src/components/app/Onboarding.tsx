@@ -102,7 +102,7 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
 export function FirstUseHint({ kind }: { kind: "manual" | "momo" }) {
   const j = useJournal();
   const state = j.settings.onboarding;
-  if (!state || state.dismissedHints?.includes(kind)) return null;
+  if (!state || state.dismissedHints?.includes(kind) || (kind === "momo" && !state.dismissedHints?.includes("manual"))) return null;
   return <aside className="feel-panel flex items-center gap-2 rounded-lg border border-primary/20 bg-secondary px-3 py-2 text-sm" aria-label={t(kind === "manual" ? "nav.add" : "momo.talk")}>
     <p className="min-w-0 flex-1">{t(kind === "manual" ? "intro.manualHint" : "intro.momoHint")}</p>
     <Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label={t("intro.dismiss")} onClick={() => {
