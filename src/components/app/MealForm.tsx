@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Camera, Plus, Trash2 } from "lucide-react";
+import { Camera, Check, LoaderCircle, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { useJournal, type MealRec } from "@/lib/journal";
@@ -21,6 +21,7 @@ import { t, getLocale } from "@/lib/i18n";
 import { PhotoImg } from "./PhotoImg";
 import { SourceEvidence } from "./SourceEvidence";
 import { toast } from "sonner";
+import { AnimatedValue, celebrateSave } from "./AppFeel";
 
 const input = "min-h-12 w-full min-w-0 rounded-xl border bg-card px-3 py-2 text-[16px]";
 export function MealForm({
@@ -268,6 +269,7 @@ export function MealForm({
             },
       };
       j.saveRecord(record);
+      celebrateSave();
       setSaved(true);
       toast.success(t("evidence.localSaved"), {
         action: { label: t("toast.undo"), onClick: j.undoFor(before) },
@@ -281,10 +283,10 @@ export function MealForm({
   };
   if (saved)
     return (
-      <div className="space-y-3">
+      <div className="feel-panel space-y-3">
         <DrawerTitle>{t("type.meal")}</DrawerTitle>
         <DrawerDescription>{t("evidence.localSaved")}</DrawerDescription>
-        <p role="status">{t(`sync.${j.sync}`)}</p>
+        <p role="status" className="flex items-center gap-2"><Check className="size-5 text-primary" />{t(`sync.${j.sync}`)}</p>
         {j.sync === "error" && <Button onClick={j.retrySync}>{t("momo.retry")}</Button>}
         <Button onClick={onDone}>{t("evidence.close")}</Button>
       </div>
@@ -299,7 +301,7 @@ export function MealForm({
         e.preventDefault();
         if (!("isComposing" in e.nativeEvent && e.nativeEvent.isComposing)) save();
       }}
-      className="journal-form space-y-4"
+      className="journal-form feel-form space-y-4"
     >
       <DrawerTitle className="text-2xl font-bold">{t("type.meal")}</DrawerTitle>
       <DrawerDescription>{t("meal.hint")}</DrawerDescription>
@@ -382,6 +384,7 @@ export function MealForm({
             onClick={run}
             className="min-h-12 w-full whitespace-normal"
           >
+            <span className="inline-flex size-5 shrink-0 items-center justify-center" aria-hidden>{busy && <LoaderCircle className="animate-spin size-5" />}</span>
             {t(busy ? "momo.thinking" : "meal.analyze")}
           </Button>
           <p className="text-sm text-muted-foreground">{t("meal.replace")}</p>
@@ -577,7 +580,7 @@ export function MealForm({
           {t(totals.consumed ? "meal.consumedEstimate" : "meal.picturedEstimate")}
         </p>
         <p className="mt-1 text-[23px] font-semibold tracking-tight tabular-nums">
-          {energy ? `${Math.round(energy.low)}–${Math.round(energy.high)} kcal` : t("unknown")}
+          {energy ? <><AnimatedValue value={Math.round(energy.low)} digits={0} />–<AnimatedValue value={Math.round(energy.high)} digits={0} /> kcal</> : t("unknown")}
         </p>
         {totals.partial && <p>{t("meal.partial")}</p>}
       </div>

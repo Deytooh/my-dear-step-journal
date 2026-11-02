@@ -195,6 +195,7 @@
   animation: feel-enter 180ms var(--ease-calm) both;
 }
 .feel-panel,
+.feel-form,
 .feel-menu > li {
   animation: feel-enter 180ms var(--ease-calm) both;
 }
@@ -527,6 +528,10 @@ label:focus-within > :is(span, p),
 }
 .question-card [role="status"] {
   animation: feel-enter 180ms var(--ease-calm);
+}
+.question-card > :is(div, button):nth-child(2) {
+  min-height: 56px;
+  animation: feel-enter var(--motion-content) var(--ease-calm);
 }
 .question-card button[aria-haspopup="menu"] {
   color: var(--muted-foreground);
