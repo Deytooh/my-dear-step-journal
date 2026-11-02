@@ -250,7 +250,8 @@
   box-shadow: 0 4px 14px color-mix(in oklab, var(--foreground) 10%, transparent);
   transition:
     box-shadow 140ms var(--ease-calm),
-    background-color 140ms var(--ease-calm);
+    background-color 140ms var(--ease-calm),
+    scale var(--motion-select) var(--ease-spring);
   scale: 1;
 }
 .feel-add[data-feel-pressed="true"] { scale: 1; }
@@ -411,6 +412,22 @@ html[data-motion-paused="true"] :is(.feel-busy, .feel-indeterminate),
 }
 .segmented[data-tone="sm"] .segment-indicator { background: var(--secondary); }
 .recharts-tooltip-wrapper { transition: opacity var(--motion-select) var(--ease-calm); }
+.toaster {
+  --normal-bg: var(--card);
+  --normal-text: var(--foreground);
+  --normal-border: var(--border);
+  --success-bg: var(--card);
+  --success-text: var(--foreground);
+  --success-border: var(--border);
+}
+.toaster [data-sonner-toast] [data-button] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  min-height: 44px;
+  transition: background-color var(--motion-select), scale var(--motion-press);
+}
+.toaster [data-sonner-toast] [data-button]:active { scale: 0.98; }
+.toaster [data-sonner-toast] [data-icon] svg { animation: feel-check var(--motion-success) var(--ease-calm); }
 .journal-form {
   padding-bottom: 2px;
 }

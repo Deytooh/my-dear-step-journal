@@ -12,6 +12,7 @@
 # Project rules
 - Medication inputs share MedicationPicker and a source-linked static catalog; saved medication strings stay unchanged so adding choices never migrates records or changes inventory rules.
 - App shell (header, 4-tab bottom nav, central Quick Add sheet) lives in `src/components/app/AppShell.tsx`, mounted once in `__root.tsx`; pages open forms via `useQuickAdd()` so every entry point shares one form implementation.
+- Scroll restoration is keyed by pathname so switching bottom tabs restores each page's previous reading position.
 - Journal data goes through `src/lib/journal.tsx` (currently localStorage, Phase 1); swap its internals for Lovable Cloud in Phase 3 without changing page code.
 - Instants are stored as ISO UTC plus `localDate` and `precision`; all date math/formatting goes through `src/lib/dates.ts` with the user's timezone, never `new Date().getDate()`.
 - UI strings go through `t()` in `src/lib/i18n.ts`; Korean is the complete source dictionary.
