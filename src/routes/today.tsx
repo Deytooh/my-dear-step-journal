@@ -25,6 +25,7 @@ import { PhotoImg } from "@/components/app/PhotoImg";
 import { fmtNumber } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import momo from "@/assets/momo-hamster.png.asset.json";
+import { FirstUseHint } from "@/components/app/Onboarding";
 
 export const Route = createFileRoute("/today")({
   head: () => ({
@@ -81,6 +82,7 @@ function Today() {
         </Button>
       </div>
 
+      <div className="mt-2"><FirstUseHint kind="momo" /></div>
       <PromptCarousel />
 
       <Button

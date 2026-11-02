@@ -149,6 +149,7 @@ export function QuickAddSheet({
 }
 
 function Menu({ setKind, showMomo }: { setKind: (k: EntryKind) => void; showMomo: boolean }) {
+  const { settings } = useJournal();
   const items: { k: EntryKind; title: Key; sub: Key; icon: ReactNode; tone: "sage" | "peach" }[] = [
     {
       k: "meal",
@@ -217,7 +218,13 @@ function Menu({ setKind, showMomo }: { setKind: (k: EntryKind) => void; showMomo
     "purchase",
     "measure",
   ];
-  items.sort((a, b) => order.indexOf(a.k) - order.indexOf(b.k));
+  const preferred = settings.trackingInterests ?? [];
+  items.sort((a, b) => {
+    const aRank = preferred.indexOf(a.k as typeof preferred[number]);
+    const bRank = preferred.indexOf(b.k as typeof preferred[number]);
+    return (aRank < 0 ? preferred.length + order.indexOf(a.k) : aRank)
+      - (bRank < 0 ? preferred.length + order.indexOf(b.k) : bRank);
+  });
   return (
     <>
       <div className="flex items-center justify-between">
