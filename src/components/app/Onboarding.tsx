@@ -39,7 +39,7 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
   const [locale, setLocale] = useState<Locale>(j.settings.locale ?? "ko");
   const [chosen, setChosen] = useState<TrackingInterest[]>(j.settings.trackingInterests ?? []);
   const copy = (key: Parameters<typeof tFor>[1]) => tFor(locale, key);
-  const finish = (status: "completed" | "skipped", kind?: TrackingInterest | "reminder") => {
+  const finish = (status: "completed" | "skipped", kind?: TrackingInterest | "reminder" | "menu") => {
     try {
       // One existing journal commit: no records, demo data, schedule or AI consent changes.
       const current = j.snapshot();
@@ -86,8 +86,8 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
           <Button className="min-h-12 w-full" onClick={() => setStep(2)}>{copy("intro.next")}<ChevronRight className="size-4" /></Button>
         </div>}
         {step === 2 && <div className="grid gap-3">
-          <Button className="min-h-12 justify-between whitespace-normal text-left" onClick={() => finish("completed", chosen[0] ?? "weight")}>
-            <span>{chosen[0] ? copy(`type.${chosen[0]}`) : copy("intro.add")}</span><ChevronRight className="size-5 shrink-0" />
+          <Button className="min-h-12 justify-between whitespace-normal text-left" onClick={() => finish("completed", chosen[0] ?? "menu")}>
+            <span>{copy("intro.add")}{chosen[0] && <span className="block text-xs opacity-90">{copy(`type.${chosen[0]}`)}</span>}</span><ChevronRight className="size-5 shrink-0" />
           </Button>
           {(chosen.length === 0 || chosen.includes("injection")) && <Button variant="outline" className="min-h-12 whitespace-normal" onClick={() => finish("completed", "reminder")}>
             <Syringe className="size-4 shrink-0" />{copy("intro.remind")}
