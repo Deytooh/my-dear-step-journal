@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { t, fmtNumber } from "@/lib/i18n";
 import { fmtMonthDay, fmtTime, todayLocal } from "@/lib/dates";
 import type { JournalRecord, MeasureRec } from "@/lib/journal";
-import momo from "@/assets/momo.png";
+import momo from "@/assets/momo-hamster.png.asset.json";
 import { useJournal } from "@/lib/journal";
 
 export function IconBubble({
@@ -60,7 +60,7 @@ export function PageTitle({
       </div>
       {momoArt && settings.showMomo && (
         <img
-          src={momo}
+          src={momo.url}
           alt=""
           aria-hidden
           width={88}

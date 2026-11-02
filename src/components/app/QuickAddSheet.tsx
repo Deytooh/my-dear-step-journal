@@ -34,7 +34,7 @@ import {
   type StockUnit,
 } from "@/lib/journal";
 import { IconBubble } from "./ui";
-import momo from "@/assets/momo.png";
+import momo from "@/assets/momo-hamster.png.asset.json";
 import { MomoSheet } from "./MomoSheet";
 import { celebrateSave } from "./AppFeel";
 import { cn } from "@/lib/utils";
@@ -229,7 +229,7 @@ function Menu({ setKind, showMomo }: { setKind: (k: EntryKind) => void; showMomo
         </div>
         {showMomo && (
           <img
-            src={momo}
+            src={momo.url}
             alt=""
             aria-hidden
             width={80}

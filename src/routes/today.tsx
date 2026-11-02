@@ -24,7 +24,7 @@ import { AnimatedValue } from "@/components/app/AppFeel";
 import { PhotoImg } from "@/components/app/PhotoImg";
 import { fmtNumber } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import momo from "@/assets/momo.png";
+import momo from "@/assets/momo-hamster.png.asset.json";
 
 export const Route = createFileRoute("/today")({
   head: () => ({
@@ -171,12 +171,12 @@ function HomeHero() {
         </div>
         {j.settings.showMomo && (
           <img
-            src={momo}
+            src={momo.url}
             alt=""
             aria-hidden
-            width={112}
-            height={112}
-            className="-mb-1 size-24 shrink-0 object-contain"
+            width={80}
+            height={80}
+            className="size-20 shrink-0 self-center object-contain"
           />
         )}
       </div>

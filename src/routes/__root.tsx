@@ -63,7 +63,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { name: "theme-color", content: "#FAF7EF" },
+      { name: "theme-color", content: "#FFF8E9" },
       { title: "my dear step" },
       { name: "description", content: "나의 GLP-1 여정을 가볍게 기록하는 개인 저널." },
       { property: "og:type", content: "website" },

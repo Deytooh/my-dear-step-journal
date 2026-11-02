@@ -20,6 +20,7 @@
 - Journal data syncs via src/lib/cloud-sync.ts: journal.tsx keeps local state and diffs it to Lovable Cloud when signed in, so page code stays storage-agnostic.
 
 - App feel is presentation-only: shared CSS motion profiles and AppFeel own transient input/save effects; use AnimatedValue for truthful numeric reveals and honor reduced motion, so feedback never changes journal rules or invents medical progress.
+- Brand styling lives in shared semantic CSS tokens; legacy sage/peach variants alias current theme roles, and all Momo placements import one CDN asset pointer, so a rebrand never changes journal records or duplicates mascot artwork.
 - Momo output is validated server-side (src/lib/momo-schema.ts) and turned into editable drafts (src/lib/momo-drafts.ts); only user-confirmed drafts become records, because the provider has no guaranteed JSON mode.
 - Today's default question cards use pure `pickPrompts` (src/lib/prompts.ts). Opt-in contextual questions use pure opportunities (src/lib/context-prompts.ts), server-verified owner facts, code-owned actions and constrained localized wording. Cache once per account/local day, keep deterministic fallback, and never create records on display.
 
