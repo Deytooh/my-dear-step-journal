@@ -90,6 +90,11 @@ export type Purchase = {
   product?: string | null;
 };
 export type PromptId = "feel" | "water" | "memory" | "weight";
+export type TrackingInterest = "injection" | "weight" | "condition" | "meal" | "memory";
+export type OnboardingState = {
+  status: "completed" | "skipped";
+  dismissedHints?: ("manual" | "momo")[];
+};
 export type PromptSettings = {
   aiConsent?: boolean;
   context?: { day: string; id: string; status: "answered" | "skipped" };
@@ -117,6 +122,8 @@ type State = {
     showMomo: boolean;
     timezone: string;
     locale?: "ko" | "en" | "fr";
+    trackingInterests?: TrackingInterest[];
+    onboarding?: OnboardingState;
     guestImported?: boolean;
     demoMode?: boolean;
     stockAdjustments?: Record<string, { identity: string; delta: number }>;
@@ -317,6 +324,7 @@ export type JournalContextValue = State & {
   saveMomoBatch: (records: JournalRecord[], purchases: Purchase[]) => void;
   retrySync: () => void;
   ready: boolean;
+  introductionPending: boolean;
   user: { id: string; email: string | null } | null;
   sync: SyncStatus;
   tz: string;
@@ -357,6 +365,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
   });
   const [state, setState] = useState<State>(empty);
   const [ready, setReady] = useState(false);
+  const [introductionPending, setIntroductionPending] = useState(false);
   const [user, setUser] = useState<{ id: string; email: string | null } | null>(null);
   const [sync, setSync] = useState<SyncStatus>("local");
   const [storageBlocked, setStorageBlocked] = useState(false);
@@ -410,7 +419,11 @@ export function JournalProvider({ children }: { children: ReactNode }) {
       remoteUnknown.current = false;
       remoteConflict.current = null;
       setConflict(false);
-      const next = read(keyFor(owner.current)) ?? empty();
+      const stored = read(keyFor(owner.current));
+      const next = stored ?? empty();
+      // Only a genuinely new guest sees the automatic introduction. Existing accounts
+      // and existing guest snapshots (including empty ones) keep their current experience.
+      setIntroductionPending(!u && !stored && !invalidKeys.current.has(KEY));
       latest.current = next;
       setState(next);
       setUser(u ? { id: u.id, email: u.email ?? null } : null);
@@ -707,6 +720,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     },
     ...state,
     ready,
+    introductionPending,
     user,
     sync,
     tz: state.settings.timezone,
