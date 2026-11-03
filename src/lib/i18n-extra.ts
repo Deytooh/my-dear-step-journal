@@ -2,6 +2,18 @@
 type D = Record<string, string>;
 
 export const en: D = {
+  "me.title": "A bit of today,\nwith Momo.",
+  "me.subtitle": "Your words and photos, organized.",
+  "me.feeling": "Feeling",
+  "me.meal": "Meal",
+  "me.injection": "Injection",
+  "me.feelingQuestion": "How are you feeling today?",
+  "me.mealQuestion": "What did you eat?",
+  "me.injectionQuestion": "When was your injection?",
+  "me.placeholder": "Start with just a few words…",
+  "me.organize": "Organize with Momo",
+  "me.voice": "Speak",
+
   "mc.title": "What would you like to keep?",
   "mc.day": "My day",
   "mc.meal": "Meal",
@@ -574,6 +586,18 @@ export const en: D = {
 };
 
 export const fr: D = {
+  "me.title": "Un instant,\npour Momo.",
+  "me.subtitle": "Vos mots et photos deviennent votre journal.",
+  "me.feeling": "Ressenti",
+  "me.meal": "Repas",
+  "me.injection": "Injection",
+  "me.feelingQuestion": "Comment vous sentez-vous aujourd’hui ?",
+  "me.mealQuestion": "Qu’avez-vous mangé ?",
+  "me.injectionQuestion": "Quand l’injection a-t-elle eu lieu ?",
+  "me.placeholder": "Quelques mots suffisent…",
+  "me.organize": "Organiser avec Momo",
+  "me.voice": "Parler",
+
   "mc.title": "Que garder aujourd’hui ?",
   "mc.day": "Ma journée",
   "mc.meal": "Repas",

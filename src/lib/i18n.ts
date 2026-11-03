@@ -2,6 +2,17 @@
 export type Locale = "ko" | "en" | "fr";
 
 const ko = {
+  "me.title": "오늘의 한 조각을\n모모에게.",
+  "me.subtitle": "말과 사진이, 나의 기록으로.",
+  "me.feeling": "기분",
+  "me.meal": "식사",
+  "me.injection": "주사",
+  "me.feelingQuestion": "오늘, 어떤 기분이었나요?",
+  "me.mealQuestion": "무엇을 드셨나요?",
+  "me.injectionQuestion": "언제 주사를 맞았나요?",
+  "me.placeholder": "한마디부터 남겨도 좋아요…",
+  "me.organize": "함께 정리하기",
+  "me.voice": "말하기",
   "mc.title": "오늘은 무엇을 남길까요?",
   "mc.day": "일상",
   "mc.meal": "식사",

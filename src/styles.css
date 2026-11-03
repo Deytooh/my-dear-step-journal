@@ -941,3 +941,184 @@ input[type="checkbox"]:checked {
 .momo-capture-actions:empty {
   display: none;
 }
+
+/* The selected guided-journal design reuses Momo's capture and review logic. */
+.momo-home-date {
+  min-height: 22px;
+  margin: 0 0 24px;
+}
+.momo-editorial > :not([hidden]) ~ :not([hidden]) {
+  margin-block-start: 0;
+}
+.momo-editorial-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px;
+  column-gap: 12px;
+  margin-bottom: 12px;
+}
+.momo-editorial-hero:not(:has(.momo-hero-art)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.momo-overline {
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  margin-bottom: 0;
+}
+.momo-editorial-heading h1 {
+  font-family: "Noto Serif KR", var(--font-brand), serif;
+  font-size: clamp(1.75rem, 8.2vw, 2rem);
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.momo-editorial-heading h1 > span {
+  display: block;
+}
+.momo-hero-art {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.momo-hero-art img {
+  width: 88px;
+  height: 104px;
+  object-fit: contain;
+  transform: translateY(8px);
+}
+.momo-editorial-subtitle {
+  grid-column: 1 / -1;
+  margin-top: 10px;
+  color: var(--muted-foreground);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.momo-topics {
+  display: flex;
+  align-items: stretch;
+  gap: 24px;
+  width: min(100%, 260px);
+}
+.momo-topics > button {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 4px;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+.momo-topics > button[aria-pressed="true"] {
+  border-bottom-color: var(--primary);
+  color: var(--foreground);
+  font-weight: 600;
+}
+.momo-topics > button:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  inset-block: 15px;
+  inset-inline-end: -12px;
+  border-inline-end: 1px solid var(--border);
+}
+.momo-topic-question {
+  min-height: 1.6em;
+  margin-top: 14px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+html:lang(fr) .momo-topic-question {
+  min-height: 2.8em;
+}
+.momo-input-surface.momo-editorial-input {
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.momo-input-surface.momo-editorial-input:focus-within {
+  border-bottom-color: var(--primary);
+  box-shadow: none;
+}
+.momo-editorial-input .momo-composer {
+  min-height: 108px;
+  padding: 12px 2px;
+}
+.momo-editorial-input .momo-input-tools {
+  gap: 12px;
+  padding: 0 0 8px;
+}
+.momo-editorial-input .momo-input-tools > :first-child {
+  position: relative;
+  border-inline-end: 0;
+  border-radius: 0;
+  padding-inline-end: 20px;
+}
+.momo-editorial .momo-capture-actions {
+  margin-top: 20px;
+}
+.momo-editorial .momo-capture-actions > button {
+  min-height: 48px;
+  font-size: 16px;
+}
+.momo-editorial .momo-capture-footer {
+  margin-top: 8px;
+}
+
+[data-page="/today"] > header {
+  padding-top: max(8px, env(safe-area-inset-top));
+  padding-bottom: 8px;
+}
+.journal-form.momo-editorial .momo-editorial-input textarea.momo-composer {
+  margin: 0;
+  min-height: 100px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding-top: 8px;
+  font-size: 17px;
+}
+
+.momo-editorial-input .momo-input-tools > :first-child::after {
+  content: "";
+  position: absolute;
+  inset-block: 14px;
+  inset-inline-end: 0;
+  border-inline-end: 1px solid var(--border);
+}
+[data-page="/today"] > header .font-brand {
+  font-size: 24px;
+}
+
+@media (max-width: 375px) {
+  .momo-editorial-hero {
+    grid-template-columns: minmax(0, 1fr) 72px;
+    column-gap: 8px;
+  }
+  .momo-hero-art {
+    width: 72px;
+    height: 72px;
+  }
+  .momo-hero-art img {
+    width: 76px;
+    height: 92px;
+  }
+}
+
+html:not(:lang(ko)) .momo-topics {
+  width: 100%;
+  gap: 16px;
+}
+html:not(:lang(ko)) .momo-topics > button:not(:last-child)::after {
+  inset-inline-end: -8px;
+}

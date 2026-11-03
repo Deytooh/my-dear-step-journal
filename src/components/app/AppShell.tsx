@@ -77,7 +77,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <QuickAddCtx.Provider value={opener}>
-      <div className="mx-auto min-h-screen max-w-md bg-background pb-[calc(8rem+env(safe-area-inset-bottom))]">
+      <div
+        data-page={pathname}
+        className="mx-auto min-h-screen max-w-md bg-background pb-[calc(8rem+env(safe-area-inset-bottom))]"
+      >
         <Header hero={false} onIntroduction={() => setReplayIntroduction(true)} />
         <main key={`${pathname}-${j.settings.locale ?? "ko"}`} className="feel-page px-5">
           {(j.sync === "error" || j.storageBlocked) && (

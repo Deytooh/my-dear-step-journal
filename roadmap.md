@@ -44,3 +44,10 @@ Earlier phase checks describe implemented code and historical local tests; they 
 - [ ] Microphone réel et pauses sur appareils : non exercés ici. Capture visuelle indisponible (timeout du navigateur) ; aucune validation par screenshot revendiquée.
 
 La gestion des résultats suit la [spécification Web Speech](https://webaudio.github.io/web-speech-api/) : les hypothèses intermédiaires remplacent leurs emplacements, les résultats finaux restent stables. Les reprises dépendent du navigateur ; en cas d’échec, le texte reste présent et la reprise est explicite. La limite existante de 4 000 caractères est annoncée ; un dépassement vocal conserve tout le texte et demande de le raccourcir avant analyse.
+
+
+### Guided Momo home — 3 November 2026
+- [x] Selected third mockup implemented in the shared Momo composer: open editorial heading, canonical mascot, localized topic prompts and modest voice/photo controls.
+- [x] Draft-preserving topic changes and manual return, explicit consent, existing capture/review/save integration retained.
+- [x] Visual comparison and responsive ko/en/fr checks documented in `design-qa.md`; TypeScript/build/focused lint, no tests or deployment.
+- [ ] Live microphone/native keyboard and authenticated model/cloud path remain outside this guest visual pass.

@@ -11,7 +11,6 @@ import { reminderText } from "@/components/app/ReminderCard";
 import { MomoSheet } from "@/components/app/MomoSheet";
 import { RecordFinder } from "@/components/app/RecordFinder";
 import { PromptCarousel } from "@/components/app/PromptCarousel";
-import momo from "@/assets/momo-hamster.png.asset.json";
 
 export const Route = createFileRoute("/today")({
   head: () => ({
@@ -58,22 +57,10 @@ function Today() {
   const reminder = j.reminder && j.reminder.at >= new Date().toISOString() ? j.reminder : null;
   return (
     <div className="pb-4">
-      <div className="mb-4 flex min-h-14 items-center justify-between gap-3">
-        <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-muted-foreground">
-          {fmtMonthDayWeekday(today)}
-          <DemoTag show={j.hasDemo} />
-        </p>
-        {j.settings.showMomo && (
-          <img
-            src={momo.url}
-            width={56}
-            height={56}
-            className="size-14 shrink-0 object-contain"
-            alt=""
-            aria-hidden
-          />
-        )}
-      </div>
+      <p className="momo-home-date flex flex-wrap items-center gap-2 text-sm font-medium text-muted-foreground">
+        {fmtMonthDayWeekday(today)}
+        <DemoTag show={j.hasDemo} />
+      </p>
       <MomoSheet
         key={`capture:${j.user?.id ?? "guest"}`}
         inline

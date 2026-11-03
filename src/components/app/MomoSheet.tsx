@@ -117,6 +117,7 @@ export function MomoSheet({
   const requestVersion = useRef(0);
   const [invitation, setInvitation] = useState<"day" | "meal" | "injection" | null>(null);
   const [starter, setStarter] = useState<Key | null>(null);
+  const [topic, setTopic] = useState<"feeling" | "meal" | "injection">("feeling");
   const updateText = (value: string) => {
     requestVersion.current++;
     inflight.current = false;
@@ -160,6 +161,7 @@ export function MomoSheet({
     cache.current = null;
     setInvitation(null);
     setStarter(null);
+    setTopic("feeling");
     try {
       const raw = sessionStorage.getItem(recoveryKey);
       if (raw) {
@@ -436,6 +438,7 @@ export function MomoSheet({
     voice.finish();
     setInvitation(null);
     setStarter(null);
+    setTopic("feeling");
     requestVersion.current++;
     photoVersion.current++;
     cache.current = null;
@@ -449,6 +452,8 @@ export function MomoSheet({
     setUsedVoice(false);
     setConsent(false);
   };
+  const editorial = inline && step === "input" && !saved;
+  const hasSources = !!text.trim() || images.length > 0;
   const savedIds = new Set((drafts ?? []).filter((d) => d.on).map((d) => d.key));
   return (
     <div
@@ -457,16 +462,36 @@ export function MomoSheet({
       data-stage={step}
       className={cn(
         "journal-form feel-form space-y-4",
-        inline && "momo-workspace app-surface rounded-[28px] bg-card p-4",
+        inline && "momo-workspace",
+        editorial && "momo-editorial",
       )}
       aria-busy={busy}
     >
       {inline ? (
-        <div>
+        editorial ? (
+          <header className="momo-editorial-hero">
+            <div className="momo-editorial-heading">
+              <p className="momo-overline">MOMO</p>
+              <h1>
+                {t("me.title")
+                  .split("\n")
+                  .map((line, index) => (
+                    <span key={index}>{line}</span>
+                  ))}
+              </h1>
+            </div>
+            {j.settings.showMomo && (
+              <div className="momo-hero-art" aria-hidden>
+                <img src={momo.url} alt="" width={88} height={104} />
+              </div>
+            )}
+            <p className="momo-editorial-subtitle">{t("me.subtitle")}</p>
+          </header>
+        ) : (
           <h1 className="text-[22px] font-bold tracking-tight leading-snug">
-            {t(saved ? "mm.saved" : step === "review" ? "mm.review" : "mc.title")}
+            {t(saved ? "mm.saved" : "mm.review")}
           </h1>
-        </div>
+        )
       ) : (
         <>
           <DrawerTitle className="text-[24px] font-bold">
@@ -519,8 +544,29 @@ export function MomoSheet({
       )}
       {step === "input" && !saved && (
         <>
-          <div className="space-y-2">
-            {!text.trim() && !voice.active ? (
+          <div className="momo-capture-input space-y-2">
+            {editorial ? (
+              <div className="momo-topic-guide">
+                <div className="momo-topics" role="group" aria-label={t("mg.choices")}>
+                  {(["feeling", "meal", "injection"] as const).map((choice) => (
+                    <Button
+                      key={choice}
+                      type="button"
+                      variant="unstyled"
+                      size="unstyled"
+                      aria-pressed={topic === choice}
+                      onClick={() => setTopic(choice)}
+                    >
+                      {t(`me.${choice}`)}
+                    </Button>
+                  ))}
+                </div>
+                <p className="momo-topic-question" id="momo-topic-question" aria-live="polite">
+                  {t(`me.${topic}Question`)}
+                </p>
+                <span className="sr-only">{t("mg.local")}</span>
+              </div>
+            ) : !text.trim() && !voice.active ? (
               <div className="space-y-2">
                 {invitation && (
                   <p className="text-sm leading-relaxed text-muted-foreground">
@@ -630,7 +676,12 @@ export function MomoSheet({
                 </details>
               )
             )}
-            <div className="momo-input-surface overflow-hidden rounded-[20px] border bg-background/60 focus-within:ring-2 focus-within:ring-ring/30">
+            <div
+              className={cn(
+                "momo-input-surface overflow-hidden rounded-[20px] border bg-background/60 focus-within:ring-2 focus-within:ring-ring/30",
+                editorial && "momo-editorial-input",
+              )}
+            >
               <textarea
                 ref={textareaRef}
                 aria-label={t("momo.input")}
@@ -639,8 +690,12 @@ export function MomoSheet({
                 onCompositionStart={voice.interrupt}
                 rows={3}
                 maxLength={4000}
-                placeholder={t(starter ?? "mc.placeholder")}
-                aria-describedby={voice.active ? "momo-voice-status" : undefined}
+                placeholder={t(editorial ? "me.placeholder" : (starter ?? "mc.placeholder"))}
+                aria-describedby={
+                  [editorial ? "momo-topic-question" : "", voice.active ? "momo-voice-status" : ""]
+                    .filter(Boolean)
+                    .join(" ") || undefined
+                }
                 className="momo-composer block w-full resize-y border-0 bg-transparent px-3.5 pt-3.5 pb-2 text-[16px] leading-relaxed shadow-none outline-none placeholder:text-muted-foreground"
               />
               {text.length > 4000 && (
@@ -706,7 +761,7 @@ export function MomoSheet({
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-1 px-2 pb-2">
+                <div className="momo-input-tools flex items-center gap-1 px-2 pb-2">
                   <Button
                     variant="unstyled"
                     size="unstyled"
@@ -719,7 +774,7 @@ export function MomoSheet({
                     className="press flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-full px-3 py-2 text-sm font-medium hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <Mic className="size-5 shrink-0" />
-                    <span className="min-w-0">{t("mm.voice")}</span>
+                    <span className="min-w-0">{t(editorial ? "me.voice" : "mm.voice")}</span>
                   </Button>
                   <label
                     className={cn(
@@ -822,28 +877,6 @@ export function MomoSheet({
               {t("photo.processing")}
             </p>
           )}
-          <div className="momo-capture-footer grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2">
-            <details data-momo-consent className="momo-privacy" open={consent || undefined}>
-              <summary>{t("mc.privacy")}</summary>
-              <p className="text-sm text-muted-foreground">{t("mm.voiceHint")}</p>
-              {!j.user && <p className="mt-2 text-sm text-muted-foreground">{t("ai.signin")}</p>}
-              <label className="flex min-h-11 items-center gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  checked={consent}
-                  onChange={(e) => setConsent(e.target.checked)}
-                />
-                {t("ai.consent")}
-              </label>
-            </details>
-            <Button
-              variant="ghost"
-              className="min-h-11 px-2 text-sm whitespace-normal"
-              onClick={manual}
-            >
-              {t("mc.manual")}
-            </Button>
-          </div>
           {onMeal && (
             <Button
               variant="outline"
@@ -873,11 +906,15 @@ export function MomoSheet({
             </Button>
           )}
           <div className="momo-capture-actions space-y-1">
-            {(text.trim() || images.length > 0 || busy) && (
+            {(editorial || hasSources || busy) && (
               <Button
                 variant="unstyled"
                 size="unstyled"
                 onClick={() => {
+                  if (!hasSources) {
+                    textareaRef.current?.focus();
+                    return;
+                  }
                   if (!consent) {
                     const details = textareaRef.current
                       ?.closest(".journal-form")
@@ -892,22 +929,51 @@ export function MomoSheet({
                   }
                 }}
                 disabled={
-                  !j.user ||
+                  (!j.user && hasSources) ||
                   busy ||
                   photoBusy ||
                   voice.active ||
                   text.length > 4000 ||
-                  (!text.trim() && !images.length)
+                  (!editorial && !hasSources)
                 }
                 className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold whitespace-normal text-primary-foreground disabled:opacity-50"
                 aria-busy={busy}
               >
-                {busy ? (
-                  <LoaderCircle className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  <ArrowRight className="size-4" aria-hidden />
-                )}
-                {busy ? t("momo.thinking") : t(j.user ? "mc.organize" : "mc.signin")}
+                {busy && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
+                {busy
+                  ? t("momo.thinking")
+                  : t(
+                      !j.user && hasSources
+                        ? "mc.signin"
+                        : editorial
+                          ? "me.organize"
+                          : "mc.organize",
+                    )}
+                {!busy && <ArrowRight className="size-5" aria-hidden />}
+              </Button>
+            )}
+          </div>
+          <div className="momo-capture-footer grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2">
+            <details data-momo-consent className="momo-privacy" open={consent || undefined}>
+              <summary>{t("mc.privacy")}</summary>
+              <p className="text-sm text-muted-foreground">{t("mm.voiceHint")}</p>
+              {!j.user && <p className="mt-2 text-sm text-muted-foreground">{t("ai.signin")}</p>}
+              <label className="flex min-h-11 items-center gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
+                />
+                {t("ai.consent")}
+              </label>
+            </details>
+            {!editorial && (
+              <Button
+                variant="ghost"
+                className="min-h-11 px-2 text-sm whitespace-normal"
+                onClick={manual}
+              >
+                {t("mc.manual")}
               </Button>
             )}
           </div>
