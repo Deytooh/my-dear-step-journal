@@ -19,6 +19,8 @@ import {
   Undo2,
   ArrowRight,
   UtensilsCrossed,
+  Package,
+  Bell,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
