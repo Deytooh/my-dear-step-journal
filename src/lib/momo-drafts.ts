@@ -56,6 +56,14 @@ export const FIELDS: Record<DraftType, FieldDef[]> = {
     { k: "date", label: "f.date", kind: "date" },
     { k: "time", label: "f.time", kind: "time" },
   ],
+  purchase: [
+    { k: "medication", label: "f.medication", kind: "text", important: true },
+    { k: "quantity", label: "f.quantity", kind: "num", important: true },
+    { k: "amount", label: "f.amount", kind: "num" },
+    { k: "currency", label: "evidence.currency", kind: "text" },
+    { k: "merchant", label: "f.merchant", kind: "text" },
+    { k: "date", label: "f.date", kind: "date", important: true },
+  ],
   expense: [
     { k: "currency", label: "evidence.currency", kind: "text", important: true },
     { k: "amount", label: "f.amount", kind: "num", important: true },
@@ -220,6 +228,32 @@ export function draftToEntry(d: Draft, id: string, tz: string, today: string): E
       const note = f["note"]?.trim();
       if (!note) return bad("note");
       return { record: { ...base, type: "memory", note, photo: evidence?.photos[0] ?? null } };
+    }
+    case "purchase": {
+      const q = n(f["quantity"]);
+      if (q == null || !Number.isInteger(q) || q <= 0) return bad("quantity");
+      if (!date) return bad("date");
+      const a = n(f["amount"]);
+      if (a !== null && (Number.isNaN(a) || a < 0)) return bad("amount");
+      const cur = (f["currency"] ?? "").trim().toUpperCase() || "KRW";
+      if (!/^[A-Z]{3}$/.test(cur)) return bad("currency");
+      // Stated purchases add stock only after the user confirms this draft.
+      return {
+        purchase: {
+          ...(evidence ? { evidence } : {}),
+          id,
+          localDate: date,
+          amount: a ?? 0,
+          currency: cur,
+          quantity: q,
+          doses: q,
+          medication: f["medication"]?.trim() || null,
+          product: null,
+          merchant: f["merchant"]?.trim() || null,
+          stockUnit: "single",
+          addsStock: true,
+        },
+      };
     }
     case "expense": {
       const a = n(f["amount"]);

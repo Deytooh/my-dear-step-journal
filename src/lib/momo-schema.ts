@@ -19,6 +19,14 @@ export type MomoCandidate =
   | (Common & { type: "condition"; label: S; note: S; time: S; timeHint: S })
   | (Common & { type: "measure"; waist: N; hip: N; chest: N; thigh: N })
   | (Common & { type: "memory"; note: S })
+  | (Common & {
+      type: "purchase";
+      medication: S;
+      quantity: N;
+      amount: N;
+      currency: S;
+      merchant: S;
+    })
   | (Common & { type: "expense"; amount: N; currency: S; merchant: S; product: S; quantity: N });
 
 const str = (v: unknown, max = 200): S =>
@@ -123,6 +131,17 @@ export function sanitizeCandidates(
         break;
       case "memory":
         out.push({ ...common, type: "memory", note: str(c["note"], 1000) });
+        break;
+      case "purchase":
+        out.push({
+          ...common,
+          type: "purchase",
+          medication: str(c["medication"], 60),
+          quantity: num(c["quantity"]),
+          amount: num(c["amount"]),
+          currency: str(c["currency"], 5),
+          merchant: str(c["merchant"], 80),
+        });
         break;
       case "expense":
         out.push({
