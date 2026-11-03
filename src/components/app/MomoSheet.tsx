@@ -17,7 +17,7 @@ import {
   ImagePlus,
   AlertTriangle,
   Undo2,
-  MessageSquare,
+  ArrowRight,
   UtensilsCrossed,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -463,10 +463,9 @@ export function MomoSheet({
     >
       {inline ? (
         <div>
-          <h1 className="text-[25px] font-bold tracking-tight leading-snug">
-            {t(saved ? "mm.saved" : step === "review" ? "mm.review" : "mm.title")}
+          <h1 className="text-[22px] font-bold tracking-tight leading-snug">
+            {t(saved ? "mm.saved" : step === "review" ? "mm.review" : "mc.title")}
           </h1>
-          <p className="mt-2 text-[15px] text-muted-foreground">{t("mm.subtitle")}</p>
         </div>
       ) : (
         <>
@@ -523,10 +522,12 @@ export function MomoSheet({
           <div className="space-y-2">
             {!text.trim() && !voice.active ? (
               <div className="space-y-2">
-                <p className="text-sm leading-relaxed text-foreground">
-                  {t(invitation ? `mg.${invitation}Hint` : "mg.intro")}
-                </p>
-                <p className="text-xs text-muted-foreground">{t("mg.local")}</p>
+                {invitation && (
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {t(`mg.${invitation}Hint`)}
+                  </p>
+                )}
+                <span className="sr-only">{t("mg.local")}</span>
                 <div className="flex flex-wrap gap-1" role="group" aria-label={t("mg.choices")}>
                   {!invitation ? (
                     (["day", "meal", "injection"] as const).map((choice) => (
@@ -534,13 +535,13 @@ export function MomoSheet({
                         key={choice}
                         type="button"
                         variant="outline"
-                        className="min-h-11 h-auto rounded-full px-3 py-2 text-sm whitespace-normal text-left"
+                        className="min-h-11 h-auto gap-1.5 rounded-full px-3 py-2 text-sm whitespace-normal text-left"
                         onClick={() => {
                           setInvitation(choice);
                           setStarter(null);
                         }}
                       >
-                        {t(`mg.${choice}`)}
+                        {t(`mc.${choice}`)}
                       </Button>
                     ))
                   ) : (
@@ -601,13 +602,11 @@ export function MomoSheet({
                     </>
                   )}
                 </div>
-                {starter && (
-                  <p className="text-xs text-muted-foreground">{t("mg.placeholderOnly")}</p>
-                )}
+                {starter && <span className="sr-only">{t("mg.placeholderOnly")}</span>}
               </div>
             ) : (
               !voice.active && (
-                <details className="text-sm">
+                <details className="momo-writing-help text-sm">
                   <summary className="flex min-h-11 cursor-pointer items-center text-muted-foreground">
                     {t("mg.choices")}
                   </summary>
@@ -631,133 +630,128 @@ export function MomoSheet({
                 </details>
               )
             )}
-            <textarea
-              ref={textareaRef}
-              aria-label={t("momo.input")}
-              value={text}
-              onChange={(e) => voice.edit(e.target.value)}
-              onCompositionStart={voice.interrupt}
-              rows={3}
-              maxLength={4000}
-              placeholder={t(starter ?? "mm.placeholder")}
-              aria-describedby={voice.active ? "momo-voice-status" : undefined}
-              className="momo-composer w-full border bg-card p-4 text-[16px] placeholder:text-muted-foreground"
-            />
-            {text.length > 4000 && (
-              <p role="alert" className="text-sm text-destructive">
-                {t("mv.limit")}
-              </p>
-            )}
-            {voice.active ? (
-              <div className="mt-2 space-y-2 rounded-[16px] bg-secondary p-3">
-                <p
-                  id="momo-voice-status"
-                  role="status"
-                  aria-live="polite"
-                  className="flex items-center gap-2 text-sm font-medium"
-                >
-                  {voice.status === "listening" && (
-                    <span className="size-2 shrink-0 rounded-full bg-primary" aria-hidden />
-                  )}
-                  {t(
-                    voice.status === "listening"
-                      ? "mv.listening"
-                      : voice.status === "interrupted"
-                        ? "mv.interrupted"
-                        : "mv.connecting",
-                  )}
+            <div className="momo-input-surface overflow-hidden rounded-[20px] border bg-background/60 focus-within:ring-2 focus-within:ring-ring/30">
+              <textarea
+                ref={textareaRef}
+                aria-label={t("momo.input")}
+                value={text}
+                onChange={(e) => voice.edit(e.target.value)}
+                onCompositionStart={voice.interrupt}
+                rows={3}
+                maxLength={4000}
+                placeholder={t(starter ?? "mc.placeholder")}
+                aria-describedby={voice.active ? "momo-voice-status" : undefined}
+                className="momo-composer block w-full resize-y border-0 bg-transparent px-3.5 pt-3.5 pb-2 text-[16px] leading-relaxed shadow-none outline-none placeholder:text-muted-foreground"
+              />
+              {text.length > 4000 && (
+                <p role="alert" className="text-sm text-destructive">
+                  {t("mv.limit")}
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  {t(voice.issue ? `mv.${voice.issue}` : "mv.pauses")}
-                </p>
-                {voice.provisional && (
-                  <p className="text-xs text-muted-foreground">{t("mv.provisional")}</p>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      voice.finish();
-                      textareaRef.current?.focus();
-                    }}
-                    className="min-h-11 flex-1 gap-1 rounded-full"
+              )}
+              {voice.active ? (
+                <div className="m-2 space-y-2 rounded-[16px] bg-secondary p-3">
+                  <p
+                    id="momo-voice-status"
+                    role="status"
+                    aria-live="polite"
+                    className="flex items-center gap-2 text-sm font-medium"
                   >
-                    <Square className="size-4" />
-                    {t("mv.finish")}
-                  </Button>
-                  {voice.status === "interrupted" && !voice.issue && text.length <= 4000 && (
+                    {voice.status === "listening" && (
+                      <span className="size-2 shrink-0 rounded-full bg-primary" aria-hidden />
+                    )}
+                    {t(
+                      voice.status === "listening"
+                        ? "mv.listening"
+                        : voice.status === "interrupted"
+                          ? "mv.interrupted"
+                          : "mv.connecting",
+                    )}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {t(voice.issue ? `mv.${voice.issue}` : "mv.pauses")}
+                  </p>
+                  {voice.provisional && (
+                    <p className="text-xs text-muted-foreground">{t("mv.provisional")}</p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
-                      variant="outline"
-                      onClick={voice.start}
-                      className="min-h-11 flex-1 rounded-full"
+                      onClick={() => {
+                        voice.finish();
+                        textareaRef.current?.focus();
+                      }}
+                      className="min-h-11 flex-1 gap-1 rounded-full"
                     >
-                      {t("mv.resume")}
+                      <Square className="size-4" />
+                      {t("mv.finish")}
                     </Button>
-                  )}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={voice.cancel}
-                    className="min-h-11 rounded-full"
-                  >
-                    {t("mv.cancel")}
-                  </Button>
+                    {voice.status === "interrupted" && !voice.issue && text.length <= 4000 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={voice.start}
+                        className="min-h-11 flex-1 rounded-full"
+                      >
+                        {t("mv.resume")}
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={voice.cancel}
+                      className="min-h-11 rounded-full"
+                    >
+                      {t("mv.cancel")}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <Button
-                  variant="unstyled"
-                  size="unstyled"
-                  type="button"
-                  disabled={text.length > 4000}
-                  onClick={() => {
-                    setStarter(null);
-                    voice.start();
-                  }}
-                  className="press flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-[18px] bg-secondary px-2 py-1 text-[14px] font-medium leading-snug"
-                >
-                  <Mic className="size-5 shrink-0" />
-                  <span className="min-w-0">{t("mm.voice")}</span>
-                </Button>
-                <label
-                  className={cn(
-                    "press flex min-h-14 min-w-0 flex-1 flex-col cursor-pointer items-center justify-center gap-1 rounded-[18px] bg-secondary px-2 py-1 text-[14px] font-medium leading-snug focus-within:ring-2 focus-within:ring-ring",
-                    (images.length >= 3 || photoBusy) && "pointer-events-none opacity-50",
-                  )}
-                >
-                  <ImagePlus className="size-5 shrink-0" />
-                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                    <span>{t("f.photo")}</span>
-                    <span className="text-xs tabular-nums text-muted-foreground">
-                      {images.length}/3
-                    </span>
-                  </span>
-                  <input
-                    aria-label={t("momo.photos")}
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    multiple
-                    className="sr-only"
-                    disabled={images.length >= 3 || photoBusy}
-                    onChange={(e) => {
-                      addPhotos(e.target.files).catch(() => setFailure(t("momo.error")));
-                      e.target.value = "";
+              ) : (
+                <div className="flex items-center gap-1 px-2 pb-2">
+                  <Button
+                    variant="unstyled"
+                    size="unstyled"
+                    type="button"
+                    disabled={text.length > 4000}
+                    onClick={() => {
+                      setStarter(null);
+                      voice.start();
                     }}
-                  />
-                </label>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="min-h-14 min-w-0 flex-1 flex-col gap-1 rounded-[18px] px-2 text-[14px]"
-                  onClick={() => textareaRef.current?.focus()}
-                >
-                  <MessageSquare className="size-5" />
-                  <span>{t("mm.message")}</span>
-                </Button>
-              </div>
-            )}
+                    className="press flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-full px-3 py-2 text-sm font-medium hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <Mic className="size-5 shrink-0" />
+                    <span className="min-w-0">{t("mm.voice")}</span>
+                  </Button>
+                  <label
+                    className={cn(
+                      "press flex min-h-11 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-full px-3 py-2 text-sm font-medium hover:bg-secondary focus-within:ring-2 focus-within:ring-ring",
+                      (images.length >= 3 || photoBusy) && "pointer-events-none opacity-50",
+                    )}
+                  >
+                    <ImagePlus className="size-5 shrink-0" />
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                      <span>{t("f.photo")}</span>
+                      {images.length > 0 && (
+                        <span className="text-xs tabular-nums text-muted-foreground">
+                          {images.length}/3
+                        </span>
+                      )}
+                    </span>
+                    <input
+                      aria-label={t("momo.photos")}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      multiple
+                      className="sr-only"
+                      disabled={images.length >= 3 || photoBusy}
+                      onChange={(e) => {
+                        addPhotos(e.target.files).catch(() => setFailure(t("momo.error")));
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
             {usedVoice && text && !voice.active && (
               <p className="mt-1 text-sm text-muted-foreground">{t("momo.check")}</p>
             )}
@@ -828,19 +822,28 @@ export function MomoSheet({
               {t("photo.processing")}
             </p>
           )}
-          <details className="journal-disclosure" open={consent || undefined}>
-            <summary>{t("mm.privacy")}</summary>
-            <p className="text-xs text-muted-foreground">{t("mm.voiceHint")}</p>
-            <label className="flex min-h-11 items-center gap-3 text-sm">
-              <input
-                type="checkbox"
-                checked={consent}
-                onChange={(e) => setConsent(e.target.checked)}
-              />
-              {t("ai.consent")}
-            </label>
-          </details>
-          {!j.user && <p className="text-sm text-muted-foreground">{t("ai.signin")}</p>}
+          <div className="momo-capture-footer grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2">
+            <details data-momo-consent className="momo-privacy" open={consent || undefined}>
+              <summary>{t("mc.privacy")}</summary>
+              <p className="text-sm text-muted-foreground">{t("mm.voiceHint")}</p>
+              {!j.user && <p className="mt-2 text-sm text-muted-foreground">{t("ai.signin")}</p>}
+              <label className="flex min-h-11 items-center gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
+                />
+                {t("ai.consent")}
+              </label>
+            </details>
+            <Button
+              variant="ghost"
+              className="min-h-11 px-2 text-sm whitespace-normal"
+              onClick={manual}
+            >
+              {t("mc.manual")}
+            </Button>
+          </div>
           {onMeal && (
             <Button
               variant="outline"
@@ -869,43 +872,44 @@ export function MomoSheet({
               {t("mm.resume")}
             </Button>
           )}
-          <div className="sheet-actions space-y-2">
-            <Button
-              variant="unstyled"
-              size="unstyled"
-              onClick={() => {
-                if (!consent) {
-                  const details = textareaRef.current
-                    ?.closest(".journal-form")
-                    ?.querySelector<HTMLDetailsElement>("details");
-                  if (details) {
-                    details.open = true;
-                    details.scrollIntoView({ block: "nearest" });
-                    details.querySelector<HTMLInputElement>('input[type="checkbox"]')?.focus();
+          <div className="momo-capture-actions space-y-1">
+            {(text.trim() || images.length > 0 || busy) && (
+              <Button
+                variant="unstyled"
+                size="unstyled"
+                onClick={() => {
+                  if (!consent) {
+                    const details = textareaRef.current
+                      ?.closest(".journal-form")
+                      ?.querySelector<HTMLDetailsElement>("details[data-momo-consent]");
+                    if (details) {
+                      details.open = true;
+                      details.scrollIntoView({ block: "nearest" });
+                      details.querySelector<HTMLInputElement>('input[type="checkbox"]')?.focus();
+                    }
+                  } else {
+                    void run();
                   }
-                } else {
-                  void run();
+                }}
+                disabled={
+                  !j.user ||
+                  busy ||
+                  photoBusy ||
+                  voice.active ||
+                  text.length > 4000 ||
+                  (!text.trim() && !images.length)
                 }
-              }}
-              disabled={
-                !j.user ||
-                busy ||
-                photoBusy ||
-                voice.active ||
-                text.length > 4000 ||
-                (!text.trim() && !images.length)
-              }
-              className="press h-12 w-full rounded-full bg-primary font-semibold text-primary-foreground disabled:opacity-50"
-              aria-busy={busy}
-            >
-              <span className="inline-flex size-5 shrink-0 items-center justify-center" aria-hidden>
-                {busy && <LoaderCircle className="animate-spin size-5" />}
-              </span>
-              {busy ? t("momo.thinking") : t("momo.extract")}
-            </Button>
-            <Button variant="ghost" className="min-h-11 w-full whitespace-normal" onClick={manual}>
-              {t("momo.manual")}
-            </Button>
+                className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold whitespace-normal text-primary-foreground disabled:opacity-50"
+                aria-busy={busy}
+              >
+                {busy ? (
+                  <LoaderCircle className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <ArrowRight className="size-4" aria-hidden />
+                )}
+                {busy ? t("momo.thinking") : t(j.user ? "mc.organize" : "mc.signin")}
+              </Button>
+            )}
           </div>
           {busy && (
             <div

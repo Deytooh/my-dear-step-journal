@@ -909,3 +909,35 @@ input[type="checkbox"]:checked {
 .momo-workspace .journal-form input {
   min-width: 0;
 }
+
+/* Capture stays quiet until the user asks for guidance or AI details. */
+.momo-input-surface .momo-composer {
+  min-height: 100px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.journal-form details.momo-privacy,
+.journal-form details.momo-writing-help {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.journal-form details.momo-privacy > summary {
+  min-height: 44px;
+  justify-content: flex-start;
+  gap: 10px;
+  color: var(--muted-foreground);
+}
+.journal-form details.momo-privacy[open] {
+  grid-column: 1 / -1;
+  border-radius: 16px;
+  background: var(--secondary);
+  padding: 0 12px 12px;
+}
+.momo-capture-footer:has(details[open]) > button {
+  grid-column: 2;
+}
+.momo-capture-actions:empty {
+  display: none;
+}

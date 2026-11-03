@@ -2,6 +2,16 @@
 type D = Record<string, string>;
 
 export const en: D = {
+  "mc.title": "What would you like to keep?",
+  "mc.day": "My day",
+  "mc.meal": "Meal",
+  "mc.injection": "Injection",
+  "mc.placeholder": "A little about today…",
+  "mc.privacy": "AI & privacy",
+  "mc.manual": "Add manually",
+  "mc.organize": "Organize",
+  "mc.signin": "AI · sign-in required",
+
   "mg.intro": "No need to tell everything. Shall we start with one small thing?",
   "mg.local": "Local writing guide · not an AI response",
   "mg.choices": "Help getting started",
@@ -564,6 +574,16 @@ export const en: D = {
 };
 
 export const fr: D = {
+  "mc.title": "Que garder aujourd’hui ?",
+  "mc.day": "Ma journée",
+  "mc.meal": "Repas",
+  "mc.injection": "Injection",
+  "mc.placeholder": "Un petit bout de ta journée…",
+  "mc.privacy": "IA · données",
+  "mc.manual": "Saisie manuelle",
+  "mc.organize": "Organiser",
+  "mc.signin": "IA · connexion requise",
+
   "mg.intro": "Pas besoin de tout raconter. On commence par une petite chose ?",
   "mg.local": "Aide de saisie locale · pas une réponse IA",
   "mg.choices": "Besoin d’un point de départ ?",

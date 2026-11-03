@@ -2,6 +2,15 @@
 export type Locale = "ko" | "en" | "fr";
 
 const ko = {
+  "mc.title": "오늘은 무엇을 남길까요?",
+  "mc.day": "일상",
+  "mc.meal": "식사",
+  "mc.injection": "주사",
+  "mc.placeholder": "편하게 이야기해 주세요…",
+  "mc.privacy": "AI · 개인정보",
+  "mc.manual": "직접 기록",
+  "mc.organize": "정리하기",
+  "mc.signin": "AI 정리 · 로그인 필요",
   "mg.intro": "전부 이야기하지 않아도 괜찮아요. 작은 것 하나부터 남겨 볼까요?",
   "mg.local": "시작을 돕는 안내예요 · AI 응답이 아니에요",
   "mg.choices": "시작 도움말",
