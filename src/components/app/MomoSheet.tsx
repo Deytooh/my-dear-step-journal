@@ -19,6 +19,8 @@ import {
   Undo2,
   ArrowRight,
   UtensilsCrossed,
+  Package,
+  Bell,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
@@ -1071,6 +1073,36 @@ export function MomoSheet({
               {t("momo.manual")}
             </Button>
           )}
+          <div>
+            <p className="mb-2 text-sm text-muted-foreground">{t("momo.shortcuts")}</p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["purchase", Package],
+                  ["injection", Syringe],
+                  ["stock", Package],
+                  ["weight", Scale],
+                  ["condition", Smile],
+                  ["meal", UtensilsCrossed],
+                  ["reminder", Bell],
+                ] as const
+              ).map(([k, I]) => (
+                <Button
+                  key={k}
+                  variant="unstyled"
+                  size="unstyled"
+                  onClick={() => {
+                    voice.interrupt();
+                    openEntry(k);
+                  }}
+                  className="press flex min-h-11 items-center gap-1.5 rounded-full border bg-card px-3 text-sm"
+                >
+                  <I className="size-4" />
+                  {t(`momo.go.${k}` as Key)}
+                </Button>
+              ))}
+            </div>
+          </div>
           <ul className="momo-drafts space-y-3">
             {drafts.map((d) => (
               <DraftCard
@@ -1136,6 +1168,7 @@ function DraftCard({
     measure: Ruler,
     memory: ImageIcon,
     expense: Receipt,
+    purchase: Package,
     meal: UtensilsCrossed,
   }[d.type];
   return (
