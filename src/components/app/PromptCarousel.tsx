@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { t, getLocale, type Key } from "@/lib/i18n";
 import { todayLocal } from "@/lib/dates";
 import { useJournal, type PromptId } from "@/lib/journal";
-import { pickPrompts } from "@/lib/prompts";
+import { pickPrompts, PROMPT_ORDER } from "@/lib/prompts";
 import { useQuickAdd } from "./AppShell";
 import { celebrateSave } from "./AppFeel";
 import momoImg from "@/assets/momo-hamster.png.asset.json";
@@ -29,7 +29,10 @@ export function PromptCarousel() {
   }, [j.tz]);
   if (!j.ready) return null;
   const locale = j.settings.locale ?? "ko";
-  const fallback = <Questions key={day} />;
+  // Account or explicit category changes refresh the available slots. Answering a question
+  // keeps its slot mounted, so save feedback and keyboard focus stay stable.
+  const categoryKey = PROMPT_ORDER.filter((id) => j.settings.prompts?.off?.includes(id)).join(",");
+  const fallback = <Questions key={[j.user?.id ?? "guest", day, categoryKey].join(":")} />;
   return (
     <>
       {!j.settings.prompts?.hidden &&

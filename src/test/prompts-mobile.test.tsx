@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { JournalProvider, useJournal } from "@/lib/journal";
@@ -159,7 +160,7 @@ it("keeps explanation and guest consent inside the sheet and can restore hidden 
   expect(screen.queryByText(/하루 한 번, 기록 종류/)).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "질문 숨기기" })).not.toBeInTheDocument();
   expect(screen.queryByRole("menuitem")).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "모모의 질문" }));
+  fireEvent.click(screen.getByRole("button", { name: t("pr.preferences") }));
   expect(await screen.findByRole("dialog")).toBeVisible();
   expect(screen.getByText(/하루 한 번, 기록 종류/)).toBeVisible();
   expect(screen.getByRole("checkbox", { name: /이 최소 정보를 Meta/ })).toBeDisabled();
@@ -171,5 +172,53 @@ it("keeps explanation and guest consent inside the sheet and can restore hidden 
   expect(journal.records).toHaveLength(0);
   fireEvent.click(screen.getAllByRole("button", { name: "닫기" }).at(-1)!);
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-  expect(screen.getByRole("button", { name: "모모의 질문" })).toHaveFocus();
+  expect(screen.getByRole("button", { name: t("pr.preferences") })).toHaveFocus();
+});
+
+it("shows a newly enabled basic question without leaving Today or saving a record", async () => {
+  const snapshot = JSON.parse(localStorage.getItem("mds.journal.v1")!);
+  snapshot.settings.prompts = { off: ["feel", "water", "memory", "weight"] };
+  localStorage.setItem("mds.journal.v1", JSON.stringify(snapshot));
+  render(
+    <JournalProvider>
+      <Capture />
+      <PromptCarousel />
+    </JournalProvider>,
+  );
+  await waitFor(() => expect(journal.ready).toBe(true));
+  expect(screen.queryByText(t("pr.waterQ"))).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: t("pr.preferences") }));
+  const water = await screen.findByRole("checkbox", { name: t("type.water") });
+  expect(water).not.toBeChecked();
+  fireEvent.click(water);
+  fireEvent.click(screen.getAllByRole("button", { name: t("evidence.close") }).at(-1)!);
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(await screen.findByText(t("pr.waterQ"))).toBeVisible();
+  expect(journal.records).toHaveLength(0);
+  expect(journal.settings.prompts?.off).toEqual(["feel", "memory", "weight"]);
+});
+
+it("restores available categories without asking a water question already answered today", async () => {
+  const snapshot = JSON.parse(localStorage.getItem("mds.journal.v1")!);
+  const day = todayLocal("Asia/Seoul");
+  snapshot.settings.prompts = {
+    off: ["feel", "water", "memory", "weight"],
+    answered: { water: day },
+  };
+  localStorage.setItem("mds.journal.v1", JSON.stringify(snapshot));
+  render(
+    <JournalProvider>
+      <Capture />
+      <PromptCarousel />
+    </JournalProvider>,
+  );
+  await waitFor(() => expect(journal.ready).toBe(true));
+  fireEvent.click(screen.getByRole("button", { name: t("pr.preferences") }));
+  fireEvent.click(await screen.findByRole("button", { name: t("pr.restore") }));
+  fireEvent.click(screen.getAllByRole("button", { name: t("evidence.close") }).at(-1)!);
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  expect(await screen.findByText(t("pr.feelQ"))).toBeVisible();
+  expect(screen.queryByText(t("pr.waterQ"))).not.toBeInTheDocument();
+  expect(journal.settings.prompts?.answered?.water).toBe(day);
+  expect(journal.records).toHaveLength(0);
 });

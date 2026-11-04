@@ -40,3 +40,16 @@ Show Today → manual meal with photo and an explicitly user-entered estimate �
 - “In-app user-set schedule,” not background notifications.
 - “Photo estimate,” not measured calories or a confidence interval.
 - Repo/video/live-app URLs must be filled from actual accessible destinations.
+
+
+## Voice pause rehearsal (before recording)
+
+Use the same phone/browser and language as the live demonstration, with fictional words only. The automated dictation suite uses simulated browser callbacks; it does not certify that device.
+
+1. Start dictation, say a short phrase, pause for two or three seconds, then continue. Repeat five times with new phrases. Try an intentional repetition such as “very very tired.” Check the retained words before finishing; a healthy pause must not append the earlier unfinished phrase again.
+2. Finish and check that the microphone stops. Start again, make a correction during a pause and confirm that late speech does not overwrite it. If the app explicitly pauses dictation, use Resume. Cancel should restore the text from before that dictation session.
+3. Switch away and return: the text should remain, and the microphone must not restart automatically. Review any provisional wording before consenting to Momo. If the browser itself misses a phrase, correct it; do not describe that run as a passed device test.
+
+The central input has one optional question, not a required topic selection. A clean entry or “Another question” rotates it; typing, speech and photo preparation keep it fixed. For several meals, check the meal named in each amount question; Unknown remains a valid choice.
+
+The Progress page also offers a local text summary of saved entries, with demo entries excluded unless explicitly chosen. Preview it before sharing. It contains no photos or original AI source evidence and is not a complete journal backup. State that file delivery or device behavior remains unverified when that is the actual result.

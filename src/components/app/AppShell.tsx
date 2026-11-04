@@ -1,3 +1,5 @@
+import { downloadText } from "@/lib/download";
+import { todayLocal } from "@/lib/dates";
 import { validateSnapshot } from "@/lib/snapshot";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -325,15 +327,16 @@ function Header({ hero = false, onIntroduction }: { hero?: boolean; onIntroducti
             variant="unstyled"
             size="unstyled"
             onClick={() => {
-              const blob = new Blob(
-                [JSON.stringify({ app: "my-dear-step", version: 2, data: j.snapshot() }, null, 2)],
-                { type: "application/json" },
-              );
-              const a = document.createElement("a");
-              a.href = URL.createObjectURL(blob);
-              a.download = `my-dear-step-${new Date().toISOString().slice(0, 10)}.json`;
-              a.click();
-              toast.success(t("toast.exported"));
+              try {
+                downloadText(
+                  JSON.stringify({ app: "my-dear-step", version: 2, data: j.snapshot() }, null, 2),
+                  `my-dear-step-${todayLocal(j.tz)}.json`,
+                  "application/json",
+                );
+                toast.success(t("toast.exported"));
+              } catch {
+                toast.error(t("export.failed"));
+              }
             }}
             className="press mt-3 h-11 w-full rounded-full border text-sm"
           >

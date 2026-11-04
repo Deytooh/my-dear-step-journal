@@ -15,6 +15,42 @@ type Recognition = {
 type Status = "idle" | "starting" | "listening" | "restarting" | "interrupted";
 export type VoiceRecovery = { before: string; wasVoice: boolean };
 
+type Continuation = { base: string; interim: string; previous: string; uncertain: boolean };
+type Cycle = {
+  base: string;
+  size: number;
+  ignored: Set<number>;
+  finals: Map<number, string>;
+  finalText: string;
+  interimText: string;
+  retained: string;
+  previous: string;
+  uncertain: boolean;
+  boundary: boolean;
+  progress: boolean;
+};
+const join = (...parts: string[]) => parts.filter(Boolean).join(" ");
+const comparable = (text: string) =>
+  text
+    .normalize("NFC")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[.,!?;:。！？]+$/u, "")
+    .trim();
+const newCycle = (base: string, continuation?: Continuation | null): Cycle => ({
+  base: continuation?.base ?? base,
+  size: 0,
+  ignored: new Set(),
+  finals: new Map(),
+  finalText: "",
+  interimText: "",
+  retained: continuation?.interim ?? "",
+  previous: continuation?.previous ?? "",
+  uncertain: continuation?.uncertain ?? false,
+  boundary: !!continuation,
+  progress: false,
+});
+
 // Browser dictation only. This hook never sends audio, text, or requests to Momo.
 export function useMomoVoice(options: {
   text: string;
@@ -37,7 +73,9 @@ export function useMomoVoice(options: {
   const watchdog = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restarts = useRef<number[]>([]);
   const currentText = useRef(options.text);
-  const cycle = useRef({ base: options.text, size: 0, ignored: new Set<number>() });
+  const cycle = useRef<Cycle>(newCycle(options.text));
+  const continuation = useRef<Continuation | null>(null);
+  const seenFinals = useRef(new WeakSet<object>());
 
   const release = () => {
     generation.current++;
@@ -55,6 +93,7 @@ export function useMomoVoice(options: {
   const interrupt = () => {
     if (!session.current) return;
     release();
+    continuation.current = null;
     setStatus("interrupted");
   };
   const connect = () => {
@@ -82,7 +121,8 @@ export function useMomoVoice(options: {
       setStatus("interrupted");
       return;
     }
-    cycle.current = { base: currentText.current, size: 0, ignored: new Set() };
+    cycle.current = newCycle(currentText.current, continuation.current);
+    continuation.current = null;
     r.lang = latest.current.lang;
     r.continuous = true;
     r.interimResults = true;
@@ -96,20 +136,58 @@ export function useMomoVoice(options: {
       if (!valid()) return;
       const c = cycle.current;
       c.size = event.results.length;
-      // Finals are immutable; interim hypotheses replace their previous slot.
-      // Rebuild this engine's suffix rather than appending repeated result events.
-      for (const i of c.ignored) if (i >= c.size) c.ignored.delete(i);
-      const parts: string[] = [];
-      let interim = false;
+      // Final slots are immutable. A duplicated object is a replay, whereas
+      // distinct slots with the same words can be intentional repetition.
+      const seen = new Set<object>();
+      const slots = new Map<number, { text: string; final: boolean }>();
+      for (const [i, text] of c.finals) slots.set(i, { text, final: true });
       Array.from(event.results).forEach((result, i) => {
         if (c.ignored.has(i)) return;
-        const transcript = result[0]?.transcript?.trim();
-        if (transcript) {
-          parts.push(transcript);
-          if (!result.isFinal) interim = true;
+        if (c.finals.has(i)) {
+          seen.add(result);
+          return;
+        }
+        if (seen.has(result) || seenFinals.current.has(result)) return;
+        seen.add(result);
+        const text = result[0]?.transcript?.trim();
+        if (!text) return;
+        slots.set(i, { text, final: result.isFinal });
+        if (result.isFinal) {
+          c.finals.set(i, text);
+          seenFinals.current.add(result);
         }
       });
-      const value = [c.base, ...parts].filter(Boolean).join(" ");
+      const ordered = [...slots].sort(([a], [b]) => a - b).map(([, value]) => value);
+      c.finalText = ordered
+        .filter((slot) => slot.final)
+        .map((slot) => slot.text)
+        .join(" ");
+      c.interimText = ordered
+        .filter((slot) => !slot.final)
+        .map((slot) => slot.text)
+        .join(" ");
+      const incoming = ordered.map((slot) => slot.text).join(" ");
+      let suffix = incoming;
+      if (c.retained) {
+        const previous = comparable(c.retained);
+        const next = comparable(incoming);
+        if (!next || (previous.startsWith(next) && previous !== next && !!c.interimText)) {
+          // Keep the longer provisional phrase visible while the new engine catches up.
+          suffix = c.retained;
+        } else if (next === previous || next.startsWith(previous)) {
+          c.retained = "";
+        } else {
+          // A genuinely new phrase must not erase words left unfinished before the pause.
+          c.base = join(c.base, c.retained);
+          c.retained = "";
+          c.uncertain = true;
+        }
+      }
+      if (incoming && !c.retained && comparable(incoming) !== comparable(c.previous))
+        c.progress = true;
+      if (incoming && !c.retained) c.boundary = false;
+      const interim = c.uncertain || !!c.retained || !!c.interimText;
+      const value = join(c.base, suffix);
       if (value.length > 4000) {
         // Preserve the full transcription; the existing composer limit is shown by the caller.
         currentText.current = value;
@@ -121,7 +199,7 @@ export function useMomoVoice(options: {
       }
       currentText.current = value;
       latest.current.onText(value);
-      if (parts.length) latest.current.onVoice(true);
+      if (incoming) latest.current.onVoice(true);
       setProvisional(interim);
     };
     r.onerror = ({ error }) => {
@@ -135,22 +213,32 @@ export function useMomoVoice(options: {
     r.onend = () => {
       if (!valid()) return;
       engine.current = null;
-      if (watchdog.current) clearTimeout(watchdog.current);
+      // Ended engines become stale immediately, including during the restart delay.
+      release();
+      const restartToken = generation.current;
+      const c = cycle.current;
       if (document.hidden) {
         interrupt();
         return;
       }
       const now = Date.now();
-      restarts.current = restarts.current.filter((at) => now - at < 60000);
+      restarts.current = c.progress ? [] : restarts.current.filter((at) => now - at < 60000);
       // No endless permission/error/silence loop, even if the engine immediately ends.
       if (restarts.current.length >= 2) {
         interrupt();
         return;
       }
       restarts.current.push(now);
+      continuation.current = {
+        base: join(c.base, c.retained ? "" : c.finalText),
+        interim: c.retained || c.interimText,
+        previous: c.retained || c.interimText || c.finalText || c.previous,
+        uncertain: c.uncertain,
+      };
       setStatus("restarting");
       timer.current = setTimeout(() => {
-        if (valid()) connect();
+        timer.current = null;
+        if (restartToken === generation.current && session.current) connect();
       }, 650);
     };
     engine.current = r;
@@ -170,6 +258,8 @@ export function useMomoVoice(options: {
       setRecovery(session.current);
     }
     currentText.current = latest.current.text;
+    continuation.current = null;
+    seenFinals.current = new WeakSet();
     restarts.current = [];
     setIssue(null);
     connect();
@@ -178,6 +268,7 @@ export function useMomoVoice(options: {
     // Invalidate before abort: a delayed end/result must never restart or overwrite edits.
     release();
     session.current = null;
+    continuation.current = null;
     setRecovery(null);
     setStatus("idle");
     setIssue(null);
@@ -194,7 +285,11 @@ export function useMomoVoice(options: {
   };
   const edit = (text: string) => {
     // Treat user edits as authoritative, including an edited interim hypothesis.
+    if (timer.current || cycle.current.boundary) interrupt();
     cycle.current.base = text;
+    cycle.current.finals.clear();
+    cycle.current.finalText = cycle.current.interimText = cycle.current.retained = "";
+    cycle.current.uncertain = false;
     cycle.current.ignored = new Set(Array.from({ length: cycle.current.size }, (_, i) => i));
     currentText.current = text;
     setProvisional(false);

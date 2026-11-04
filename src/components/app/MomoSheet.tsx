@@ -24,6 +24,7 @@ import {
   UtensilsCrossed,
   Package,
   Bell,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
@@ -60,6 +61,26 @@ import {
 } from "@/lib/momo-handoff";
 import momo from "@/assets/momo-hamster.png.asset.json";
 
+const questions = ["mq.day", "mq.feeling", "mq.food", "mq.treatment", "mq.moment"] as const;
+type Question = (typeof questions)[number];
+const isQuestion = (value: unknown): value is Question => questions.some((key) => key === value);
+function nextQuestion(current?: Question): Question {
+  // The cursor contains no journal data. Writing still works without browser storage.
+  let previous: string | null | undefined = current;
+  try {
+    previous ??= sessionStorage.getItem("mds.momo.question");
+  } catch {
+    /* Optional cursor. */
+  }
+  const next = questions[(questions.findIndex((key) => key === previous) + 1) % questions.length]!;
+  try {
+    sessionStorage.setItem("mds.momo.question", next);
+  } catch {
+    /* In-memory refresh still works. */
+  }
+  return next;
+}
+
 type CaptureRecovery = {
   key: string;
   recovered: boolean;
@@ -67,27 +88,54 @@ type CaptureRecovery = {
   text: string;
   images: string[];
   drafts: Draft[] | null;
+  step: "input" | "review";
   usedVoice: boolean;
   signature: string | null;
   voiceSession: VoiceRecovery | null;
+  question: Question;
+  dismissedQuestions: string[];
 };
 function persistCapture(state: CaptureRecovery | null) {
   if (!state?.recovered) return false;
   try {
     if (state.saved || (!state.drafts && !state.text.trim() && !state.images.length))
       sessionStorage.removeItem(state.key);
-    else
+    else {
+      // The input already contains the photos. Persist only the analysis context
+      // when it still matches, rather than embedding those photos a second time.
+      let analysisContext: { today: string; timezone: string } | null = null;
+      if (state.signature) {
+        try {
+          const signature: unknown = JSON.parse(state.signature);
+          if (
+            Array.isArray(signature) &&
+            signature[0] === state.text &&
+            Array.isArray(signature[1]) &&
+            signature[1].length === state.images.length &&
+            signature[1].every((photo: unknown, i: number) => photo === state.images[i]) &&
+            typeof signature[2] === "string" &&
+            typeof signature[3] === "string"
+          )
+            analysisContext = { today: signature[2], timezone: signature[3] };
+        } catch {
+          /* An obsolete cache is optional; raw input is still retained. */
+        }
+      }
       sessionStorage.setItem(
         state.key,
         JSON.stringify({
           text: state.text,
           images: state.images,
           drafts: state.drafts ?? [],
+          step: state.step,
           usedVoice: state.usedVoice,
-          signature: state.signature,
+          analysisContext,
           voiceSession: state.voiceSession,
+          question: state.question,
+          dismissedQuestions: state.dismissedQuestions,
         }),
       );
+    }
     return true;
   } catch {
     /* An unavailable browser store never discards the in-memory capture. */
@@ -118,7 +166,9 @@ export function MomoSheet({
   const saveGuard = useRef(false);
   const captureVersion = useRef(0);
   const [text, setText] = useState("");
+  const [composing, setComposing] = useState(false);
   const inputLimitId = useId();
+  const portionQuestionId = useId();
   const [images, setImages] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -131,12 +181,12 @@ export function MomoSheet({
   const photoVersion = useRef(0);
   const photoGuard = useRef(false);
   const [photoBusy, setPhotoBusy] = useState(false);
-  const [dismissedQuestion, setDismissedQuestion] = useState<string | null>(null);
+  const [dismissedQuestions, setDismissedQuestions] = useState<string[]>([]);
   const inflight = useRef(false);
   const requestVersion = useRef(0);
   const [invitation, setInvitation] = useState<"day" | "meal" | "injection" | null>(null);
   const [starter, setStarter] = useState<Key | null>(null);
-  const [topic, setTopic] = useState<"feeling" | "meal" | "injection">("feeling");
+  const [guideQuestion, setGuideQuestion] = useState<Question>(questions[0]);
   const interruptAnalysis = () => {
     requestVersion.current++;
     inflight.current = false;
@@ -167,6 +217,7 @@ export function MomoSheet({
   const today = todayLocal(j.tz);
   const recoveryKey = `mds.momo.draft.${j.user?.id ?? "guest"}`;
   const [recoveredKey, setRecoveredKey] = useState<string | null>(null);
+  const [draftStorageFailed, setDraftStorageFailed] = useState(false);
   useEffect(() => {
     requestVersion.current++;
     photoVersion.current++;
@@ -179,6 +230,8 @@ export function MomoSheet({
     setFailure(null);
     setHandoffBlocked(false);
     setText("");
+    setComposing(false);
+    setDraftStorageFailed(false);
     setImages([]);
     setDrafts(null);
     setStep("input");
@@ -190,7 +243,8 @@ export function MomoSheet({
     cache.current = null;
     setInvitation(null);
     setStarter(null);
-    setTopic("feeling");
+    setDismissedQuestions([]);
+    let restoredQuestion = false;
     try {
       const raw = sessionStorage.getItem(recoveryKey);
       if (raw) {
@@ -209,11 +263,34 @@ export function MomoSheet({
               Object.values(d.f).every((v) => typeof v === "string"),
           )
         ) {
-          if (typeof data.signature === "string")
-            cache.current = { sig: data.signature, drafts: data.drafts };
+          const context = data.analysisContext;
+          const validContext =
+            context &&
+            typeof context.today === "string" &&
+            /^\d{4}-\d{2}-\d{2}$/.test(context.today) &&
+            typeof context.timezone === "string" &&
+            context.timezone.length > 0 &&
+            context.timezone.length <= 100;
+          let signature = typeof data.signature === "string" ? data.signature : null;
+          if (!signature && validContext)
+            signature = JSON.stringify([data.text, data.images, context.today, context.timezone]);
+          if (signature) cache.current = { sig: signature, drafts: data.drafts };
+          if (isQuestion(data.question)) {
+            setGuideQuestion(data.question);
+            restoredQuestion = true;
+          }
           setText(data.text);
           setImages(data.images);
           setDrafts(data.drafts.length ? data.drafts : null);
+          if (Array.isArray(data.dismissedQuestions))
+            setDismissedQuestions(
+              data.drafts
+                .filter(
+                  (draft: Draft) =>
+                    draft.type === "meal" && data.dismissedQuestions.includes(draft.key),
+                )
+                .map((draft: Draft) => draft.key),
+            );
           setUsedVoice(!!data.usedVoice);
           if (
             data.voiceSession &&
@@ -221,12 +298,41 @@ export function MomoSheet({
             typeof data.voiceSession.wasVoice === "boolean"
           )
             voice.restore(data.voiceSession);
-          setStep(data.drafts.length ? "review" : "input");
+          // Back-to-input is deliberate. Older suggestions must not look like
+          // an analysis of words/photos that were changed before leaving.
+          let sourceMatches = data.drafts.every(
+            (draft: Draft) =>
+              typeof draft.evidence?.text !== "string" || draft.evidence.text === data.text,
+          );
+          if (context != null && !validContext) sourceMatches = false;
+          if (signature) {
+            try {
+              const original: unknown = JSON.parse(signature);
+              sourceMatches =
+                sourceMatches &&
+                Array.isArray(original) &&
+                original[0] === data.text &&
+                Array.isArray(original[1]) &&
+                original[1].length === data.images.length &&
+                original[1].every((photo: unknown, i: number) => photo === data.images[i]);
+            } catch {
+              sourceMatches = false;
+            }
+          }
+          if (!sourceMatches) cache.current = null;
+          setStep(
+            data.step === "input" || !sourceMatches
+              ? "input"
+              : data.drafts.length
+                ? "review"
+                : "input",
+          );
         }
       }
     } catch {
       /* Recovery is best effort; never block manual recording. */
     }
+    if (!restoredQuestion) setGuideQuestion(nextQuestion());
     setRecoveredKey(recoveryKey);
     // Voice lifecycle follows the same account boundary as capture recovery.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -249,19 +355,44 @@ export function MomoSheet({
     text,
     images,
     drafts,
+    step,
     usedVoice,
     signature: cache.current?.sig ?? null,
     voiceSession: voice.recovery,
+    question: guideQuestion,
+    dismissedQuestions,
   };
   useEffect(() => {
     // Avoid serializing every attached image on every keystroke. Records still commit synchronously.
+    const keep = () => {
+      const current = recovery.current;
+      const kept = persistCapture(current);
+      if (current?.recovered)
+        setDraftStorageFailed(
+          !kept &&
+            !current.saved &&
+            (!!current.text.trim() || !!current.images.length || !!current.drafts?.length),
+        );
+    };
     if (saved) {
-      persistCapture(recovery.current);
+      keep();
       return;
     }
-    const timer = setTimeout(() => persistCapture(recovery.current), 180);
+    const timer = setTimeout(keep, 180);
     return () => clearTimeout(timer);
-  }, [drafts, text, images, usedVoice, saved, recoveryKey, recoveredKey, voice.recovery]);
+  }, [
+    drafts,
+    step,
+    text,
+    images,
+    usedVoice,
+    saved,
+    recoveryKey,
+    recoveredKey,
+    voice.recovery,
+    guideQuestion,
+    dismissedQuestions,
+  ]);
   useEffect(() => {
     const flush = () => persistCapture(recovery.current);
     const hidden = () => {
@@ -375,6 +506,7 @@ export function MomoSheet({
         if ("purchase" in entry) seenPurchases.push(entry.purchase);
         return { ...d, dup, on: !dup };
       });
+      setDismissedQuestions([]);
       cache.current = { sig, drafts: ds };
       setDrafts(ds);
       setStep("review");
@@ -475,7 +607,7 @@ export function MomoSheet({
         (d) =>
           d.on &&
           d.type === "meal" &&
-          d.key !== dismissedQuestion &&
+          !dismissedQuestions.includes(d.key) &&
           (() => {
             try {
               return JSON.parse(d.f["meal"] ?? "").consumedFraction === null;
@@ -490,7 +622,8 @@ export function MomoSheet({
     voice.finish();
     setInvitation(null);
     setStarter(null);
-    setTopic("feeling");
+    setGuideQuestion(nextQuestion(guideQuestion));
+    setDismissedQuestions([]);
     requestVersion.current++;
     photoVersion.current++;
     cache.current = null;
@@ -498,6 +631,8 @@ export function MomoSheet({
     setSaved(false);
     setDrafts(null);
     setText("");
+    setComposing(false);
+    setDraftStorageFailed(false);
     setImages([]);
     setFailure(null);
     setStep("input");
@@ -506,6 +641,8 @@ export function MomoSheet({
   };
   const editorial = inline && step === "input" && !saved;
   const hasSources = !!text.trim() || images.length > 0;
+  const canChangeQuestion =
+    !text.length && !composing && !images.length && !voice.active && !busy && !photoBusy && !saving;
   const savedIds = new Set((drafts ?? []).filter((d) => d.on).map((d) => d.key));
   return (
     <div
@@ -554,6 +691,11 @@ export function MomoSheet({
         </>
       )}
 
+      {!saved && draftStorageFailed && recoveredKey === recoveryKey && (
+        <p role="status" className="rounded-2xl border bg-secondary p-3 text-sm leading-relaxed">
+          {t("mc.draftRecoveryUnavailable")}
+        </p>
+      )}
       {j.user &&
         guestCapture?.owner === j.user.id &&
         !hasSources &&
@@ -639,23 +781,22 @@ export function MomoSheet({
           <div className="momo-capture-input space-y-2">
             {editorial ? (
               <div className="momo-topic-guide">
-                <div className="momo-topics" role="group" aria-label={t("mg.choices")}>
-                  {(["feeling", "meal", "injection"] as const).map((choice) => (
-                    <Button
-                      key={choice}
-                      type="button"
-                      variant="unstyled"
-                      size="unstyled"
-                      aria-pressed={topic === choice}
-                      onClick={() => setTopic(choice)}
-                    >
-                      {t(`me.${choice}`)}
-                    </Button>
-                  ))}
-                </div>
                 <p className="momo-topic-question" id="momo-topic-question" aria-live="polite">
-                  {t(`me.${topic}Question`)}
+                  {t(guideQuestion)}
                 </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="min-h-11 -ml-2 gap-1.5 rounded-full px-2 text-sm text-muted-foreground"
+                  disabled={!canChangeQuestion}
+                  onClick={() => {
+                    if (canChangeQuestion) setGuideQuestion(nextQuestion(guideQuestion));
+                  }}
+                >
+                  <RefreshCw className="size-3.5" aria-hidden />
+                  {t("mq.another")}
+                </Button>
+                <p className="text-sm leading-relaxed text-muted-foreground">{t("mq.hint")}</p>
                 <span className="sr-only">{t("mg.local")}</span>
               </div>
             ) : !text.trim() && !voice.active ? (
@@ -780,9 +921,11 @@ export function MomoSheet({
                 value={text}
                 onChange={(e) => voice.edit(e.target.value)}
                 onCompositionStart={() => {
+                  setComposing(true);
                   interruptAnalysis();
                   voice.interrupt();
                 }}
+                onCompositionEnd={() => setComposing(false)}
                 rows={3}
                 maxLength={100_000}
                 aria-invalid={text.length > 4000 ? true : undefined}
@@ -829,7 +972,14 @@ export function MomoSheet({
                     )}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {t(voice.issue ? `mv.${voice.issue}` : "mv.pauses")}
+                    {t(
+                      voice.issue
+                        ? `mv.${voice.issue}`
+                        : voice.status === "interrupted"
+                          ? "mv.interruptedHint"
+                          : "mv.pauses",
+                      { finish: t("mv.finish") },
+                    )}
                   </p>
                   {voice.provisional && (
                     <p className="text-xs text-muted-foreground">{t("mv.provisional")}</p>
@@ -1234,8 +1384,14 @@ export function MomoSheet({
               </div>
             )}
           {mealQuestion && (
-            <div className="rounded-2xl bg-secondary p-3 space-y-2">
-              <p>{t("mm.portionQuestion")}</p>
+            <div
+              role="group"
+              aria-labelledby={portionQuestionId}
+              className="rounded-2xl bg-secondary p-3 space-y-2"
+            >
+              <p id={portionQuestionId}>
+                {t("mm.portionQuestion", { meal: draftPreview(mealQuestion).title })}
+              </p>
               <div className="flex flex-wrap gap-2">
                 {[
                   ["1", "meal.all"],
@@ -1255,7 +1411,9 @@ export function MomoSheet({
                           },
                         });
                       }
-                      setDismissedQuestion(mealQuestion.key);
+                      setDismissedQuestions((previous) => [
+                        ...new Set([...previous, mealQuestion.key]),
+                      ]);
                     }}
                   >
                     {t(label as Key)}

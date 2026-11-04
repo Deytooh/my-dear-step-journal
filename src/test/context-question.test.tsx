@@ -3,6 +3,8 @@ import { StrictMode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { PromptCarousel } from "@/components/app/PromptCarousel";
 import { ContextQuestion } from "@/components/app/ContextQuestion";
+import { QuestionSettings } from "@/components/app/QuestionSettings";
+import { t } from "@/lib/i18n";
 import { opportunities, questionOptions, cacheKey } from "@/lib/context-prompts";
 import * as dates from "@/lib/dates";
 import { emptyMeal } from "@/lib/meals";
@@ -211,7 +213,7 @@ it("does not send anything when settings open, and requires an explicit consent 
   });
   const view = render(<PromptCarousel />);
   expect(screen.queryByText(/하루 한 번, 기록 종류/)).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "모모의 질문" }));
+  fireEvent.click(screen.getByRole("button", { name: t("pr.preferences") }));
   expect(await screen.findByRole("dialog")).toBeVisible();
   expect(mocks.request).not.toHaveBeenCalled();
   expect(j.setSetting).not.toHaveBeenCalled();
@@ -231,5 +233,63 @@ it("places contextual opt-out inside its menu and preserves journal records", as
   fireEvent.click(await screen.findByRole("menuitem", { name: "질문 숨기기" }));
   expect(j.setSetting).toHaveBeenCalledWith("prompts", expect.objectContaining({ hidden: true }));
   expect(j.records).toEqual([meal]);
+  expect(j.respondPrompt).not.toHaveBeenCalled();
+});
+
+it("changes basic question categories independently while preserving AI consent and the shot schedule", async () => {
+  j.settings.prompts = { hidden: true, aiConsent: true, off: ["memory"], answered: { water: day } };
+  j.reminder = { id: "chosen-schedule", at: "2026-11-04T11:00:00Z" };
+  const reminder = j.reminder;
+  const originalRecords = [...j.records];
+  j.setSetting.mockImplementation((_key, prompts) => {
+    j.settings = { ...j.settings, prompts };
+  });
+  const view = render(<QuestionSettings />);
+  fireEvent.click(screen.getByRole("button", { name: t("pr.preferences") }));
+  expect(await screen.findByRole("dialog")).toBeVisible();
+  expect(screen.getByRole("checkbox", { name: t("pr.setting") })).not.toBeChecked();
+  expect(screen.getByRole("checkbox", { name: t("type.memory") })).not.toBeChecked();
+  fireEvent.click(screen.getByRole("checkbox", { name: t("type.water") }));
+  view.rerender(<QuestionSettings />);
+  expect(j.settings.prompts).toMatchObject({
+    hidden: true,
+    aiConsent: true,
+    off: ["memory", "water"],
+    answered: { water: day },
+  });
+  expect(screen.getByRole("checkbox", { name: t("type.water") })).not.toBeChecked();
+  fireEvent.click(screen.getByRole("checkbox", { name: t("type.condition") }));
+  view.rerender(<QuestionSettings />);
+  fireEvent.click(screen.getByRole("checkbox", { name: t("type.water") }));
+  view.rerender(<QuestionSettings />);
+  expect(j.settings.prompts?.off).toEqual(["memory", "feel"]);
+  expect(screen.getByRole("checkbox", { name: t("type.water") })).toBeChecked();
+  expect(screen.getByRole("checkbox", { name: t("type.condition") })).not.toBeChecked();
+  expect(screen.getByRole("checkbox", { name: t("type.weight") })).toBeChecked();
+  expect(j.reminder).toBe(reminder);
+  expect(j.records).toEqual(originalRecords);
+  expect(mocks.request).not.toHaveBeenCalled();
+  expect(j.respondPrompt).not.toHaveBeenCalled();
+});
+
+it("refreshes basic questions for the next account without inheriting the previous account's completed slots", () => {
+  vi.spyOn(dates, "todayLocal").mockReturnValue(day);
+  j.settings.prompts = {
+    aiConsent: false,
+    answered: { feel: day, water: day, memory: day, weight: day },
+  };
+  const view = render(<PromptCarousel />);
+  expect(screen.queryByText(t("pr.feelQ"))).not.toBeInTheDocument();
+  j = {
+    ...j,
+    user: { id: "B" },
+    records: [],
+    settings: { ...j.settings, prompts: { aiConsent: false } },
+  };
+  view.rerender(<PromptCarousel />);
+  expect(screen.getByText(t("pr.feelQ"))).toBeVisible();
+  expect(screen.getByText(t("pr.waterQ"))).toBeVisible();
+  expect(j.records).toEqual([]);
+  expect(mocks.request).not.toHaveBeenCalled();
   expect(j.respondPrompt).not.toHaveBeenCalled();
 });

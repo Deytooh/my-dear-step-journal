@@ -998,42 +998,12 @@ input[type="checkbox"]:checked {
   font-size: 15px;
   line-height: 1.6;
 }
-.momo-topics {
-  display: flex;
-  align-items: stretch;
-  gap: 24px;
-  width: min(100%, 260px);
-}
-.momo-topics > button {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  min-height: 44px;
-  padding: 8px 4px;
-  border-bottom: 3px solid transparent;
-  border-radius: 0;
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--muted-foreground);
-}
-.momo-topics > button[aria-pressed="true"] {
-  border-bottom-color: var(--primary);
-  color: var(--foreground);
-  font-weight: 600;
-}
-.momo-topics > button:not(:last-child)::after {
-  content: "";
-  position: absolute;
-  inset-block: 15px;
-  inset-inline-end: -12px;
-  border-inline-end: 1px solid var(--border);
-}
 .momo-topic-question {
   min-height: 1.6em;
-  margin-top: 14px;
-  font-size: 16px;
+  margin-top: 0;
+  font-size: 18px;
   font-weight: 500;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 html:lang(fr) .momo-topic-question {
   min-height: 2.8em;
@@ -1113,12 +1083,4 @@ html:lang(fr) .momo-topic-question {
     width: 76px;
     height: 92px;
   }
-}
-
-html:not(:lang(ko)) .momo-topics {
-  width: 100%;
-  gap: 16px;
-}
-html:not(:lang(ko)) .momo-topics > button:not(:last-child)::after {
-  inset-inline-end: -8px;
 }

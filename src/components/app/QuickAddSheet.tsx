@@ -10,7 +10,7 @@ import { SourceEvidence } from "./SourceEvidence";
 import { lotIdentity, matchesLot } from "@/lib/inventory";
 import { Button } from "@/components/ui/button";
 import { PhotoImg } from "@/components/app/PhotoImg";
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -370,6 +370,7 @@ function EntryForm({
 }) {
   const j = useJournal();
   const tz = j.tz;
+  const reminderHelpId = useId();
   const rec = editing && "type" in editing ? editing : undefined;
   const pur = editing && !("type" in editing) ? editing : undefined;
   const savedMoney = pur ? purchaseMoneyFacts(pur) : null;
@@ -1059,22 +1060,34 @@ function EntryForm({
       )}
 
       {kind === "reminder" && (
-        <Field label={t("f.reminderAt")}>
+        <fieldset>
+          <legend className="mb-1.5 text-sm font-medium">{t("f.reminderAt")}</legend>
+          <p id={reminderHelpId} className="mb-3 text-sm leading-relaxed text-muted-foreground">
+            {t("reminder.inApp")}
+          </p>
           <div className="grid grid-cols-2 gap-3">
-            <input
-              type="date"
-              className={inputCls}
-              value={remDate}
-              onChange={(e) => setRemDate(e.target.value)}
-            />
-            <input
-              type="time"
-              className={inputCls}
-              value={remTime}
-              onChange={(e) => setRemTime(e.target.value)}
-            />
+            <label className="block text-sm">
+              {t("f.date")}
+              <input
+                type="date"
+                className={inputCls}
+                value={remDate}
+                aria-describedby={reminderHelpId}
+                onChange={(e) => setRemDate(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm">
+              {t("f.time")}
+              <input
+                type="time"
+                className={inputCls}
+                value={remTime}
+                aria-describedby={reminderHelpId}
+                onChange={(e) => setRemTime(e.target.value)}
+              />
+            </label>
           </div>
-        </Field>
+        </fieldset>
       )}
 
       {kind === "stock" && (

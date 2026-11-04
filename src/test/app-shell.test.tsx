@@ -3,7 +3,10 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { AppShell, useQuickAdd } from "@/components/app/AppShell";
 import type { MemoryRec } from "@/lib/journal";
-import { setLocale } from "@/lib/i18n";
+import { setLocale, t } from "@/lib/i18n";
+import { toast } from "sonner";
+const downloads = vi.hoisted(() => ({ start: vi.fn() }));
+vi.mock("@/lib/download", () => ({ downloadText: downloads.start }));
 const j = vi.hoisted(() => ({
   ready: true,
   introductionPending: false,
@@ -16,6 +19,7 @@ const j = vi.hoisted(() => ({
   conflict: false,
   hasDemo: false,
   tz: "Asia/Seoul",
+  snapshot: vi.fn(),
 }));
 const sheet = vi.hoisted(() => ({
   seen: [] as Array<{
@@ -83,9 +87,22 @@ beforeEach(() => {
   j.user = { id: "A", email: null };
   j.records = [];
   sheet.seen = [];
+  vi.clearAllMocks();
+  downloads.start.mockReset();
+  j.snapshot.mockImplementation(() => ({
+    records: j.records,
+    purchases: j.purchases,
+    reminder: null,
+    stockAdjust: 0,
+    settings: j.settings,
+  }));
   setLocale("en");
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 it("closes the current editor without passing its record or date to the next account", () => {
   const view = render(
     <AppShell>
@@ -144,4 +161,46 @@ it("does not reopen a stale editor when returning to an earlier account", () => 
   expect(sheet.seen.at(-1)).toEqual(
     expect.objectContaining({ owner: "A", open: false, editing: undefined, kind: "menu" }),
   );
+});
+
+it("exports a JSON backup using the journal day rather than the UTC filename date", () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-04T16:30:00Z"));
+  const success = vi.spyOn(toast, "success");
+  j.records = [fixture];
+  render(
+    <AppShell>
+      <div>Journal</div>
+    </AppShell>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: t("set.settings") }));
+  fireEvent.click(screen.getByRole("button", { name: t("set.backup") }));
+  expect(downloads.start).toHaveBeenCalledOnce();
+  const [contents, filename, mime] = downloads.start.mock.calls[0]!;
+  expect(JSON.parse(contents)).toMatchObject({
+    app: "my-dear-step",
+    version: 2,
+    data: { records: [fixture] },
+  });
+  expect(filename).toBe("my-dear-step-2026-11-05.json");
+  expect(mime).toBe("application/json");
+  expect(success).toHaveBeenCalledWith(t("toast.exported"));
+});
+it("reports a failed backup download without claiming success or changing saved entries", () => {
+  const success = vi.spyOn(toast, "success");
+  const failure = vi.spyOn(toast, "error");
+  j.records = [fixture];
+  downloads.start.mockImplementationOnce(() => {
+    throw new Error("download unavailable");
+  });
+  render(
+    <AppShell>
+      <div>Journal</div>
+    </AppShell>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: t("set.settings") }));
+  fireEvent.click(screen.getByRole("button", { name: t("set.backup") }));
+  expect(failure).toHaveBeenCalledWith(t("export.failed"));
+  expect(success).not.toHaveBeenCalled();
+  expect(j.records).toEqual([fixture]);
 });

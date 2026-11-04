@@ -6,9 +6,15 @@ import { DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { useJournal, type MealRec, type PartOfDay } from "@/lib/journal";
 import { isPartOfDay } from "@/lib/time-of-day";
 import { TimeOfDayField } from "./TimeOfDayField";
-import { emptyMeal, draftMealSchema, mealSchema, type MealDetails } from "@/lib/meals";
+import {
+  emptyMeal,
+  draftMealSchema,
+  mealSchema,
+  mealForRepeat,
+  type MealDetails,
+} from "@/lib/meals";
 import { analyzeMeal } from "@/lib/momo-tasks.functions";
-import { instantFromLocal, timeOf, todayLocal } from "@/lib/dates";
+import { fmtMonthDay, instantFromLocal, timeOf, todayLocal } from "@/lib/dates";
 import { validDate } from "@/lib/snapshot";
 import { retainPhoto, shrinkPhoto } from "@/lib/media";
 import { photoUrl } from "@/lib/cloud-sync";
@@ -70,6 +76,7 @@ export function MealForm({
   const owner = j.user?.id ?? "guest";
   const recoveryKey = `mds.meal.draft.${owner}.${editing?.id ?? "new"}`;
   const [restoredNotice, setRestoredNotice] = useState(false);
+  const [repeated, setRepeated] = useState(false);
   const [recovered, setRecovered] = useState(false);
   useEffect(() => {
     try {
@@ -95,6 +102,7 @@ export function MealForm({
                   ? ""
                   : String(editing.meal.consumedFraction)),
           );
+          setRepeated(stored.repeated === true);
           setMeal({ ...parsed.data, title: parsed.data.title });
           setDate(stored.date);
           setTime(stored.time || "");
@@ -135,12 +143,25 @@ export function MealForm({
             id: id.current,
             fraction,
             analysisInput,
+            repeated,
           }),
         );
     } catch {
       /* in-memory draft remains usable */
     }
-  }, [meal, date, time, period, proposal, saved, recovered, recoveryKey, fraction, analysisInput]);
+  }, [
+    meal,
+    date,
+    time,
+    period,
+    proposal,
+    saved,
+    recovered,
+    recoveryKey,
+    fraction,
+    analysisInput,
+    repeated,
+  ]);
   const resetDraft = () => {
     generation.current++;
     photoGeneration.current++;
@@ -156,6 +177,7 @@ export function MealForm({
     setProposal(editing?.evidence?.proposed["meal"] ?? "");
     setAnalysisInput(null);
     setRestoredNotice(false);
+    setRepeated(false);
     if (!editing) id.current = j.newId();
   };
   const patch = (p: Partial<MealDetails>) => {
@@ -215,6 +237,7 @@ export function MealForm({
         setError(t("meal.noFood"));
         return;
       }
+      setRepeated(false);
       setAnalysisInput({ text: meal.note ?? "", photos: [...meal.photoRefs] });
       setProposal(JSON.stringify(result.meal));
       setMeal((m) => ({
@@ -303,6 +326,19 @@ export function MealForm({
       setSaving(false);
     }
   };
+  const recentMeals = j.records
+    .filter((record): record is MealRec => record.type === "meal" && !record.demo)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 5);
+  const canRepeat =
+    recovered &&
+    !editing &&
+    !meal.title &&
+    !meal.items.length &&
+    !meal.photoRefs.length &&
+    !meal.note?.trim() &&
+    !busy &&
+    !attaching;
   if (saved)
     return (
       <div className="feel-panel space-y-3">
@@ -342,6 +378,52 @@ export function MealForm({
           >
             {t(editing ? "ux.resetSaved" : "ux.resetDraft")}
           </Button>
+        </div>
+      )}
+      {canRepeat && recentMeals.length > 0 && (
+        <details>
+          <summary className="min-h-11 cursor-pointer py-2">{t("meal.recent")}</summary>
+          <div className="space-y-2">
+            <p className="text-sm leading-relaxed text-muted-foreground">{t("meal.repeatHint")}</p>
+            <ul className="divide-y">
+              {recentMeals.map((record) => (
+                <li key={record.id}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="min-h-12 h-auto w-full justify-between gap-3 whitespace-normal text-left"
+                    onClick={() => {
+                      if (!canRepeat || guard.current || photoPending.current) return;
+                      setMeal(mealForRepeat(record.meal, j.newId));
+                      setFraction("");
+                      setProposal("");
+                      setAnalysisInput(null);
+                      setConsent(false);
+                      setRepeated(true);
+                      setRestoredNotice(false);
+                      setError("");
+                      titleRef.current?.focus();
+                    }}
+                  >
+                    <span>{record.meal.title}</span>
+                    <span className="shrink-0 text-sm text-muted-foreground">
+                      {fmtMonthDay(record.localDate)}
+                    </span>
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </details>
+      )}
+      {repeated && (
+        <div role="status" className="rounded-2xl bg-secondary p-3 text-sm leading-relaxed">
+          <p>{t("meal.repeatReady")}</p>
+          {!restoredNotice && (
+            <Button type="button" variant="ghost" className="mt-1 min-h-11" onClick={resetDraft}>
+              {t("ux.resetDraft")}
+            </Button>
+          )}
         </div>
       )}
       {editing?.evidence && <SourceEvidence evidence={editing.evidence} />}

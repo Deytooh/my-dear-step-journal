@@ -178,3 +178,302 @@ it("restores a recoverable voice draft without automatically starting recognitio
   expect(hook.result.current.voice.active).toBe(true);
   expect(FakeRecognition.instances).toHaveLength(0);
 });
+
+it("replaces replayed provisional words across an automatic pause/restart", () => {
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  const first = FakeRecognition.instances[0]!;
+  act(() => first.onresult?.({ results: [speechResult("I feel tired")] }));
+  act(() => {
+    first.onend?.();
+    vi.advanceTimersByTime(650);
+  });
+  const next = FakeRecognition.instances[1]!;
+  act(() => next.onresult?.({ results: [speechResult("I feel tired")] }));
+  expect(hook.result.current.text).toBe("Fictional existing note I feel tired");
+  act(() => next.onresult?.({ results: [speechResult("I feel tired today", true)] }));
+  expect(hook.result.current.text).toBe("Fictional existing note I feel tired today");
+});
+
+it("keeps finalized speech while replacing an expanded provisional tail after a pause", () => {
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  const first = FakeRecognition.instances[0]!;
+  act(() =>
+    first.onresult?.({ results: [speechResult("had breakfast", true), speechResult("and a co")] }),
+  );
+  act(() => {
+    first.onend?.();
+    vi.advanceTimersByTime(650);
+  });
+  act(() =>
+    FakeRecognition.instances[1]!.onresult?.({ results: [speechResult("and a coffee", true)] }),
+  );
+  expect(hook.result.current.text).toBe("Fictional existing note had breakfast and a coffee");
+});
+
+it("keeps the previous provisional phrase when the next recognizer starts a different phrase", () => {
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  act(() => FakeRecognition.instances[0]!.onresult?.({ results: [speechResult("felt tired")] }));
+  act(() => {
+    FakeRecognition.instances[0]!.onend?.();
+    vi.advanceTimersByTime(650);
+  });
+  act(() =>
+    FakeRecognition.instances[1]!.onresult?.({ results: [speechResult("drank water", true)] }),
+  );
+  expect(hook.result.current.text).toBe("Fictional existing note felt tired drank water");
+});
+
+it("ignores callbacks from an ended engine during the restart gap", () => {
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  const first = FakeRecognition.instances[0]!;
+  act(() => first.onresult?.({ results: [speechResult("kept words")] }));
+  act(() => first.onend?.());
+  act(() => {
+    first.onresult?.({ results: [speechResult("late overwrite", true)] });
+    first.onend?.();
+  });
+  expect(hook.result.current.text).toBe("Fictional existing note kept words");
+  act(() => vi.advanceTimersByTime(650));
+  expect(FakeRecognition.instances).toHaveLength(2);
+});
+
+it("ignores aliased duplicate result slots while preserving distinct repeated final words", () => {
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  const same = speechResult("a walk", true);
+  act(() => FakeRecognition.instances[0]!.onresult?.({ results: [same, same] }));
+  expect(hook.result.current.text).toBe("Fictional existing note a walk");
+  act(() => hook.result.current.voice.finish());
+  act(() => hook.result.current.voice.start());
+  act(() =>
+    FakeRecognition.instances[1]!.onresult?.({
+      results: [
+        speechResult("very", true),
+        speechResult("very", true),
+        speechResult("tired", true),
+      ],
+    }),
+  );
+  expect(hook.result.current.text).toBe("Fictional existing note a walk very very tired");
+});
+
+it("keeps an already-final slot immutable across later result events", () => {
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  const engine = FakeRecognition.instances[0]!;
+  act(() => engine.onresult?.({ results: [speechResult("correct final", true)] }));
+  act(() =>
+    engine.onresult?.({
+      results: [speechResult("changed old final", true), speechResult("new words")],
+    }),
+  );
+  expect(hook.result.current.text).toBe("Fictional existing note correct final new words");
+});
+
+it("continues normal pauses with new words beyond the empty-restart budget", () => {
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  for (let i = 0; i < 5; i++)
+    act(() => {
+      const engine = FakeRecognition.instances[i]!;
+      engine.onresult?.({ results: [speechResult("phrase " + i, true)] });
+      engine.onend?.();
+      vi.advanceTimersByTime(650);
+    });
+  expect(FakeRecognition.instances).toHaveLength(6);
+  expect(hook.result.current.voice.status).toBe("listening");
+  expect(hook.result.current.text).toBe(
+    "Fictional existing note phrase 0 phrase 1 phrase 2 phrase 3 phrase 4",
+  );
+});
+
+it("preserves intentional repeated words in a restarted provisional phrase", () => {
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  act(() => FakeRecognition.instances[0]!.onresult?.({ results: [speechResult("very")] }));
+  act(() => {
+    FakeRecognition.instances[0]!.onend?.();
+    vi.advanceTimersByTime(650);
+  });
+  act(() =>
+    FakeRecognition.instances[1]!.onresult?.({ results: [speechResult("very very tired", true)] }),
+  );
+  expect(hook.result.current.text).toBe("Fictional existing note very very tired");
+});
+
+it("does not drop a retained phrase for a shorter new interim prefix", () => {
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  act(() => FakeRecognition.instances[0]!.onresult?.({ results: [speechResult("I feel tired")] }));
+  act(() => {
+    FakeRecognition.instances[0]!.onend?.();
+    vi.advanceTimersByTime(650);
+  });
+  act(() => FakeRecognition.instances[1]!.onresult?.({ results: [speechResult("I feel")] }));
+  expect(hook.result.current.text).toBe("Fictional existing note I feel tired");
+  act(() =>
+    FakeRecognition.instances[1]!.onresult?.({ results: [speechResult("I feel tired now", true)] }),
+  );
+  expect(hook.result.current.text).toBe("Fictional existing note I feel tired now");
+});
+
+it("retains an edit made in the restart gap and leaves resuming explicit", () => {
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  act(() => FakeRecognition.instances[0]!.onresult?.({ results: [speechResult("wrong words")] }));
+  act(() => FakeRecognition.instances[0]!.onend?.());
+  act(() => hook.result.current.voice.edit("My correction"));
+  act(() => vi.advanceTimersByTime(650));
+  expect(hook.result.current.text).toBe("My correction");
+  expect(hook.result.current.voice.status).toBe("interrupted");
+  expect(FakeRecognition.instances).toHaveLength(1);
+});
+
+it("bounds repeated provisional replays without growing the transcript", () => {
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  for (let i = 0; i < 3; i++) {
+    act(() => {
+      const engine = FakeRecognition.instances[i]!;
+      engine.onresult?.({ results: [speechResult("same unfinished phrase")] });
+      engine.onend?.();
+      vi.advanceTimersByTime(650);
+    });
+  }
+  expect(hook.result.current.text).toBe("Fictional existing note same unfinished phrase");
+  expect(hook.result.current.voice.status).toBe("interrupted");
+  expect(FakeRecognition.instances).toHaveLength(3);
+});
+it("does not treat a shorter replay as fresh progress for the restart budget", () => {
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  act(() => {
+    FakeRecognition.instances[0]!.onresult?.({
+      results: [speechResult("a longer unfinished phrase")],
+    });
+    FakeRecognition.instances[0]!.onend?.();
+    vi.advanceTimersByTime(650);
+  });
+  for (let i = 1; i < 3; i++) {
+    act(() => {
+      FakeRecognition.instances[i]!.onresult?.({ results: [speechResult("a longer")] });
+      FakeRecognition.instances[i]!.onend?.();
+      vi.advanceTimersByTime(650);
+    });
+  }
+  expect(hook.result.current.text).toBe("Fictional existing note a longer unfinished phrase");
+  expect(hook.result.current.voice.status).toBe("interrupted");
+});
+it("does not duplicate the same finalized result object replayed after restart", () => {
+  const hook = harness();
+  const final = speechResult("finished phrase", true);
+  act(() => hook.result.current.voice.start());
+  act(() => {
+    FakeRecognition.instances[0]!.onresult?.({ results: [final] });
+    FakeRecognition.instances[0]!.onend?.();
+    vi.advanceTimersByTime(650);
+  });
+  act(() =>
+    FakeRecognition.instances[1]!.onresult?.({
+      results: [final, speechResult("new phrase", true)],
+    }),
+  );
+  expect(hook.result.current.text).toBe("Fictional existing note finished phrase new phrase");
+});
+it("preserves a distinct repeated final phrase spoken after a pause", () => {
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  act(() => {
+    FakeRecognition.instances[0]!.onresult?.({ results: [speechResult("thank you", true)] });
+    FakeRecognition.instances[0]!.onend?.();
+    vi.advanceTimersByTime(650);
+  });
+  act(() =>
+    FakeRecognition.instances[1]!.onresult?.({ results: [speechResult("thank you", true)] }),
+  );
+  expect(hook.result.current.text).toBe("Fictional existing note thank you thank you");
+});
+it("keeps corrections authoritative before the restarted engine has caught up", () => {
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  act(() => {
+    FakeRecognition.instances[0]!.onresult?.({ results: [speechResult("old provisional")] });
+    FakeRecognition.instances[0]!.onend?.();
+    vi.advanceTimersByTime(650);
+  });
+  const restarted = FakeRecognition.instances[1]!;
+  act(() => hook.result.current.voice.edit("My correction"));
+  act(() => restarted.onresult?.({ results: [speechResult("old provisional", true)] }));
+  expect(hook.result.current.text).toBe("My correction");
+  expect(hook.result.current.voice.status).toBe("interrupted");
+});
+it.each(["finish", "cancel"] as const)("cancels a pending automatic restart on %s", (action) => {
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  const old = FakeRecognition.instances[0]!;
+  act(() => {
+    old.onresult?.({ results: [speechResult("new provisional")] });
+    old.onend?.();
+  });
+  act(() => hook.result.current.voice[action]());
+  act(() => {
+    old.onresult?.({ results: [speechResult("late result", true)] });
+    old.onend?.();
+    vi.advanceTimersByTime(650);
+  });
+  expect(FakeRecognition.instances).toHaveLength(1);
+  expect(hook.result.current.voice.status).toBe("idle");
+  expect(hook.result.current.text).toBe(
+    action === "cancel" ? "Fictional existing note" : "Fictional existing note new provisional",
+  );
+});
+it.each(["커피를 마셨", "j’ai bu un ca"])(
+  "replaces an expanded provisional phrase without language-specific word splitting: %s",
+  (phrase) => {
+    const hook = harness();
+    act(() => hook.result.current.voice.start());
+    act(() => {
+      FakeRecognition.instances[0]!.onresult?.({ results: [speechResult(phrase)] });
+      FakeRecognition.instances[0]!.onend?.();
+      vi.advanceTimersByTime(650);
+    });
+    act(() =>
+      FakeRecognition.instances[1]!.onresult?.({ results: [speechResult(phrase + " more", true)] }),
+    );
+    expect(hook.result.current.text).toBe("Fictional existing note " + phrase + " more");
+  },
+);
+
+it("reconciles case, whitespace, punctuation and French Unicode normalization across a pause", () => {
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  act(() => {
+    FakeRecognition.instances[0]!.onresult?.({ results: [speechResult("J’ai mangé.")] });
+    FakeRecognition.instances[0]!.onend?.();
+    vi.advanceTimersByTime(650);
+  });
+  const words = "j’ai  mange\u0301 aujourd’hui";
+  act(() => FakeRecognition.instances[1]!.onresult?.({ results: [speechResult(words, true)] }));
+  expect(hook.result.current.text).toBe("Fictional existing note " + words);
+});
+it("retains the full provisional phrase until a case-changed shorter replay catches up", () => {
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  act(() => {
+    FakeRecognition.instances[0]!.onresult?.({ results: [speechResult("I FEEL TIRED!")] });
+    FakeRecognition.instances[0]!.onend?.();
+    vi.advanceTimersByTime(650);
+  });
+  act(() => FakeRecognition.instances[1]!.onresult?.({ results: [speechResult("i feel")] }));
+  expect(hook.result.current.text).toBe("Fictional existing note I FEEL TIRED!");
+  act(() =>
+    FakeRecognition.instances[1]!.onresult?.({
+      results: [speechResult("I feel tired now.", true)],
+    }),
+  );
+  expect(hook.result.current.text).toBe("Fictional existing note I feel tired now.");
+});

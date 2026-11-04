@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { inventory, canDeduct } from "@/lib/inventory";
 import { purchaseMoneyFacts } from "@/lib/purchase-money";
 import { prepareMomoHandoff } from "@/lib/momo-handoff";
-import type { MealRec, Purchase, WaterRec } from "@/lib/journal";
+import type { JournalRecord, MealRec, Purchase, WaterRec } from "@/lib/journal";
 const ai = vi.hoisted(() => ({ extract: vi.fn() }));
 const photo = vi.hoisted(() => ({ shrink: vi.fn() }));
 vi.mock("@/lib/media", async (importOriginal) => ({
@@ -24,7 +24,7 @@ const j = vi.hoisted(() => ({
   user: null as { id: string } | null,
   tz: "Asia/Seoul",
   settings: { showMomo: true },
-  records: [],
+  records: [] as JournalRecord[],
   purchases: [],
   inventory: { lots: [] },
   reminder: null,
@@ -32,6 +32,7 @@ const j = vi.hoisted(() => ({
   saveRecords: vi.fn(),
   saveRecord: vi.fn(),
   savePurchase: vi.fn(),
+  setReminder: vi.fn(),
   saveMomoBatch: vi.fn(),
   snapshot: vi.fn(),
   undoFor: vi.fn(() => vi.fn()),
@@ -50,7 +51,10 @@ vi.mock("@tanstack/react-start", () => ({ useServerFn: () => ai.extract }));
 vi.mock("@/lib/momo-tasks.functions", () => ({ analyzeMeal: vi.fn() }));
 vi.mock("@/lib/momo.functions", () => ({ extractWithMomo: vi.fn() }));
 vi.mock("@/components/app/AppShell", () => ({ useQuickAdd: () => vi.fn() }));
-vi.mock("@/components/app/AppFeel", () => ({ celebrateSave: vi.fn() }));
+vi.mock("@/components/app/AppFeel", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/app/AppFeel")>()),
+  celebrateSave: vi.fn(),
+}));
 vi.mock("@/lib/cloud-sync", () => ({ photoUrl: vi.fn(), clearPhotoCache: vi.fn() }));
 vi.mock("@/components/ui/drawer", () => ({
   Drawer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -60,6 +64,7 @@ vi.mock("@/components/ui/drawer", () => ({
 }));
 beforeEach(() => {
   j.user = null;
+  j.records = [];
   sessionStorage.clear();
   vi.clearAllMocks();
   ai.extract.mockReset();
@@ -1413,3 +1418,717 @@ it("keeps an existing medication visible and unchanged on an expense-only receip
     doses: 0,
   });
 });
+
+it("offers one optional Momo question and rotates only on clean entry or manual refresh", () => {
+  const view = render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+  expect(screen.getByText(t("mq.day"))).toBeVisible();
+  expect(screen.queryByRole("group", { name: t("mg.choices") })).not.toBeInTheDocument();
+  expect(screen.getByText(t("mq.hint"))).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: t("mq.another") }));
+  expect(screen.getByText(t("mq.feeling"))).toBeVisible();
+  view.rerender(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+  expect(screen.getByText(t("mq.feeling"))).toBeVisible();
+  view.unmount();
+  render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+  expect(screen.getByText(t("mq.food"))).toBeVisible();
+  expect(ai.extract).not.toHaveBeenCalled();
+  expect(j.saveMomoBatch).not.toHaveBeenCalled();
+});
+it("keeps the question fixed while typing and restores it with an unfinished draft", async () => {
+  const view = render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: t("mq.another") }));
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "Fictional meal and a walk" } });
+  expect(screen.getByRole("button", { name: t("mq.another") })).toBeDisabled();
+  expect(screen.getByText(t("mq.feeling"))).toBeVisible();
+  await waitFor(() =>
+    expect(JSON.parse(sessionStorage.getItem("mds.momo.draft.guest")!).question).toBe("mq.feeling"),
+  );
+  view.unmount();
+  render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+  expect(screen.getByRole("textbox")).toHaveValue("Fictional meal and a walk");
+  expect(screen.getByText(t("mq.feeling"))).toBeVisible();
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "" } });
+  expect(screen.getByRole("button", { name: t("mq.another") })).toBeEnabled();
+  expect(screen.getByText(t("mq.feeling"))).toBeVisible();
+});
+it("keeps the question fixed throughout a voice session before any speech arrives", () => {
+  const previous = Object.getOwnPropertyDescriptor(window, "SpeechRecognition");
+  const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+  class FakeSpeech {
+    onstart: (() => void) | null = null;
+    start() {
+      this.onstart?.();
+    }
+    abort() {}
+  }
+  Object.defineProperty(window, "SpeechRecognition", { configurable: true, value: FakeSpeech });
+  try {
+    render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: t("me.voice") }));
+    expect(screen.getByRole("button", { name: t("mq.another") })).toBeDisabled();
+    expect(screen.getByText(t("mq.day"))).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: t("mv.finish") }));
+    expect(screen.getByRole("button", { name: t("mq.another") })).toBeEnabled();
+    expect(screen.getByText(t("mq.day"))).toBeVisible();
+  } finally {
+    cleanup();
+    hidden.mockRestore();
+    if (previous) Object.defineProperty(window, "SpeechRecognition", previous);
+    else delete (window as unknown as Record<string, unknown>)["SpeechRecognition"];
+  }
+});
+it("does not rotate a question during photo preparation or after attaching a photo", async () => {
+  let finish!: (value: string) => void;
+  photo.shrink.mockReturnValue(
+    new Promise<string>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+  fireEvent.change(screen.getByLabelText(t("momo.photos")), {
+    target: { files: [new File(["fixture"], "fictional.jpg", { type: "image/jpeg" })] },
+  });
+  expect(screen.getByRole("button", { name: t("mq.another") })).toBeDisabled();
+  await act(async () => finish("data:image/jpeg;base64,ZmFrZQ=="));
+  expect(screen.getByRole("button", { name: t("mq.another") })).toBeDisabled();
+  expect(screen.getByText(t("mq.day"))).toBeVisible();
+  expect(ai.extract).not.toHaveBeenCalled();
+});
+it("can refresh the guide in memory even if session storage is unavailable", () => {
+  const storage = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new Error("unavailable");
+  });
+  try {
+    render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: t("mq.another") }));
+    expect(screen.getByText(t("mq.feeling"))).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: t("mq.another") }));
+    expect(screen.getByText(t("mq.food"))).toBeVisible();
+    expect(screen.getByRole("textbox")).toHaveValue("");
+  } finally {
+    storage.mockRestore();
+  }
+});
+it("treats the rotating question as a writing guide rather than part of the user's AI input", async () => {
+  j.user = { id: "A" };
+  ai.extract.mockResolvedValue({ candidates: [], reply: "" });
+  render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: t("mq.another") }));
+  const words = "Fictional lunch and a quiet walk";
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: words } });
+  fireEvent.click(screen.getByRole("checkbox", { name: t("mc.consent") }));
+  fireEvent.click(screen.getByRole("button", { name: t("me.organize") }));
+  await waitFor(() => expect(ai.extract).toHaveBeenCalledOnce());
+  expect(ai.extract.mock.calls[0]![0].data.text).toBe(words);
+  expect(j.saveMomoBatch).not.toHaveBeenCalled();
+});
+
+function repeatFixture(): MealRec {
+  return {
+    id: "previous-meal",
+    type: "meal",
+    source: "manual_text",
+    localDate: "2026-10-30",
+    precision: "exact",
+    at: "2026-10-30T03:00:00Z",
+    createdAt: "2026-10-30T03:00:00Z",
+    meal: {
+      ...emptyMeal(),
+      title: "Fictional lentil lunch",
+      mealType: "lunch",
+      consumedFraction: 0.5,
+      photoRefs: ["data:image/jpeg;base64,ZmFrZQ=="],
+      note: "Old note",
+      consumptionNote: "Old amount",
+      estimateAssumptions: ["Old photo estimate"],
+      analysis: {
+        model: "fictional-test-model",
+        promptVersion: "meal-v1",
+        schemaVersion: 1,
+        analyzedAt: "2026-10-30T03:00:00Z",
+      },
+      items: [
+        {
+          id: "old-lentils",
+          name: "Lentils",
+          portionDescription: "One bowl",
+          included: true,
+          kcal: { low: 300, high: 450, basis: "photo_estimate" },
+          ingredients: [{ name: "Possible oil", basis: "possible" }],
+        },
+        {
+          id: "old-sauce",
+          name: "Sauce",
+          portionDescription: null,
+          included: false,
+          kcal: null,
+          ingredients: [],
+        },
+      ],
+    },
+    evidence: {
+      method: "photos",
+      text: "Old source",
+      quote: null,
+      photos: ["data:image/jpeg;base64,ZmFrZQ=="],
+      proposed: {},
+      confirmed: {},
+    },
+  };
+}
+it("starts an editable meal from saved names and portions without copying past intake or AI evidence", () => {
+  const previous = repeatFixture();
+  const before = JSON.stringify(previous);
+  j.records = [previous];
+  render(<MealForm initialDate="2026-11-02" onDone={vi.fn()} />);
+  fireEvent.click(screen.getByText(t("meal.recent")));
+  fireEvent.click(screen.getByRole("button", { name: /Fictional lentil lunch/ }));
+  expect(screen.getByLabelText(t("meal.title"))).toHaveValue(previous.meal.title);
+  expect(screen.getByLabelText(t("f.date"))).toHaveValue("2026-11-02");
+  expect(screen.getByLabelText(t("f.time"))).toHaveValue("");
+  expect(screen.getByLabelText(t("meal.eaten"))).toHaveValue("");
+  expect(screen.getByLabelText(t("meal.kind"))).toHaveValue("lunch");
+  expect(screen.getAllByLabelText(t("meal.food"))).toHaveLength(1);
+  expect(screen.getByLabelText(t("meal.food"))).toHaveValue("Lentils");
+  expect(screen.getByText(t("meal.repeatReady"))).toBeVisible();
+  expect(j.saveRecord).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText(t("meal.portion")), {
+    target: { value: "A smaller bowl" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: t("ux.saveMeal") }));
+  expect(j.saveRecord).toHaveBeenCalledOnce();
+  const saved = j.saveRecord.mock.calls[0]![0] as MealRec;
+  expect(saved).toMatchObject({
+    id: "new-id",
+    localDate: "2026-11-02",
+    at: null,
+    precision: "date_only",
+    meal: {
+      consumedFraction: null,
+      photoRefs: [],
+      estimateAssumptions: [],
+      items: [
+        {
+          id: "new-id",
+          name: "Lentils",
+          portionDescription: "A smaller bowl",
+          included: true,
+          ingredients: [],
+          kcal: null,
+        },
+      ],
+    },
+    evidence: { method: "manual", text: "", photos: [] },
+  });
+  expect(saved.meal).not.toHaveProperty("analysis");
+  expect(saved.meal).not.toHaveProperty("note");
+  expect(saved.meal).not.toHaveProperty("consumptionNote");
+  expect(saved.evidence).not.toHaveProperty("analysis");
+  expect(JSON.stringify(previous)).toBe(before);
+  expect(ai.extract).not.toHaveBeenCalled();
+});
+it("recovers an unfinished reused meal and can reset it without changing saved history", async () => {
+  const previous = repeatFixture();
+  j.records = [previous];
+  const view = render(<MealForm onDone={vi.fn()} />);
+  fireEvent.click(screen.getByText(t("meal.recent")));
+  fireEvent.click(screen.getByRole("button", { name: /Fictional lentil lunch/ }));
+  await waitFor(() =>
+    expect(JSON.parse(sessionStorage.getItem("mds.meal.draft.guest.new")!).repeated).toBe(true),
+  );
+  view.unmount();
+  render(<MealForm onDone={vi.fn()} />);
+  expect(screen.getByLabelText(t("meal.title"))).toHaveValue(previous.meal.title);
+  expect(screen.getByText(t("meal.repeatReady"))).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: t("ux.resetDraft") }));
+  expect(screen.getByLabelText(t("meal.title"))).toHaveValue("");
+  expect(screen.getByText(t("meal.recent"))).toBeVisible();
+  expect(screen.queryByText(t("meal.repeatReady"))).not.toBeInTheDocument();
+  expect(j.saveRecord).not.toHaveBeenCalled();
+  expect(previous.meal.consumedFraction).toBe(0.5);
+});
+it.each(["editing", "recovered", "photo", "note", "demo"])(
+  "does not offer recent meal reuse over %s",
+  (kind) => {
+    const previous = repeatFixture();
+    if (kind === "demo") previous.demo = true;
+    j.records = [previous];
+    if (kind === "recovered")
+      sessionStorage.setItem(
+        "mds.meal.draft.guest.new",
+        JSON.stringify({
+          meal: { ...emptyMeal(), title: "Unsaved meal" },
+          date: todayLocal(j.tz),
+          id: "unsaved-new",
+          fraction: "",
+        }),
+      );
+    render(
+      <MealForm
+        onDone={vi.fn()}
+        {...(kind === "editing" ? { editing: previous } : {})}
+        {...(kind === "photo" ? { images: ["data:image/jpeg;base64,ZmFrZQ=="] } : {})}
+        {...(kind === "note" ? { note: "Unsaved note" } : {})}
+      />,
+    );
+    expect(screen.queryByText(t("meal.recent"))).not.toBeInTheDocument();
+    expect(j.saveRecord).not.toHaveBeenCalled();
+  },
+);
+
+it("locks question refresh while an IME composition has not committed any text", () => {
+  render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+  const input = screen.getByRole("textbox");
+  fireEvent.compositionStart(input);
+  expect(screen.getByRole("button", { name: t("mq.another") })).toBeDisabled();
+  expect(screen.getByText(t("mq.day"))).toBeVisible();
+  fireEvent.compositionEnd(input);
+  expect(screen.getByRole("button", { name: t("mq.another") })).toBeEnabled();
+  expect(screen.getByText(t("mq.day"))).toBeVisible();
+});
+
+it("labels a user-chosen in-app schedule and saves the exact local date/time independently", () => {
+  render(<QuickAddSheet open onOpenChange={vi.fn()} kind="reminder" setKind={vi.fn()} />);
+  expect(screen.getByText(t("reminder.inApp"))).toBeVisible();
+  const date = screen.getByLabelText(t("f.date"), { exact: true });
+  const time = screen.getByLabelText(t("f.time"), { exact: true });
+  expect(date).toHaveAccessibleDescription(t("reminder.inApp"));
+  expect(time).toHaveAccessibleDescription(t("reminder.inApp"));
+  fireEvent.change(date, { target: { value: "2026-11-06" } });
+  fireEvent.change(time, { target: { value: "18:45" } });
+  fireEvent.click(screen.getByRole("button", { name: t("f.save") }));
+  expect(j.setReminder).toHaveBeenCalledExactlyOnceWith(
+    instantFromLocal("2026-11-06", "18:45", j.tz),
+  );
+  expect(j.saveRecord).not.toHaveBeenCalled();
+  expect(ai.extract).not.toHaveBeenCalled();
+});
+
+const twoMealWords = "Fictional example. Today breakfast was oats. Today lunch was lentils.";
+function twoMealSuggestions() {
+  return sanitizeCandidates(
+    [
+      {
+        type: "meal",
+        date: todayLocal(j.tz),
+        quote: "breakfast was oats",
+        meal: {
+          ...emptyMeal(),
+          title: "Oats breakfast",
+          items: [
+            {
+              id: "oats",
+              name: "Oats",
+              included: true,
+              portionDescription: null,
+              kcal: null,
+              ingredients: [],
+            },
+          ],
+        },
+      },
+      {
+        type: "meal",
+        date: todayLocal(j.tz),
+        quote: "lunch was lentils",
+        meal: {
+          ...emptyMeal(),
+          title: "Lentil lunch",
+          items: [
+            {
+              id: "lentils",
+              name: "Lentils",
+              included: true,
+              portionDescription: null,
+              kcal: null,
+              ingredients: [],
+            },
+          ],
+        },
+      },
+    ],
+    twoMealWords,
+  );
+}
+it.each(["unknown", "half"])(
+  "names each meal and remembers %s without cycling questions after recovery",
+  async (firstAnswer) => {
+    j.user = { id: "A" };
+    ai.extract.mockResolvedValue({ candidates: twoMealSuggestions(), reply: "" });
+    const view = render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: twoMealWords } });
+    fireEvent.click(screen.getByRole("checkbox", { name: t("mc.consent") }));
+    fireEvent.click(screen.getByRole("button", { name: t("me.organize") }));
+    const first = await screen.findByRole("group", {
+      name: t("mm.portionQuestion", { meal: "Oats breakfast" }),
+    });
+    fireEvent.click(
+      within(first).getByRole("button", {
+        name: t(firstAnswer === "half" ? "meal.half" : "unknown"),
+      }),
+    );
+    const second = screen.getByRole("group", {
+      name: t("mm.portionQuestion", { meal: "Lentil lunch" }),
+    });
+    fireEvent.click(within(second).getByRole("button", { name: t("unknown") }));
+    expect(
+      screen.queryByRole("group", { name: t("mm.portionQuestion", { meal: "Oats breakfast" }) }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: t("mm.portionQuestion", { meal: "Lentil lunch" }) }),
+    ).not.toBeInTheDocument();
+    expect(j.saveMomoBatch).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(
+        JSON.parse(sessionStorage.getItem("mds.momo.draft.A")!).dismissedQuestions,
+      ).toHaveLength(2),
+    );
+    view.unmount();
+    render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    expect(
+      screen.queryByRole("group", { name: t("mm.portionQuestion", { meal: "Oats breakfast" }) }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: t("mm.portionQuestion", { meal: "Lentil lunch" }) }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: t("mm.confirm", { n: 2 }) }));
+    await waitFor(() => expect(j.saveMomoBatch).toHaveBeenCalledOnce());
+    const meals = j.saveMomoBatch.mock.calls[0]![0] as MealRec[];
+    expect(meals.map((record) => [record.meal.title, record.meal.consumedFraction])).toEqual([
+      ["Oats breakfast", firstAnswer === "half" ? 0.5 : null],
+      ["Lentil lunch", null],
+    ]);
+  },
+);
+it("asks about newly analyzed meals after a prior unknown answer", async () => {
+  j.user = { id: "A" };
+  ai.extract.mockResolvedValue({ candidates: twoMealSuggestions(), reply: "" });
+  render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: twoMealWords } });
+  fireEvent.click(screen.getByRole("checkbox", { name: t("mc.consent") }));
+  fireEvent.click(screen.getByRole("button", { name: t("me.organize") }));
+  const first = await screen.findByRole("group", {
+    name: t("mm.portionQuestion", { meal: "Oats breakfast" }),
+  });
+  fireEvent.click(within(first).getByRole("button", { name: t("unknown") }));
+  fireEvent.click(screen.getByRole("button", { name: t("momo.original") }));
+  fireEvent.change(screen.getByRole("textbox"), {
+    target: { value: twoMealWords + " Extra fictional context." },
+  });
+  fireEvent.click(screen.getByRole("button", { name: t("me.organize") }));
+  expect(
+    await screen.findByRole("group", { name: t("mm.portionQuestion", { meal: "Oats breakfast" }) }),
+  ).toBeVisible();
+  expect(ai.extract).toHaveBeenCalledTimes(2);
+  expect(j.saveMomoBatch).not.toHaveBeenCalled();
+});
+
+it.each([false, true])(
+  "restores the input step after returning from review, with edited text %s",
+  async (edited) => {
+    j.user = { id: "A" };
+    const original = "Fictional example. Today I weighed 78.2kg.";
+    ai.extract.mockResolvedValue({
+      candidates: sanitizeCandidates(
+        [{ type: "weight", value: 78.2, date: todayLocal(j.tz), quote: "78.2kg" }],
+        original,
+      ),
+      reply: "",
+    });
+    const view = render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: original } });
+    fireEvent.click(screen.getByRole("checkbox", { name: t("mc.consent") }));
+    fireEvent.click(screen.getByRole("button", { name: t("me.organize") }));
+    await screen.findByRole("button", { name: t("mm.confirm", { n: 1 }) });
+    fireEvent.click(screen.getByRole("button", { name: t("momo.original") }));
+    const current = edited ? "Fictional correction. Today I weighed 79.0kg." : original;
+    if (edited) fireEvent.change(screen.getByRole("textbox"), { target: { value: current } });
+    view.unmount();
+    render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    expect(screen.getByRole("textbox")).toHaveValue(current);
+    expect(
+      screen.queryByRole("button", { name: t("mm.confirm", { n: 1 }) }),
+    ).not.toBeInTheDocument();
+    expect(ai.extract).toHaveBeenCalledOnce();
+    expect(j.saveMomoBatch).not.toHaveBeenCalled();
+  },
+);
+it.each(["text", "photo"])(
+  "does not reopen a legacy review whose %s no longer matches its analysis signature",
+  (changed) => {
+    j.user = { id: "A" };
+    const original = "Fictional original 78.2kg";
+    const text = changed === "text" ? "Fictional updated 79.0kg" : original;
+    const images = changed === "photo" ? ["data:image/jpeg;base64,ZmFrZQ=="] : [];
+    const date = todayLocal(j.tz);
+    sessionStorage.setItem(
+      "mds.momo.draft.A",
+      JSON.stringify({
+        text,
+        images,
+        signature: JSON.stringify([original, [], date, j.tz]),
+        drafts: [
+          {
+            key: "legacy-suggestion",
+            type: "weight",
+            on: true,
+            quote: "78.2kg",
+            timeHint: null,
+            f: { value: "78.2", date, time: "" },
+            evidence: {
+              method: "text",
+              text: original,
+              quote: "78.2kg",
+              photos: [],
+              proposed: { value: "78.2" },
+              confirmed: {},
+            },
+          },
+        ],
+      }),
+    );
+    render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    expect(screen.getByRole("textbox")).toHaveValue(text);
+    expect(
+      screen.queryByRole("button", { name: t("mm.confirm", { n: 1 }) }),
+    ).not.toBeInTheDocument();
+    expect(ai.extract).not.toHaveBeenCalled();
+    expect(j.saveMomoBatch).not.toHaveBeenCalled();
+  },
+);
+
+it("keeps three large-photo drafts recoverable without storing their image data twice in the analysis signature", async () => {
+  j.user = { id: "A" };
+  const key = "mds.momo.draft.A";
+  const images = ["A", "B", "C"].map((letter) => "data:image/jpeg;base64," + letter.repeat(950000));
+  const date = todayLocal(j.tz);
+  const text = "Fictional photo recovery fixture";
+  const legacy = JSON.stringify({
+    text,
+    images,
+    drafts: [],
+    signature: JSON.stringify([text, images, date, j.tz]),
+  });
+  const get = Storage.prototype.getItem;
+  let offered = false;
+  const read = vi.spyOn(Storage.prototype, "getItem").mockImplementation(function (
+    this: Storage,
+    name: string,
+  ) {
+    if (name === key && !offered) {
+      offered = true;
+      return legacy;
+    }
+    return get.call(this, name);
+  });
+  try {
+    render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    await waitFor(() => expect(get.call(sessionStorage, key)).not.toBeNull(), { timeout: 2000 });
+    const raw = get.call(sessionStorage, key)!;
+    expect(raw.length).toBeLessThan(3100000);
+    const kept = JSON.parse(raw);
+    expect(kept.analysisContext).toEqual({ today: date, timezone: j.tz });
+    expect(kept.images.map((image: string) => image.length)).toEqual(
+      images.map((image) => image.length),
+    );
+    expect(kept.text).toBe(text);
+    expect(ai.extract).not.toHaveBeenCalled();
+    expect(j.saveMomoBatch).not.toHaveBeenCalled();
+  } finally {
+    cleanup();
+    read.mockRestore();
+  }
+});
+
+it("shows a real draft-storage failure and clears the notice after a later successful write", async () => {
+  j.user = { id: "A" };
+  const set = Storage.prototype.setItem;
+  let blocked = true;
+  const write = vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (
+    this: Storage,
+    name: string,
+    value: string,
+  ) {
+    if (blocked) throw new Error("store unavailable");
+    return set.call(this, name, value);
+  });
+  try {
+    render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "Fictional draft kept on screen" },
+    });
+    expect(await screen.findByText(t("mc.draftRecoveryUnavailable"))).toBeVisible();
+    expect(screen.getByRole("textbox")).toHaveValue("Fictional draft kept on screen");
+    blocked = false;
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Fictional draft updated" } });
+    await waitFor(() =>
+      expect(screen.queryByText(t("mc.draftRecoveryUnavailable"))).not.toBeInTheDocument(),
+    );
+    expect(JSON.parse(sessionStorage.getItem("mds.momo.draft.A")!).text).toBe(
+      "Fictional draft updated",
+    );
+    expect(ai.extract).not.toHaveBeenCalled();
+    expect(j.saveMomoBatch).not.toHaveBeenCalled();
+  } finally {
+    cleanup();
+    write.mockRestore();
+  }
+});
+it("reuses a recovered matching analysis while preserving corrections after returning to the input step", async () => {
+  j.user = { id: "A" };
+  const words = "Fictional example. Today I weighed 78.2kg.";
+  ai.extract.mockResolvedValue({
+    candidates: sanitizeCandidates(
+      [{ type: "weight", value: 78.2, date: todayLocal(j.tz), quote: "78.2kg" }],
+      words,
+    ),
+    reply: "",
+  });
+  const view = render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: words } });
+  fireEvent.click(screen.getByRole("checkbox", { name: t("mc.consent") }));
+  fireEvent.click(screen.getByRole("button", { name: t("me.organize") }));
+  await screen.findByRole("button", { name: t("mm.confirm", { n: 1 }) });
+  fireEvent.click(screen.getByRole("button", { name: t("evidence.edit") }));
+  fireEvent.change(
+    screen.getByLabelText((label) => label.startsWith(t("f.value"))),
+    { target: { value: "78.3" } },
+  );
+  fireEvent.click(screen.getByRole("button", { name: t("momo.original") }));
+  view.unmount();
+  render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+  expect(screen.getByRole("textbox")).toHaveValue(words);
+  fireEvent.click(screen.getByRole("checkbox", { name: t("mc.consent") }));
+  fireEvent.click(screen.getByRole("button", { name: t("me.organize") }));
+  expect(await screen.findByText("78.3 kg", { selector: "p" })).toBeVisible();
+  expect(ai.extract).toHaveBeenCalledOnce();
+  expect(j.saveMomoBatch).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: t("mm.confirm", { n: 1 }) }));
+  await waitFor(() => expect(j.saveMomoBatch).toHaveBeenCalledOnce());
+  expect(j.saveMomoBatch.mock.calls[0]![0][0]).toMatchObject({
+    value: 78.3,
+    evidence: {
+      text: words,
+      quote: "78.2kg",
+      proposed: { value: "78.2" },
+      confirmed: { value: "78.3" },
+    },
+  });
+});
+
+it("keeps an edited restart-boundary transcript and gives explicit Resume or Finish instructions", () => {
+  j.user = { id: "A" };
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  const previous = Object.getOwnPropertyDescriptor(window, "SpeechRecognition");
+  const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+  const phrase = (text: string) => Object.assign([{ transcript: text }], { isFinal: false });
+  class FakeSpeech {
+    static all: FakeSpeech[] = [];
+    onstart: (() => void) | null = null;
+    onend: (() => void) | null = null;
+    onresult: ((event: { results: ReturnType<typeof phrase>[] }) => void) | null = null;
+    constructor() {
+      FakeSpeech.all.push(this);
+    }
+    start() {
+      this.onstart?.();
+    }
+    abort() {
+      this.onend?.();
+    }
+  }
+  Object.defineProperty(window, "SpeechRecognition", { configurable: true, value: FakeSpeech });
+  try {
+    render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "Fictional typed base." } });
+    fireEvent.click(screen.getByRole("button", { name: t("me.voice") }));
+    const engine = FakeSpeech.all[0]!;
+    act(() => engine.onresult?.({ results: [phrase("Fictional soup")] }));
+    act(() => engine.onend?.());
+    fireEvent.change(input, { target: { value: "Fictional correction after pause." } });
+    expect(screen.getByText(t("mv.interruptedHint"))).toBeVisible();
+    expect(screen.queryByText(t("mv.pauses"))).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: t("mv.resume") })).toBeEnabled();
+    expect(screen.getByRole("button", { name: t("mq.another") })).toBeDisabled();
+    act(() => {
+      engine.onresult?.({ results: [phrase("STALE WORDS")] });
+      vi.advanceTimersByTime(1000);
+    });
+    expect(FakeSpeech.all).toHaveLength(1);
+    expect(input).toHaveValue("Fictional correction after pause.");
+    fireEvent.click(screen.getByRole("button", { name: t("mv.finish") }));
+    expect(input).toHaveValue("Fictional correction after pause.");
+    expect(screen.queryByRole("button", { name: t("mv.resume") })).not.toBeInTheDocument();
+    expect(ai.extract).not.toHaveBeenCalled();
+    expect(j.saveMomoBatch).not.toHaveBeenCalled();
+  } finally {
+    cleanup();
+    vi.useRealTimers();
+    hidden.mockRestore();
+    if (previous) Object.defineProperty(window, "SpeechRecognition", previous);
+    else delete (window as unknown as Record<string, unknown>)["SpeechRecognition"];
+  }
+});
+
+it.each(["unsupported", "blocked"] as const)(
+  "offers a clear path back to writing after %s dictation",
+  (issue) => {
+    j.user = { id: "A" };
+    const speech = Object.getOwnPropertyDescriptor(window, "SpeechRecognition");
+    const webkit = Object.getOwnPropertyDescriptor(window, "webkitSpeechRecognition");
+    const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+    class FakeSpeech {
+      static current: FakeSpeech;
+      onstart: (() => void) | null = null;
+      onend: (() => void) | null = null;
+      onerror: ((event: { error: string }) => void) | null = null;
+      constructor() {
+        FakeSpeech.current = this;
+      }
+      start() {
+        this.onstart?.();
+      }
+      abort() {
+        this.onend?.();
+      }
+    }
+    Object.defineProperty(window, "SpeechRecognition", {
+      configurable: true,
+      value: issue === "unsupported" ? undefined : FakeSpeech,
+    });
+    Object.defineProperty(window, "webkitSpeechRecognition", {
+      configurable: true,
+      value: undefined,
+    });
+    try {
+      render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+      fireEvent.change(screen.getByRole("textbox"), {
+        target: { value: "Fictional note retained after a voice error." },
+      });
+      fireEvent.click(screen.getByRole("button", { name: t("me.voice") }));
+      if (issue === "blocked") act(() => FakeSpeech.current.onerror?.({ error: "not-allowed" }));
+      expect(
+        screen.getByText(
+          t(issue === "unsupported" ? "mv.unsupported" : "mv.blocked", { finish: t("mv.finish") }),
+        ),
+      ).toBeVisible();
+      expect(screen.queryByRole("button", { name: t("mv.resume") })).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: t("mv.finish") }));
+      expect(screen.getByRole("textbox")).toHaveValue(
+        "Fictional note retained after a voice error.",
+      );
+      expect(screen.getByRole("button", { name: t("me.organize") })).toBeEnabled();
+      expect(screen.getByLabelText(t("momo.photos"))).toBeEnabled();
+      expect(ai.extract).not.toHaveBeenCalled();
+      expect(j.saveMomoBatch).not.toHaveBeenCalled();
+    } finally {
+      cleanup();
+      hidden.mockRestore();
+      if (speech) Object.defineProperty(window, "SpeechRecognition", speech);
+      else delete (window as unknown as Record<string, unknown>)["SpeechRecognition"];
+      if (webkit) Object.defineProperty(window, "webkitSpeechRecognition", webkit);
+      else delete (window as unknown as Record<string, unknown>)["webkitSpeechRecognition"];
+    }
+  },
+);

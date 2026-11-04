@@ -1,3 +1,5 @@
+import { JournalSummary } from "@/components/app/JournalSummary";
+import { downloadText } from "@/lib/download";
 import { journalCSV } from "@/lib/export";
 import { Button } from "@/components/ui/button";
 import { PhotoImg } from "@/components/app/PhotoImg";
@@ -86,15 +88,16 @@ function Progress() {
   const hasDemoPoints = data.some((p) => p.demo) || injDays.some((i) => i.demo);
 
   const exportCsv = () => {
-    const csv = journalCSV(j.snapshot());
-    const url = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv" }));
-    const a = Object.assign(document.createElement("a"), {
-      href: url,
-      download: `my-dear-step-${today}.csv`,
-    });
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success(t("toast.exported"));
+    try {
+      downloadText(
+        "\uFEFF" + journalCSV(j.snapshot()),
+        `my-dear-step-${todayLocal(j.tz)}.csv`,
+        "text/csv;charset=utf-8",
+      );
+      toast.success(t("toast.exported"));
+    } catch {
+      toast.error(t("export.failed"));
+    }
   };
 
   return (
@@ -453,6 +456,8 @@ function Progress() {
           )}
         </div>
       )}
+
+      <JournalSummary />
 
       <Button
         variant="unstyled"

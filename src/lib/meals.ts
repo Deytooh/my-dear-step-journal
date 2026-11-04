@@ -134,3 +134,22 @@ export const draftMealSchema = mealSchema
       kcal: i.kcal ? { ...i.kcal, low: i.kcal.low ?? NaN, high: i.kcal.high ?? NaN } : null,
     })),
   }));
+
+/** Copy a starting point, never old photo estimates or a claim about today's intake. */
+export function mealForRepeat(previous: MealDetails, newId: () => string): MealDetails {
+  return {
+    ...emptyMeal(),
+    title: previous.title,
+    mealType: previous.mealType,
+    items: previous.items
+      .filter((item) => item.included)
+      .map((item) => ({
+        id: newId(),
+        name: item.name,
+        portionDescription: item.portionDescription,
+        included: true,
+        ingredients: [],
+        kcal: null,
+      })),
+  };
+}
