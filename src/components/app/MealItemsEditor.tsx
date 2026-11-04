@@ -1,8 +1,10 @@
+import { useId } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AnimatedValue } from "./AppFeel";
 import { t } from "@/lib/i18n";
 import { mealTotals, type MealDetails, type MealItem } from "@/lib/meals";
+import { CUSTOM_MEAL_FRACTION, parseMealFractionInput } from "@/lib/meal-fraction";
 
 const input = "min-h-12 w-full min-w-0 rounded-xl border bg-card px-3 py-2 text-[16px]";
 export function MealItemsEditor({
@@ -18,11 +20,14 @@ export function MealItemsEditor({
   setFraction: (value: string) => void;
   newId: () => string;
 }) {
+  const fractionErrorId = useId();
+  const parsedFraction = parseMealFractionInput(fraction);
+  const fractionInvalid = Number.isNaN(parsedFraction);
   const itemPatch = (id: string, change: Partial<MealItem>) =>
     patch({ items: meal.items.map((item) => (item.id === id ? { ...item, ...change } : item)) });
   const totals = mealTotals({
     ...meal,
-    consumedFraction: fraction === "" ? null : Number(fraction),
+    consumedFraction: parsedFraction,
   });
   const energy = totals.consumed ?? totals.pictured;
   return (
@@ -130,12 +135,21 @@ export function MealItemsEditor({
                 value={item.ingredients.map((i) => i.name).join("\n")}
                 onChange={(e) =>
                   itemPatch(item.id, {
+                    // Keep a new line while typing; discard only blank edited
+                    // rows on blur before the user reaches the save action.
                     ingredients: e.target.value
-                      .split("\n")
-                      .filter(Boolean)
-                      .map((name) => ({ name, basis: "user_provided" })),
+                      ? e.target.value.split("\n").map((name) => ({ name, basis: "user_provided" }))
+                      : [],
                   })
                 }
+                onBlur={() => {
+                  const ingredients = item.ingredients.filter(
+                    (ingredient) =>
+                      ingredient.basis !== "user_provided" || ingredient.name.trim() !== "",
+                  );
+                  if (ingredients.length !== item.ingredients.length)
+                    itemPatch(item.id, { ingredients });
+                }}
               />
             </details>
           </li>
@@ -169,7 +183,7 @@ export function MealItemsEditor({
         <select
           className={input}
           value={fraction === "" || ["1", "0.5"].includes(fraction) ? fraction : "other"}
-          onChange={(e) => setFraction(e.target.value === "other" ? "0.75" : e.target.value)}
+          onChange={(e) => setFraction(e.target.value)}
         >
           <option value="">{t("unknown")}</option>
           <option value="1">{t("meal.all")}</option>
@@ -178,18 +192,27 @@ export function MealItemsEditor({
         </select>
       </label>
       {fraction !== "" && !["1", "0.5"].includes(fraction) && (
-        <label className="block">
-          {t("meal.fraction")}
-          <input
-            className={input}
-            type="number"
-            min="0"
-            max="1"
-            step="0.01"
-            value={fraction}
-            onChange={(e) => setFraction(e.target.value)}
-          />
-        </label>
+        <div className="space-y-1">
+          <label className="block">
+            {t("meal.fraction")}
+            <input
+              className={input}
+              type="number"
+              min="0"
+              max="1"
+              step="any"
+              value={fraction === CUSTOM_MEAL_FRACTION ? "" : fraction}
+              aria-invalid={fractionInvalid || undefined}
+              aria-describedby={fractionInvalid ? fractionErrorId : undefined}
+              onChange={(e) => setFraction(e.target.value || CUSTOM_MEAL_FRACTION)}
+            />
+          </label>
+          {fractionInvalid && (
+            <p id={fractionErrorId} className="text-sm text-destructive">
+              {t("meal.fractionInvalid")}
+            </p>
+          )}
+        </div>
       )}
       <div className="app-surface rounded-[20px] bg-peach p-4" aria-live="polite">
         <p className="text-sm">

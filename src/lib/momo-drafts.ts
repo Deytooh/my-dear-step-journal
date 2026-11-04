@@ -2,7 +2,8 @@
 import type { MomoCandidate } from "./momo-schema";
 import type { Evidence, JournalRecord, PartOfDay, Purchase } from "./journal";
 import { mealSchema } from "./meals";
-import { instantFromLocal } from "./dates";
+import { parseMealFractionInput } from "./meal-fraction";
+import { exactLocalInstant } from "./dates";
 import { parseAmountInput } from "./amount-input";
 import { purchaseMoneyFacts } from "./purchase-money";
 import { isPartOfDay } from "./time-of-day";
@@ -18,6 +19,8 @@ export type Draft = {
   dup?: boolean;
   quote: string | null;
   timeHint: string | null;
+  // Preserve custom-blank input across recovery without turning it into Unknown.
+  mealFractionInput?: string;
   f: Record<string, string>;
 };
 
@@ -107,19 +110,27 @@ export function candidateToDraft(
         : def.k === "date"
           ? s(rec["date"])
           : s(rec[def.k]);
-  const photos = c.photoIndices?.length
-    ? c.photoIndices.flatMap((i) => (input?.photos[i] ? [input.photos[i]!] : []))
-    : c.quote
-      ? []
-      : (input?.photos ?? []);
+  const quote = input
+    ? c.quote?.trim() && input.text.includes(c.quote)
+      ? c.quote
+      : null
+    : c.quote;
+  const linkedPhotoIndices = [...new Set(c.photoIndices ?? [])].filter(
+    (i) => Number.isInteger(i) && i >= 0 && !!input?.photos[i],
+  );
+  const photos = linkedPhotoIndices.map((i) => input!.photos[i]!);
   if (c.type === "meal") f["meal"] = JSON.stringify({ ...c.meal, photoRefs: photos });
   return {
     ...(input
       ? {
           evidence: {
             ...input,
-            photos,
-            quote: c.quote && input.text.includes(c.quote) ? c.quote : null,
+            photos: [...input.photos],
+            quote,
+            attribution: {
+              status: quote || photos.length ? "linked" : "unclear",
+              linkedPhotoIndices,
+            },
             proposed: { ...f },
             confirmed: {},
           },
@@ -128,7 +139,7 @@ export function candidateToDraft(
     key,
     type: c.type,
     on: true,
-    quote: c.quote,
+    quote,
     timeHint: c.timeHint ?? null,
     f,
   };
@@ -171,6 +182,10 @@ export function draftToEntry(d: Draft, id: string, tz: string, today: string): E
   )
     return { error: "date" };
   if (f["time"] && !/^([01]\d|2[0-3]):[0-5]\d$/.test(f["time"])) return { error: "time" };
+  // Never construct an exact instant with a missing day or a nonexistent DST clock.
+  if (!date) return { error: "date" };
+  const at = time ? exactLocalInstant(date, time, tz) : null;
+  if (time && !at) return { error: "time" };
   const evidence = d.evidence
     ? {
         ...d.evidence,
@@ -190,12 +205,10 @@ export function draftToEntry(d: Draft, id: string, tz: string, today: string): E
     createdAt: new Date().toISOString(),
     source: "manual_text" as const,
     precision: time ? ("exact" as const) : pod ? ("part_of_day" as const) : ("date_only" as const),
-    at: time ? instantFromLocal(date, time, tz) : null,
+    at,
     partOfDay: pod,
   };
   const bad = (k: string) => ({ error: k });
-  // The journal requires a calendar day: ask for it rather than silently using today.
-  if (!date) return bad("date");
   switch (d.type) {
     case "water": {
       const answer = f["answer"];
@@ -204,11 +217,20 @@ export function draftToEntry(d: Draft, id: string, tz: string, today: string): E
     }
     case "meal": {
       try {
-        const parsed = mealSchema.safeParse(JSON.parse(f["meal"] ?? ""));
+        const raw = JSON.parse(f["meal"] ?? "");
+        const parsed = mealSchema.safeParse(
+          d.mealFractionInput === undefined
+            ? raw
+            : { ...raw, consumedFraction: parseMealFractionInput(d.mealFractionInput) },
+        );
         if (!parsed.success) return bad("meal");
         const meal = {
           ...parsed.data,
-          photoRefs: d.evidence?.photos ?? parsed.data.photoRefs,
+          photoRefs: d.evidence?.attribution
+            ? d.evidence.attribution.linkedPhotoIndices.flatMap((i) =>
+                d.evidence?.photos[i] ? [d.evidence.photos[i]!] : [],
+              )
+            : (d.evidence?.photos ?? parsed.data.photoRefs),
           ...(d.evidence?.analysis ? { analysis: d.evidence.analysis } : {}),
         };
         return { record: { ...base, type: "meal", meal } };
@@ -269,7 +291,16 @@ export function draftToEntry(d: Draft, id: string, tz: string, today: string): E
     case "memory": {
       const note = f["note"]?.trim();
       if (!note) return bad("note");
-      return { record: { ...base, type: "memory", note, photo: evidence?.photos[0] ?? null } };
+      return {
+        record: {
+          ...base,
+          type: "memory",
+          note,
+          photo: evidence?.attribution
+            ? (evidence.photos[evidence.attribution.linkedPhotoIndices[0] ?? -1] ?? null)
+            : (evidence?.photos[0] ?? null),
+        },
+      };
     }
     case "purchase": {
       const q = n(f["quantity"]);

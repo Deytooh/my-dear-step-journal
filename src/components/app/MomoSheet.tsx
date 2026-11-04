@@ -2,7 +2,7 @@ import { isPartOfDay } from "@/lib/time-of-day";
 import { TimeOfDayField } from "./TimeOfDayField";
 import { retainPhoto, shrinkPhoto } from "@/lib/media";
 import { Button } from "@/components/ui/button";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Scale,
@@ -27,12 +27,15 @@ import {
   RefreshCw,
   Pause,
   Play,
+  ChevronDown,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { extractWithMomo } from "@/lib/momo.functions";
 import { useJournal } from "@/lib/journal";
 import { todayLocal, fmtMonthDay } from "@/lib/dates";
+import { validDate } from "@/lib/snapshot";
 import { useQuickAdd } from "./AppShell";
 import { formatPurchaseMoney } from "@/lib/purchase-money";
 import { recordValue } from "./ui";
@@ -47,12 +50,18 @@ import {
   type Entry,
 } from "@/lib/momo-drafts";
 import { celebrateSave } from "./AppFeel";
+import {
+  unexpectedDuplicateKeys,
+  isRecoveredDrafts,
+  recoveredCaptureSources,
+} from "@/lib/momo-review";
 import { t, getLocale, type Key } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { SourceEvidence } from "./SourceEvidence";
 import { SitePicker } from "./SitePicker";
 import { MealItemsEditor } from "./MealItemsEditor";
 import { draftMealSchema, type MealDetails } from "@/lib/meals";
+import { parseMealFractionInput } from "@/lib/meal-fraction";
 import { MedicationPicker } from "./MedicationPicker";
 import { useMomoVoice, type VoiceRecovery } from "./useMomoVoice";
 import {
@@ -62,6 +71,8 @@ import {
   type GuestCapture,
 } from "@/lib/momo-handoff";
 import momo from "@/assets/momo-hamster.png.asset.json";
+
+const currentInlineSession = () => true;
 
 const questions = ["mq.day", "mq.feeling", "mq.food", "mq.treatment", "mq.moment"] as const;
 const loadingPhrases = ["mb.reading", "mb.details", "mb.suggestions", "mb.review"] as const;
@@ -94,6 +105,7 @@ type CaptureRecovery = {
   step: "input" | "review";
   usedVoice: boolean;
   signature: string | null;
+  sourceMatches: boolean;
   voiceSession: VoiceRecovery | null;
   question: Question;
   dismissedQuestions: string[];
@@ -133,6 +145,7 @@ function persistCapture(state: CaptureRecovery | null) {
           step: state.step,
           usedVoice: state.usedVoice,
           analysisContext,
+          sourceMatches: state.sourceMatches,
           voiceSession: state.voiceSession,
           question: state.question,
           dismissedQuestions: state.dismissedQuestions,
@@ -155,13 +168,17 @@ export function MomoSheet({
   onManual,
   onMeal,
   inline = false,
+  isSessionCurrent = currentInlineSession,
 }: {
   inline?: boolean;
+  isSessionCurrent?: () => boolean;
   onMeal?: ((images: string[], note: string) => void) | undefined;
   onDone: () => void;
   onManual: () => void;
 }) {
   const j = useJournal();
+  const active = useRef(true);
+  const ownsCapture = () => active.current && isSessionCurrent() && j.isCurrentOwner();
   const openEntry = useQuickAdd();
   const extract = useServerFn(extractWithMomo);
   const [usedVoice, setUsedVoice] = useState(false);
@@ -171,7 +188,6 @@ export function MomoSheet({
   const [text, setText] = useState("");
   const [composing, setComposing] = useState(false);
   const inputLimitId = useId();
-  const portionQuestionId = useId();
   const [images, setImages] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -181,6 +197,23 @@ export function MomoSheet({
   const [saving, setSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
+  const requestedFocus = useRef<"heading" | "composer" | null>(null);
+  const showStage = (next: "input" | "review") => {
+    if (!ownsCapture()) return;
+    setFailure(null);
+    requestedFocus.current = next === "input" ? "composer" : "heading";
+    setStep(next);
+  };
+  useEffect(() => {
+    const target = requestedFocus.current;
+    if (!target) return;
+    requestedFocus.current = null;
+    const element =
+      target === "composer"
+        ? textareaRef.current
+        : workspaceRef.current?.querySelector<HTMLElement>("[data-momo-stage-heading]");
+    element?.focus();
+  }, [step, saved]);
   const photoVersion = useRef(0);
   const photoGuard = useRef(false);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -199,6 +232,7 @@ export function MomoSheet({
     setBusy(false);
   };
   const updateText = (value: string) => {
+    if (!ownsCapture()) return;
     interruptAnalysis();
     setText(value);
   };
@@ -207,24 +241,38 @@ export function MomoSheet({
     usedVoice,
     lang: { ko: "ko-KR", en: "en-US", fr: "fr-FR" }[getLocale()],
     owner: j.user?.id ?? "guest",
+    isSessionCurrent: ownsCapture,
     onText: updateText,
     onVoice: setUsedVoice,
   });
-  useEffect(
-    () => () => {
-      requestVersion.current++;
-      photoVersion.current++;
-      captureVersion.current++;
-    },
-    [],
-  );
+  useLayoutEffect(() => {
+    active.current = isSessionCurrent();
+    // Radix retains a closed sheet during exit. Release pending controls without
+    // clearing the user's accepted words, photos, or reviewed recovery draft.
+    inflight.current = false;
+    photoGuard.current = false;
+    setBusy(false);
+    setPhotoBusy(false);
+    return () => {
+      active.current = false;
+      requestVersion.current += 1;
+      photoVersion.current += 1;
+      captureVersion.current += 1;
+    };
+  }, [isSessionCurrent]);
   const [consent, setConsent] = useState(false);
   const cache = useRef<{ sig: string; drafts: Draft[] } | null>(null);
+  const reviewSource = useRef<{ text: string; images: string[] } | null>(null);
   const today = todayLocal(j.tz);
   const recoveryKey = `mds.momo.draft.${j.user?.id ?? "guest"}`;
   const [recoveredKey, setRecoveredKey] = useState<string | null>(null);
   const [draftStorageFailed, setDraftStorageFailed] = useState(false);
+  const recovery = useRef<CaptureRecovery | null>(null);
   useEffect(() => {
+    // Keep the outgoing owner's latest edits before resetting the composer.
+    // Its debounced write may not have run before the account changed.
+    if (recovery.current?.key !== recoveryKey) persistCapture(recovery.current);
+    requestedFocus.current = null;
     requestVersion.current++;
     photoVersion.current++;
     photoGuard.current = false;
@@ -247,6 +295,7 @@ export function MomoSheet({
     setSaving(false);
     setUsedVoice(false);
     cache.current = null;
+    reviewSource.current = null;
     setInvitation(null);
     setStarter(null);
     setDismissedQuestions([]);
@@ -255,20 +304,15 @@ export function MomoSheet({
       const raw = sessionStorage.getItem(recoveryKey);
       if (raw) {
         const data = JSON.parse(raw);
-        if (
-          typeof data.text === "string" &&
-          Array.isArray(data.images) &&
-          data.images.every((x: unknown) => typeof x === "string") &&
-          Array.isArray(data.drafts) &&
-          data.drafts.every(
-            (d: Draft) =>
-              d &&
-              Object.prototype.hasOwnProperty.call(FIELDS, d.type) &&
-              typeof d.key === "string" &&
-              d.f &&
-              Object.values(d.f).every((v) => typeof v === "string"),
-          )
-        ) {
+        const source = recoveredCaptureSources(data);
+        // Salvage valid raw words/photos independently, even if another cached field is malformed.
+        setText(source.text);
+        setImages(source.images);
+        setUsedVoice(data?.usedVoice === true);
+        if (!source.complete || !isRecoveredDrafts(data?.drafts)) {
+          setFailure(t("mr.recoveryReset"));
+        }
+        if (source.complete && isRecoveredDrafts(data.drafts)) {
           const context = data.analysisContext;
           const validContext =
             context &&
@@ -306,10 +350,12 @@ export function MomoSheet({
             voice.restore(data.voiceSession);
           // Back-to-input is deliberate. Older suggestions must not look like
           // an analysis of words/photos that were changed before leaving.
-          let sourceMatches = data.drafts.every(
-            (draft: Draft) =>
-              typeof draft.evidence?.text !== "string" || draft.evidence.text === data.text,
-          );
+          let sourceMatches =
+            data.sourceMatches !== false &&
+            data.drafts.every(
+              (draft: Draft) =>
+                typeof draft.evidence?.text !== "string" || draft.evidence.text === data.text,
+            );
           if (context != null && !validContext) sourceMatches = false;
           if (signature) {
             try {
@@ -326,6 +372,7 @@ export function MomoSheet({
             }
           }
           if (!sourceMatches) cache.current = null;
+          else reviewSource.current = { text: source.text, images: [...source.images] };
           setStep(
             data.step === "input" || !sourceMatches
               ? "input"
@@ -353,21 +400,29 @@ export function MomoSheet({
       setGuestCapture(null);
     }
   }, [ownerId]);
-  const recovery = useRef<CaptureRecovery | null>(null);
-  recovery.current = {
-    key: recoveryKey,
-    recovered: recoveredKey === recoveryKey,
-    saved,
-    text,
-    images,
-    drafts,
-    step,
-    usedVoice,
-    signature: cache.current?.sig ?? null,
-    voiceSession: voice.recovery,
-    question: guideQuestion,
-    dismissedQuestions,
-  };
+  const reviewSourceMatches =
+    !!reviewSource.current &&
+    reviewSource.current.text === text &&
+    reviewSource.current.images.length === images.length &&
+    reviewSource.current.images.every((photo, index) => photo === images[index]);
+  // During an owner transition the rendered fields still belong to the old
+  // owner. Retain that capture until the recovery effect has loaded the new one.
+  if (recoveredKey === recoveryKey)
+    recovery.current = {
+      key: recoveryKey,
+      recovered: recoveredKey === recoveryKey,
+      saved,
+      text,
+      images,
+      drafts,
+      step,
+      usedVoice,
+      signature: cache.current?.sig ?? null,
+      sourceMatches: reviewSourceMatches,
+      voiceSession: voice.recovery,
+      question: guideQuestion,
+      dismissedQuestions,
+    };
   useEffect(() => {
     // Avoid serializing every attached image on every keystroke. Records still commit synchronously.
     const keep = () => {
@@ -414,6 +469,7 @@ export function MomoSheet({
   }, []);
 
   const manual = () => {
+    if (!ownsCapture()) return;
     requestVersion.current++;
     voice.interrupt();
     inflight.current = false;
@@ -422,26 +478,27 @@ export function MomoSheet({
   };
 
   const addPhotos = async (files: FileList | null) => {
-    if (!files?.length || photoGuard.current) return;
+    if (!ownsCapture() || !files?.length || photoGuard.current) return;
     interruptAnalysis();
     photoGuard.current = true;
     setPhotoBusy(true);
     const token = photoVersion.current;
+    const isCurrent = () => ownsCapture() && token === photoVersion.current;
     try {
       const next = await Promise.all(
         Array.from(files)
           .slice(0, 3 - images.length)
           .map(shrinkPhoto),
       );
-      if (token !== photoVersion.current) return;
+      if (!isCurrent()) return;
       requestVersion.current++;
       inflight.current = false;
       setBusy(false);
       setImages((previous) => [...previous, ...next].slice(0, 3));
     } catch {
-      if (token === photoVersion.current) setFailure(t("meal.photoError"));
+      if (isCurrent()) setFailure(t("meal.photoError"));
     } finally {
-      if (token === photoVersion.current) {
+      if (isCurrent()) {
         photoGuard.current = false;
         setPhotoBusy(false);
       }
@@ -450,6 +507,7 @@ export function MomoSheet({
 
   const run = async () => {
     if (
+      !ownsCapture() ||
       !j.user ||
       !consent ||
       photoBusy ||
@@ -462,11 +520,14 @@ export function MomoSheet({
     const sig = JSON.stringify([text, images, today, j.tz]);
     // Repeating the same request reuses the previous result instead of asking again.
     if (cache.current?.sig === sig) {
+      reviewSource.current = { text, images: [...images] };
       setDrafts(cache.current.drafts);
-      setStep("review");
+      showStage("review");
       return;
     }
     const version = ++requestVersion.current;
+    const isCurrent = () => ownsCapture() && version === requestVersion.current;
+    const owner = j.user.id;
     inflight.current = true;
     setBusy(true);
     setFailure(null);
@@ -474,13 +535,13 @@ export function MomoSheet({
       const res = await extract({
         data: { text: text.trim(), today, timezone: j.tz, images, locale: getLocale() },
       });
-      if (version !== requestVersion.current) return;
+      if (!isCurrent()) return;
       if (res.error) {
         setFailure(t(`ai.${res.error}`));
         return;
       }
-      const retained = await Promise.all(images.map((p) => retainPhoto(p, j.user?.id ?? "guest")));
-      if (version !== requestVersion.current) return;
+      const retained = await Promise.all(images.map((p) => retainPhoto(p, owner)));
+      if (!isCurrent()) return;
       let ds = res.candidates.map((c, i) =>
         candidateToDraft(c, `${j.newId()}-${i}`, today, {
           method:
@@ -514,26 +575,33 @@ export function MomoSheet({
       });
       setDismissedQuestions([]);
       cache.current = { sig, drafts: ds };
+      reviewSource.current = { text, images: [...images] };
       setDrafts(ds);
-      setStep("review");
+      showStage("review");
     } catch {
-      if (version === requestVersion.current) setFailure(t("momo.error"));
+      if (isCurrent()) setFailure(t("momo.error"));
     } finally {
-      if (version === requestVersion.current) {
+      if (isCurrent()) {
         inflight.current = false;
         setBusy(false);
       }
     }
   };
 
-  const changeDrafts = (change: (previous: Draft[]) => Draft[]) =>
+  const changeDrafts = (change: (previous: Draft[]) => Draft[]) => {
+    if (!ownsCapture()) return;
     setDrafts((previous) => {
       const next = change(previous ?? []);
       if (cache.current) cache.current = { ...cache.current, drafts: next };
       return next;
     });
-  const update = (key: string, patch: Partial<Draft>) =>
-    changeDrafts((ds) => ds.map((d) => (d.key === key ? { ...d, ...patch } : d)));
+  };
+  const update = (key: string, patch: Partial<Draft>) => {
+    setFailure(null);
+    changeDrafts((ds) =>
+      ds.map((d) => (d.key === key ? { ...d, ...patch, ...(patch.f ? { dup: false } : {}) } : d)),
+    );
+  };
 
   const entries = (drafts ?? [])
     .filter((d) => d.on)
@@ -542,32 +610,42 @@ export function MomoSheet({
   const undated = entries.filter(({ d }) => !d.f["date"]?.trim());
 
   const confirm = async () => {
-    if (saveGuard.current || saved || !entries.length) return;
+    if (!ownsCapture() || saveGuard.current || saved || !entries.length) return;
+    if (!reviewSourceMatches) {
+      showStage("input");
+      setFailure(t("mr.sourceChanged"));
+      return;
+    }
     if (invalid.length) {
-      setFailure(t("evidence.clarify"));
+      // The affected row already explains its error. Focus the correction instead
+      // of adding a second, medication-specific warning to unrelated entry types.
+      setFailure(null);
       const card = Array.from(
         workspaceRef.current?.querySelectorAll<HTMLElement>("[data-draft-key]") ?? [],
       ).find((element) => element.dataset["draftKey"] === invalid[0]?.d.key);
       const editButton = card?.querySelector<HTMLButtonElement>("[data-draft-edit]");
       if (editButton?.getAttribute("aria-expanded") !== "true") editButton?.click();
       editButton?.focus();
+      requestAnimationFrame(() => {
+        const field = Array.from(
+          card?.querySelectorAll<HTMLElement>("[data-draft-field]") ?? [],
+        ).find(
+          (element) =>
+            element.dataset["draftField"] === ("error" in invalid[0]!.e ? invalid[0]!.e.error : ""),
+        );
+        const invalidControl = field?.querySelector<HTMLElement>(
+          'input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"]',
+        );
+        (
+          invalidControl ?? field?.querySelector<HTMLElement>("input, select, textarea, button")
+        )?.focus();
+      });
       return;
     }
-    const snapshot = j.snapshot();
-    const unexpected = entries.filter(
-      ({ d, e }) =>
-        !d.dup &&
-        isDuplicate(
-          e,
-          snapshot.records.filter((r) => r.id !== d.key),
-          snapshot.purchases.filter((p) => p.id !== d.key),
-        ),
-    );
+    const unexpected = unexpectedDuplicateKeys(entries, j.snapshot());
     if (unexpected.length) {
       changeDrafts((ds) =>
-        ds.map((d) =>
-          unexpected.some((x) => x.d.key === d.key) ? { ...d, dup: true, on: false } : d,
-        ),
+        ds.map((d) => (unexpected.includes(d.key) ? { ...d, dup: true, on: false } : d)),
       );
       setFailure(t("momo.dup"));
       return;
@@ -588,19 +666,44 @@ export function MomoSheet({
         action: {
           label: t("toast.undo"),
           onClick: () => {
-            undo();
-            if (captureVersion.current !== confirmedVersion) return;
+            try {
+              undo();
+            } catch {
+              toast.error(t("evidence.saveFailed"));
+              return;
+            }
+            if (!ownsCapture() || captureVersion.current !== confirmedVersion) return;
+            const current = j.snapshot();
+            const stillSaved = new Set([
+              ...current.records.map((record) => record.id),
+              ...current.purchases.map((purchase) => purchase.id),
+            ]);
+            const retained = new Set(
+              entries.filter(({ d }) => stillSaved.has(d.key)).map(({ d }) => d.key),
+            );
+            if (retained.size) {
+              toast.info(t("mr.undoKept", { n: retained.size }));
+              if (retained.size === entries.length) return;
+              changeDrafts((previous) => previous.filter((draft) => !retained.has(draft.key)));
+            }
             saveGuard.current = false;
             setSaved(false);
-            setStep("review");
+            showStage("review");
           },
         },
       });
       celebrateSave();
       successful = true;
+      requestedFocus.current = "heading";
       setSaved(true);
-    } catch {
-      setFailure(t("evidence.saveFailed"));
+    } catch (error) {
+      setFailure(
+        t(
+          error instanceof Error && error.message === "momo_existing_entry_changed"
+            ? "mr.savedConflict"
+            : "evidence.saveFailed",
+        ),
+      );
     } finally {
       if (!successful) saveGuard.current = false;
       setSaving(false);
@@ -624,6 +727,9 @@ export function MomoSheet({
       )
     : undefined;
   const resetCapture = () => {
+    if (!ownsCapture()) return;
+    requestedFocus.current = "composer";
+    reviewSource.current = null;
     captureVersion.current++;
     voice.finish();
     setInvitation(null);
@@ -706,6 +812,33 @@ export function MomoSheet({
         editorial && "momo-editorial",
       )}
       aria-busy={busy}
+      onFocusCapture={(event) => {
+        const target = event.target;
+        if (!inline || step !== "review" || !target.closest(".momo-review-editor")) return;
+        // Browser focus scrolling does not account for our sticky confirmation bar.
+        // Only adjust a correction field that the bar would otherwise obscure.
+        requestAnimationFrame(() => {
+          if (!target.isConnected || document.activeElement !== target) return;
+          const actions = workspaceRef.current?.querySelector<HTMLElement>(".momo-review-actions");
+          if (!actions) return;
+          const field = target.getBoundingClientRect();
+          const footer = actions.getBoundingClientRect();
+          const navigation = document
+            .querySelector<HTMLElement>(".app-nav")
+            ?.getBoundingClientRect();
+          const viewportBottom = window.visualViewport
+            ? window.visualViewport.offsetTop + window.visualViewport.height
+            : window.innerHeight;
+          const visibleBottom = Math.min(
+            viewportBottom,
+            footer.bottom > 0 ? footer.top : viewportBottom,
+            navigation && navigation.bottom > 0 ? navigation.top : viewportBottom,
+          );
+          if (field.bottom > visibleBottom - 12) {
+            target.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+          }
+        });
+      }}
     >
       {inline ? (
         editorial ? (
@@ -752,16 +885,33 @@ export function MomoSheet({
             <span className="sr-only">{t("mg.local")}</span>
           </header>
         ) : (
-          <h1 className="text-[22px] font-bold tracking-tight leading-snug">
-            {t(saved ? "mm.saved" : "mm.review")}
-          </h1>
+          <header className="flex items-center gap-3">
+            <h1
+              data-momo-stage-heading
+              tabIndex={-1}
+              className="text-[26px] font-bold tracking-tight leading-snug"
+            >
+              {t(saved ? "mm.saved" : "mr.title")}
+            </h1>
+            {!saved && j.settings.showMomo && (
+              <img
+                src={momo.url}
+                alt=""
+                width={36}
+                height={44}
+                className="h-11 w-9 object-contain"
+              />
+            )}
+          </header>
         )
       ) : (
         <>
-          <DrawerTitle className="text-[24px] font-bold">
-            {t(step === "review" ? "mm.review" : "voice.all")}
+          <DrawerTitle data-momo-stage-heading tabIndex={-1} className="text-[24px] font-bold">
+            {t(saved ? "mm.saved" : step === "review" ? "mr.title" : "voice.all")}
           </DrawerTitle>
-          <DrawerDescription>{t("momo.hint")}</DrawerDescription>
+          <DrawerDescription className={step === "review" ? "sr-only" : undefined}>
+            {t("momo.hint")}
+          </DrawerDescription>
         </>
       )}
 
@@ -1212,28 +1362,34 @@ export function MomoSheet({
               variant="outline"
               className="min-h-12 w-full"
               onClick={async () => {
+                if (!ownsCapture()) return;
                 const version = requestVersion.current;
+                const isCurrent = () => ownsCapture() && version === requestVersion.current;
+                const owner = j.user?.id ?? "guest";
                 try {
-                  const refs = await Promise.all(
-                    images.map((p) => retainPhoto(p, j.user?.id ?? "guest")),
-                  );
-                  if (version === requestVersion.current) onMeal(refs, text);
+                  const refs = await Promise.all(images.map((p) => retainPhoto(p, owner)));
+                  if (isCurrent()) onMeal(refs, text);
                 } catch {
-                  setFailure(t("meal.photoError"));
+                  if (isCurrent()) setFailure(t("meal.photoError"));
                 }
               }}
             >
               {t("meal.open")}
             </Button>
           )}
-          {drafts && (
+          {drafts && reviewSourceMatches && (
             <Button
               variant="outline"
               className="min-h-11 w-full whitespace-normal"
-              onClick={() => setStep("review")}
+              onClick={() => showStage("review")}
             >
               {t("mm.resume")}
             </Button>
+          )}
+          {drafts && !reviewSourceMatches && (
+            <p role="status" className="text-sm text-muted-foreground">
+              {t("mr.sourceChanged")}
+            </p>
           )}
           {!editorial && (
             <p className="text-sm leading-relaxed text-muted-foreground">{t("mc.reviewHint")}</p>
@@ -1381,36 +1537,87 @@ export function MomoSheet({
       )}
 
       {step === "review" && !saved && drafts && (
-        <>
-          <p role="status" className="rounded-[20px] bg-accent p-3 text-[15px]">
-            {t(drafts.length ? "mm.received" : "momo.none")}
+        <div className="momo-review space-y-4">
+          <p role="status" className="text-sm text-muted-foreground">
+            {t(drafts.length ? "mr.proposed" : "momo.none", { n: drafts.length })}
           </p>
-          <details className="journal-disclosure">
-            <summary>{t("momo.source")}</summary>
-            <p className="whitespace-pre-wrap text-sm">{text}</p>
-            <div className="flex flex-wrap gap-2">
-              {images.map((src, i) => (
-                <img
-                  key={src}
-                  src={src}
-                  alt={`${t("f.photo")} ${i + 1}`}
-                  className="size-24 rounded-xl object-contain"
+          {hasSources && (
+            <details className="momo-review-source journal-disclosure">
+              <summary>
+                {images[0] ? (
+                  <img
+                    src={images[0]}
+                    alt=""
+                    className="momo-review-thumbnail shrink-0 object-cover"
+                  />
+                ) : (
+                  <FileText className="size-5 shrink-0 text-primary" aria-hidden />
+                )}
+                <span>
+                  {t(
+                    images.length === 1
+                      ? "mr.onePhotoSource"
+                      : images.length
+                        ? "mr.photoSource"
+                        : "mr.textSource",
+                    { n: images.length },
+                  )}
+                </span>
+              </summary>
+              {text && <p className="whitespace-pre-wrap break-words py-2 text-sm">{text}</p>}
+              {images.length > 0 && (
+                <div className="flex flex-wrap gap-2 py-2">
+                  {images.map((src, i) => (
+                    <img
+                      key={src}
+                      src={src}
+                      alt={`${t("f.photo")} ${i + 1}`}
+                      className="size-24 rounded-xl object-contain"
+                    />
+                  ))}
+                </div>
+              )}
+            </details>
+          )}
+          {drafts.length === 0 ? (
+            <Button className="min-h-12 w-full rounded-full" onClick={manual}>
+              {t("momo.manual")}
+            </Button>
+          ) : (
+            <ul className="momo-drafts momo-review-list" aria-label={t("momo.review")}>
+              {drafts.map((d) => (
+                <DraftCard
+                  key={d.key}
+                  d={d}
+                  onChange={(patch) => update(d.key, patch)}
+                  onRemove={() => update(d.key, { on: false })}
+                  portionQuestion={mealQuestion?.key === d.key}
+                  onDismissPortion={() =>
+                    setDismissedQuestions((previous) => [...new Set([...previous, d.key])])
+                  }
+                  error={
+                    entries.find((x) => x.d.key === d.key && "error" in x.e)
+                      ? t("evidence.clarify")
+                      : null
+                  }
                 />
               ))}
-            </div>
-          </details>
+            </ul>
+          )}
           {undated.length > 1 && (
-            <div className="rounded-2xl border bg-secondary p-3 space-y-2">
-              <p className="text-sm">{t("mc.undated", { n: undated.length })}</p>
+            <div className="momo-batch-date">
+              <p className="text-sm text-muted-foreground">
+                {t("mc.undated", { n: undated.length })}
+              </p>
               <Button
                 variant="outline"
-                className="min-h-11 whitespace-normal"
+                className="mt-2 min-h-11 rounded-full whitespace-normal"
                 disabled={saving}
                 onClick={() =>
                   changeDrafts((current) =>
                     current.map((draft) =>
                       draft.on && !draft.f["date"]?.trim()
-                        ? { ...draft, f: { ...draft.f, date: today } }
+                        ? { ...draft, dup: false, f: { ...draft.f, date: today } }
                         : draft,
                     ),
                   )
@@ -1420,129 +1627,22 @@ export function MomoSheet({
               </Button>
             </div>
           )}
-          {question &&
-            !(undated.length > 1 && "error" in question.e && question.e.error === "date") && (
-              <div
-                role="status"
-                className="rounded-2xl border border-primary/30 bg-secondary p-3 space-y-2"
-              >
-                <p className="font-medium">
-                  {t("mm.clarify", {
-                    field: t(
-                      (FIELDS[question.d.type].find(
-                        (f) => f.k === ("error" in question.e ? question.e.error : "date"),
-                      )?.label ?? "f.date") as Key,
-                    ),
-                  })}
-                </p>
-                {"error" in question.e && question.e.error === "date" && (
-                  <Button
-                    variant="outline"
-                    onClick={() => update(question.d.key, { f: { ...question.d.f, date: today } })}
-                  >
-                    {t("today")}
-                  </Button>
-                )}
-              </div>
-            )}
-          {mealQuestion && (
-            <div
-              role="group"
-              aria-labelledby={portionQuestionId}
-              className="rounded-2xl bg-secondary p-3 space-y-2"
-            >
-              <p id={portionQuestionId}>
-                {t("mm.portionQuestion", { meal: draftPreview(mealQuestion).title })}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  ["1", "meal.all"],
-                  ["0.5", "meal.half"],
-                  ["", "unknown"],
-                ].map(([value, label]) => (
-                  <Button
-                    key={label}
-                    variant="outline"
-                    onClick={() => {
-                      if (value) {
-                        const meal = JSON.parse(mealQuestion.f["meal"]!);
-                        update(mealQuestion.key, {
-                          f: {
-                            ...mealQuestion.f,
-                            meal: JSON.stringify({ ...meal, consumedFraction: Number(value) }),
-                          },
-                        });
-                      }
-                      setDismissedQuestions((previous) => [
-                        ...new Set([...previous, mealQuestion.key]),
-                      ]);
-                    }}
-                  >
-                    {t(label as Key)}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
-          <p className="text-[15px] font-semibold">{t("momo.review")}</p>
-          {drafts.length === 0 && (
-            <Button variant="outline" onClick={manual}>
-              {t("momo.manual")}
-            </Button>
-          )}
-          <details className="journal-disclosure">
-            <summary>{t("momo.shortcuts")}</summary>
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  ["purchase", Package],
-                  ["injection", Syringe],
-                  ["stock", Package],
-                  ["weight", Scale],
-                  ["condition", Smile],
-                  ["meal", UtensilsCrossed],
-                  ["reminder", Bell],
-                ] as const
-              ).map(([k, I]) => (
-                <Button
-                  key={k}
-                  variant="unstyled"
-                  size="unstyled"
-                  onClick={() => {
-                    voice.interrupt();
-                    openEntry(k);
-                  }}
-                  className="press flex min-h-11 items-center gap-1.5 rounded-full border bg-card px-3 text-sm"
-                >
-                  <I className="size-4" />
-                  {t(`momo.go.${k}` as Key)}
-                </Button>
-              ))}
-            </div>
-          </details>
-          <ul className="momo-drafts space-y-3">
-            {drafts.map((d) => (
-              <DraftCard
-                key={d.key}
-                d={d}
-                onChange={(p) => update(d.key, p)}
-                onRemove={() => update(d.key, { on: false })}
-                error={
-                  entries.find((x) => x.d.key === d.key && "error" in x.e)
-                    ? t("evidence.clarify")
-                    : null
-                }
-              />
-            ))}
-          </ul>
           {failure && (
-            <p role="alert" className="text-sm text-destructive">
-              {failure}
-            </p>
+            <div role="alert" className="space-y-2 text-sm text-destructive">
+              <p>{failure}</p>
+              {failure === t("mr.savedConflict") && (
+                <a
+                  href="/history"
+                  className="inline-flex min-h-11 items-center font-medium underline underline-offset-4"
+                >
+                  {t("mr.openSaved")}
+                </a>
+              )}
+            </div>
           )}
-          <div className="sheet-actions space-y-2">
-            <p className="text-sm font-semibold" aria-live="polite">
-              {t("mm.selected", { n: entries.length })}
+          <div className="sheet-actions momo-review-actions space-y-2">
+            <p className="text-center text-sm text-muted-foreground" aria-live="polite">
+              {t(entries.length ? "mr.readyCount" : "mr.selectEntries", { n: entries.length })}
             </p>
             <Button
               className="min-h-12 w-full whitespace-normal"
@@ -1554,13 +1654,48 @@ export function MomoSheet({
                 : invalid.length
                   ? t("mc.checkSelected", { n: invalid.length })
                   : t("mm.confirm", { n: entries.length })}
+              {!saving && <ArrowRight className="size-4 shrink-0" aria-hidden />}
             </Button>
-            <Button variant="ghost" className="min-h-11 w-full" onClick={() => setStep("input")}>
-              <Undo2 className="size-4" />
+            <Button
+              variant="ghost"
+              className="min-h-11 w-full"
+              disabled={saving}
+              onClick={() => showStage("input")}
+            >
+              <Undo2 className="size-4" aria-hidden />
               {t("momo.original")}
             </Button>
           </div>
-        </>
+          <details className="journal-disclosure momo-review-shortcuts">
+            <summary>{t("mr.addMissing")}</summary>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["purchase", Package],
+                  ["injection", Syringe],
+                  ["stock", Package],
+                  ["weight", Scale],
+                  ["condition", Smile],
+                  ["meal", UtensilsCrossed],
+                  ["reminder", Bell],
+                ] as const
+              ).map(([kind, Icon]) => (
+                <Button
+                  key={kind}
+                  variant="outline"
+                  className="min-h-11 rounded-full"
+                  onClick={() => {
+                    voice.interrupt();
+                    openEntry(kind);
+                  }}
+                >
+                  <Icon className="size-4" aria-hidden />
+                  {t(`momo.go.${kind}` as Key)}
+                </Button>
+              ))}
+            </div>
+          </details>
+        </div>
       )}
     </div>
   );
@@ -1642,18 +1777,35 @@ function DraftCard({
   onChange,
   onRemove,
   error,
+  portionQuestion,
+  onDismissPortion,
 }: {
   d: Draft;
   onChange: (p: Partial<Draft>) => void;
   onRemove: () => void;
   error: string | null;
+  portionQuestion: boolean;
+  onDismissPortion: () => void;
 }) {
   const j = useJournal();
   const open = useQuickAdd();
   const miss = missingFields(d);
   const preview = draftPreview(d);
+  const overviewDetails =
+    d.type === "condition"
+      ? []
+      : d.type === "expense"
+        ? preview.details.slice(0, 2)
+        : d.type === "purchase"
+          ? preview.details.slice(0, 3)
+          : preview.details;
   const entry = draftToEntry(d, d.key, j.tz, todayLocal(j.tz));
   const [expanded, setExpanded] = useState(false);
+  const editorId = useId();
+  const portionQuestionId = useId();
+  const errorId = useId();
+  const editButtonRef = useRef<HTMLButtonElement>(null);
+  const name = `${typeLabel(d.type)}: ${preview.title}`;
   const period = d.f["partOfDay"] ?? partOfDayFromHint(d.timeHint);
   const periodLabel = isPartOfDay(period) ? t(`pod.${period}`) : "";
   const errorField = d.on && "error" in entry ? entry.error : null;
@@ -1672,237 +1824,329 @@ function DraftCard({
     meal: UtensilsCrossed,
   }[d.type];
   return (
-    <li
-      data-draft-key={d.key}
-      className={cn(
-        "app-surface rounded-[22px] border bg-card p-4",
-        d.on ? "border-primary" : "opacity-60",
-      )}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-2 rounded-full bg-secondary px-3 py-1 text-sm font-semibold">
-          <Icon className="size-5" />
-          {typeLabel(d.type)}
-        </span>
-        <div className="flex items-center gap-1">
-          <label className="flex min-h-11 items-center gap-2 px-2 text-sm">
-            <input
-              type="checkbox"
-              className="size-5 accent-[var(--color-primary)]"
-              checked={d.on}
-              onChange={(e) => onChange({ on: e.target.checked })}
-            />
-            {t("momo.include")}
-          </label>
-          <Button
-            variant="unstyled"
-            size="unstyled"
-            onClick={onRemove}
-            className="press min-h-11 rounded-full px-3 text-sm text-muted-foreground"
-          >
+    <li data-draft-key={d.key} data-included={d.on} className="momo-review-row">
+      <div className="momo-review-row-main">
+        <label className="momo-review-check">
+          <input
+            type="checkbox"
+            className="size-5 accent-[var(--color-primary)]"
+            checked={d.on}
+            aria-label={t("mr.includeEntry", { entry: name })}
+            onChange={(event) => onChange({ on: event.target.checked })}
+          />
+        </label>
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 text-xs font-medium text-primary">
+            <Icon className="size-3.5 shrink-0" aria-hidden />
+            {typeLabel(d.type)}
+            {!d.on && <span className="text-muted-foreground">· {t("evidence.excluded")}</span>}
+          </p>
+          <p className="momo-review-entry-title">{preview.title}</p>
+          {d.f["date"]?.trim() && (
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {validDate(d.f["date"]) ? fmtMonthDay(d.f["date"]) : d.f["date"]}
+              {d.f["time"] ? " · " + d.f["time"] : periodLabel ? " · " + periodLabel : ""}
+            </p>
+          )}
+          {overviewDetails.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 break-words text-sm text-muted-foreground">
+              {overviewDetails.map((detail, index) => (
+                <span key={index}>{detail}</span>
+              ))}
+            </div>
+          )}
+          {d.type === "meal" && <span className="momo-review-estimate">{t("mm.estimate")}</span>}
+          {errorField && (
+            <p className="momo-review-issue">
+              <AlertTriangle className="size-4 shrink-0" aria-hidden />
+              {t("mr.needsField", { field: fieldLabel })}
+            </p>
+          )}
+          {d.evidence?.attribution?.status === "unclear" && (
+            <p className="momo-review-issue">
+              <AlertTriangle className="size-4 shrink-0" aria-hidden />
+              {t("evidence.sourceUnclear")}
+            </p>
+          )}
+          {d.type === "purchase" && (!d.f["medication"]?.trim() || !d.f["stockUnit"]?.trim()) && (
+            <p className="mt-1 text-sm text-muted-foreground">{t("mr.stockReview")}</p>
+          )}
+          {d.dup && <p className="mt-1 text-sm text-muted-foreground">{t("momo.dup")}</p>}
+        </div>
+        <Button
+          ref={editButtonRef}
+          variant="unstyled"
+          size="unstyled"
+          className="momo-review-edit"
+          data-draft-edit
+          aria-label={t(expanded ? "mr.closeEntry" : errorField ? "mr.fixEntry" : "mr.editEntry", {
+            entry: name,
+            field: fieldLabel,
+          })}
+          aria-expanded={expanded}
+          aria-controls={editorId}
+          onClick={() => setExpanded(!expanded)}
+        >
+          {t(expanded ? "mr.doneEditing" : errorField ? "mr.fix" : "mr.edit")}
+          <ChevronDown className={cn("size-3.5 shrink-0", expanded && "rotate-180")} aria-hidden />
+        </Button>
+      </div>
+      {expanded && (
+        <div id={editorId} className="momo-review-editor">
+          {d.dup && (
+            <div className="mt-2 rounded-xl bg-accent p-3">
+              <p className="text-sm">{t("mm.duplicateHint")}</p>
+              {j.records
+                .filter((r) => r.id !== d.key && isDuplicate(entry, [r], []))
+                .slice(0, 2)
+                .map((r) => (
+                  <Button
+                    key={r.id}
+                    variant="outline"
+                    className="mt-2 w-full whitespace-normal text-left"
+                    onClick={() => open(r.type, r)}
+                  >
+                    {r.localDate} · {recordValue(r)}
+                  </Button>
+                ))}
+              {j.purchases
+                .filter((p) => p.id !== d.key && isDuplicate(entry, [], [p]))
+                .slice(0, 2)
+                .map((p) => (
+                  <Button
+                    key={p.id}
+                    variant="outline"
+                    className="mt-2 w-full whitespace-normal"
+                    onClick={() => open("purchase", p)}
+                  >
+                    {p.localDate} · {p.product ?? t("type.purchase")} · {formatPurchaseMoney(p)}
+                  </Button>
+                ))}
+            </div>
+          )}
+          {preview.details.length > 1 && (
+            <ul className="mb-3 space-y-1 text-sm text-muted-foreground">
+              {preview.details.slice(1).map((detail, i) => (
+                <li key={i}>{detail}</li>
+              ))}
+            </ul>
+          )}
+          {portionQuestion && (
+            <div
+              role="group"
+              aria-labelledby={portionQuestionId}
+              className="rounded-2xl bg-secondary p-3 space-y-2"
+            >
+              <p id={portionQuestionId}>{t("mm.portionQuestion", { meal: preview.title })}</p>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ["1", "meal.all"],
+                    ["0.5", "meal.half"],
+                    ["", "unknown"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <Button
+                    key={label}
+                    variant="outline"
+                    onClick={() => {
+                      const meal = JSON.parse(d.f["meal"]!);
+                      onChange({
+                        mealFractionInput: value,
+                        f: {
+                          ...d.f,
+                          meal: JSON.stringify({
+                            ...meal,
+                            consumedFraction: parseMealFractionInput(value),
+                          }),
+                        },
+                      });
+                      onDismissPortion();
+                      editButtonRef.current?.focus();
+                    }}
+                  >
+                    {t(label as Key)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="feel-panel mt-3 grid grid-cols-2 gap-3">
+            {d.type === "meal" && (
+              <div className="col-span-2" data-draft-field="meal">
+                <MealDraftEditor
+                  d={d}
+                  onChange={onChange}
+                  errorId={errorField === "meal" ? errorId : undefined}
+                />
+              </div>
+            )}
+            {FIELDS[d.type]
+              .filter((f) => f.k !== "meal")
+              .map((f) =>
+                f.k === "stockUnit" ? (
+                  <label key={f.k} className="col-span-2" data-draft-field={f.k}>
+                    <span className="mb-1 block text-sm font-medium">{t("f.unit")}</span>
+                    <select
+                      className={inputCls}
+                      aria-invalid={errorField === f.k || undefined}
+                      aria-describedby={errorField === f.k ? errorId : undefined}
+                      value={d.f["stockUnit"] ?? ""}
+                      onChange={(event) =>
+                        onChange({ f: { ...d.f, stockUnit: event.target.value } })
+                      }
+                    >
+                      <option value="">{t("unknown")}</option>
+                      {(["single", "pen", "dose"] as const).map((unit) => (
+                        <option key={unit} value={unit}>
+                          {t(`unit.${unit}`)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : f.k === "partOfDay" ? (
+                  <div key={f.k} className="col-span-2" data-draft-field={f.k}>
+                    <TimeOfDayField
+                      value={period ?? ""}
+                      invalid={errorField === f.k}
+                      errorDescription={errorId}
+                      disabled={!!d.f["time"]?.trim()}
+                      onChange={(value) => onChange({ f: { ...d.f, partOfDay: value } })}
+                    />
+                  </div>
+                ) : f.k === "answer" ? (
+                  <label key={f.k} className="col-span-2" data-draft-field={f.k}>
+                    <span className="mb-1 block text-sm font-medium">{t("type.water")}</span>
+                    <select
+                      aria-label={t("type.water")}
+                      aria-invalid={errorField === f.k || undefined}
+                      aria-describedby={
+                        "water-hint-" + d.key + (errorField === f.k ? " " + errorId : "")
+                      }
+                      className={inputCls}
+                      value={d.f["answer"] ?? ""}
+                      onChange={(event) => onChange({ f: { ...d.f, answer: event.target.value } })}
+                    >
+                      <option value="">{t("unknown")}</option>
+                      <option value="yes">{t("water.yes")}</option>
+                      <option value="not_yet">{t("water.notYet")}</option>
+                    </select>
+                    <p id={"water-hint-" + d.key} className="mt-1 text-sm text-muted-foreground">
+                      {t("water.note")}
+                    </p>
+                  </label>
+                ) : f.k === "medication" ? (
+                  <div key={f.k} className="col-span-2" data-draft-field={f.k}>
+                    <span className="mb-1 block text-sm font-medium">{t(f.label as Key)}</span>
+                    <MedicationPicker
+                      value={d.f[f.k] ?? ""}
+                      onChange={(value) => onChange({ f: { ...d.f, [f.k]: value } })}
+                    />
+                  </div>
+                ) : f.k === "site" ? (
+                  <div key={f.k} className="col-span-2" data-draft-field={f.k}>
+                    <p className="mb-1 text-sm">{t("f.site")}</p>
+                    <SitePicker
+                      value={d.f["site"] || null}
+                      onChange={(value) => onChange({ f: { ...d.f, site: value ?? "" } })}
+                    />
+                  </div>
+                ) : (
+                  <label
+                    key={f.k}
+                    data-draft-field={f.k}
+                    className={cn("block", f.kind === "text" && f.k === "note" && "col-span-2")}
+                  >
+                    <span className="mb-1 block text-sm font-medium">
+                      {t(f.label as Key)} ·{" "}
+                      {t(
+                        d.evidence && d.f[f.k] !== d.evidence.proposed[f.k]
+                          ? "evidence.corrected"
+                          : "evidence.suggested",
+                      )}
+                    </span>
+                    <input
+                      className={inputCls}
+                      type={f.kind === "date" ? "date" : f.kind === "time" ? "time" : "text"}
+                      inputMode={f.kind === "num" ? "decimal" : undefined}
+                      aria-label={f.k === "amount" ? t("f.amount") : undefined}
+                      aria-invalid={errorField === f.k || undefined}
+                      aria-describedby={
+                        [
+                          f.k === "amount" ? "momo-amount-hint-" + d.key : "",
+                          errorField === f.k ? errorId : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ") || undefined
+                      }
+                      value={d.f[f.k] ?? ""}
+                      placeholder={f.kind === "time" ? t("unknown") : t("missing")}
+                      onChange={(e) => onChange({ f: { ...d.f, [f.k]: e.target.value } })}
+                    />
+                    {f.k === "amount" && (
+                      <span
+                        id={"momo-amount-hint-" + d.key}
+                        className="mt-1 block text-sm text-muted-foreground"
+                      >
+                        {t("money.hint")}
+                      </span>
+                    )}
+                  </label>
+                ),
+              )}
+          </div>
+          {d.timeHint && (
+            <p className="mt-2 text-sm">
+              <span className="font-medium">{t("momo.timeHint")}:</span> “{d.timeHint}”
+            </p>
+          )}
+          {miss.length > 0 && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              <span className="font-medium">{t("momo.missingL")}:</span>{" "}
+              {miss.map((k) => t(FIELDS[d.type].find((f) => f.k === k)!.label as Key)).join(", ")}
+            </p>
+          )}
+          {d.type === "purchase" && (!d.f["medication"]?.trim() || !d.f["stockUnit"]?.trim()) && (
+            <p className="mt-2 text-sm text-muted-foreground">{t("momo.stockReview")}</p>
+          )}
+          {d.type === "injection" && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t("stock.move")}: {t("evidence.stockLater")}
+            </p>
+          )}
+
+          {error && (
+            <p id={errorId} role="alert" className="mt-2 text-sm text-destructive">
+              {errorField ? t("mc.checkField", { field: fieldLabel }) : error}
+            </p>
+          )}
+          {d.evidence && (
+            <div className="mt-3 border-t pt-2">
+              <SourceEvidence
+                evidence={
+                  ("record" in entry && entry.record.evidence) || { ...d.evidence, confirmed: d.f }
+                }
+              />
+            </div>
+          )}
+          <Button variant="ghost" className="mt-2 min-h-11 text-sm" onClick={onRemove}>
             {t("momo.remove")}
           </Button>
         </div>
-      </div>
-      <p className="mt-2 break-words text-[18px] font-bold">{preview.title}</p>
-      {preview.details.length > 0 && (
-        <ul className="mt-1 space-y-1 text-sm leading-relaxed break-words">
-          {preview.details.map((detail, index) => (
-            <li key={index}>{detail}</li>
-          ))}
-        </ul>
-      )}
-      <p className="mt-1 text-sm">
-        {d.f["date"] || t("evidence.clarify")}
-        {d.f["time"] ? " · " + d.f["time"] : periodLabel ? " · " + periodLabel : ""}
-      </p>
-      {d.type === "meal" && (
-        <p className="mt-1 text-sm font-medium text-primary">{t("mm.estimate")}</p>
-      )}
-      <Button
-        variant="unstyled"
-        size="unstyled"
-        className="mt-2 min-h-11 rounded-full border px-3 text-sm font-medium"
-        data-draft-edit
-        aria-expanded={expanded}
-        onClick={() => setExpanded(!expanded)}
-      >
-        {errorField ? t("mc.fixField", { field: fieldLabel }) : t("evidence.edit")}
-      </Button>
-      {d.evidence && (
-        <div className="mt-2">
-          <SourceEvidence
-            evidence={
-              ("record" in entry && entry.record.evidence) || { ...d.evidence, confirmed: d.f }
-            }
-          />
-        </div>
-      )}
-      {d.dup && (
-        <div className="mt-2 rounded-xl bg-accent p-3">
-          <p className="text-sm font-medium">{t("momo.dup")}</p>
-          <p className="text-sm">{t("mm.duplicateHint")}</p>
-          {j.records
-            .filter((r) => r.id !== d.key && isDuplicate(entry, [r], []))
-            .slice(0, 2)
-            .map((r) => (
-              <Button
-                key={r.id}
-                variant="outline"
-                className="mt-2 w-full whitespace-normal text-left"
-                onClick={() => open(r.type, r)}
-              >
-                {r.localDate} · {recordValue(r)}
-              </Button>
-            ))}
-          {j.purchases
-            .filter((p) => p.id !== d.key && isDuplicate(entry, [], [p]))
-            .slice(0, 2)
-            .map((p) => (
-              <Button
-                key={p.id}
-                variant="outline"
-                className="mt-2 w-full whitespace-normal"
-                onClick={() => open("purchase", p)}
-              >
-                {p.localDate} · {p.product ?? t("type.purchase")} · {formatPurchaseMoney(p)}
-              </Button>
-            ))}
-        </div>
-      )}
-      {d.on && expanded && (
-        <div className="feel-panel mt-3 grid grid-cols-2 gap-2">
-          {d.type === "meal" && (
-            <div className="col-span-2">
-              <MealDraftEditor d={d} onChange={onChange} />
-            </div>
-          )}
-          {FIELDS[d.type]
-            .filter((f) => f.k !== "meal")
-            .map((f) =>
-              f.k === "stockUnit" ? (
-                <label key={f.k} className="col-span-2">
-                  <span className="mb-1 block text-sm font-medium">{t("f.unit")}</span>
-                  <select
-                    className={inputCls}
-                    value={d.f["stockUnit"] ?? ""}
-                    onChange={(event) => onChange({ f: { ...d.f, stockUnit: event.target.value } })}
-                  >
-                    <option value="">{t("unknown")}</option>
-                    {(["single", "pen", "dose"] as const).map((unit) => (
-                      <option key={unit} value={unit}>
-                        {t(`unit.${unit}`)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : f.k === "partOfDay" ? (
-                <TimeOfDayField
-                  key={f.k}
-                  value={period ?? ""}
-                  disabled={!!d.f["time"]?.trim()}
-                  onChange={(value) => onChange({ f: { ...d.f, partOfDay: value } })}
-                />
-              ) : f.k === "answer" ? (
-                <label key={f.k} className="col-span-2">
-                  <span className="mb-1 block text-sm font-medium">{t("type.water")}</span>
-                  <select
-                    aria-label={t("type.water")}
-                    aria-describedby={"water-hint-" + d.key}
-                    className={inputCls}
-                    value={d.f["answer"] ?? ""}
-                    onChange={(event) => onChange({ f: { ...d.f, answer: event.target.value } })}
-                  >
-                    <option value="">{t("unknown")}</option>
-                    <option value="yes">{t("water.yes")}</option>
-                    <option value="not_yet">{t("water.notYet")}</option>
-                  </select>
-                  <p id={"water-hint-" + d.key} className="mt-1 text-sm text-muted-foreground">
-                    {t("water.note")}
-                  </p>
-                </label>
-              ) : f.k === "medication" ? (
-                <div key={f.k} className="col-span-2">
-                  <span className="mb-1 block text-sm font-medium">{t(f.label as Key)}</span>
-                  <MedicationPicker
-                    value={d.f[f.k] ?? ""}
-                    onChange={(value) => onChange({ f: { ...d.f, [f.k]: value } })}
-                  />
-                </div>
-              ) : f.k === "site" ? (
-                <div key={f.k} className="col-span-2">
-                  <p className="mb-1 text-sm">{t("f.site")}</p>
-                  <SitePicker
-                    value={d.f["site"] || null}
-                    onChange={(value) => onChange({ f: { ...d.f, site: value ?? "" } })}
-                  />
-                </div>
-              ) : (
-                <label
-                  key={f.k}
-                  className={cn("block", f.kind === "text" && f.k === "note" && "col-span-2")}
-                >
-                  <span className="mb-1 block text-sm font-medium">
-                    {t(f.label as Key)} ·{" "}
-                    {t(
-                      d.evidence && d.f[f.k] !== d.evidence.proposed[f.k]
-                        ? "evidence.corrected"
-                        : "evidence.suggested",
-                    )}
-                  </span>
-                  <input
-                    className={inputCls}
-                    type={f.kind === "date" ? "date" : f.kind === "time" ? "time" : "text"}
-                    inputMode={f.kind === "num" ? "decimal" : undefined}
-                    aria-label={f.k === "amount" ? t("f.amount") : undefined}
-                    aria-describedby={f.k === "amount" ? "momo-amount-hint-" + d.key : undefined}
-                    value={d.f[f.k] ?? ""}
-                    placeholder={f.kind === "time" ? t("unknown") : t("missing")}
-                    onChange={(e) => onChange({ f: { ...d.f, [f.k]: e.target.value } })}
-                  />
-                  {f.k === "amount" && (
-                    <span
-                      id={"momo-amount-hint-" + d.key}
-                      className="mt-1 block text-sm text-muted-foreground"
-                    >
-                      {t("money.hint")}
-                    </span>
-                  )}
-                </label>
-              ),
-            )}
-        </div>
-      )}
-      {d.timeHint && (
-        <p className="mt-2 text-sm">
-          <span className="font-medium">{t("momo.timeHint")}:</span> “{d.timeHint}”
-        </p>
-      )}
-      {miss.length > 0 && (
-        <p className="mt-1 text-sm text-muted-foreground">
-          <span className="font-medium">{t("momo.missingL")}:</span>{" "}
-          {miss.map((k) => t(FIELDS[d.type].find((f) => f.k === k)!.label as Key)).join(", ")}
-        </p>
-      )}
-      {d.type === "purchase" && (!d.f["medication"]?.trim() || !d.f["stockUnit"]?.trim()) && (
-        <p className="mt-2 text-sm text-muted-foreground">{t("momo.stockReview")}</p>
-      )}
-      {d.type === "injection" && (
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t("stock.move")}: {t("evidence.stockLater")}
-        </p>
-      )}
-
-      {error && (
-        <p role="alert" className="mt-2 text-sm text-destructive">
-          {errorField ? t("mc.checkField", { field: fieldLabel }) : error}
-        </p>
       )}
     </li>
   );
 }
 
-function MealDraftEditor({ d, onChange }: { d: Draft; onChange: (patch: Partial<Draft>) => void }) {
+function MealDraftEditor({
+  d,
+  onChange,
+  errorId,
+}: {
+  d: Draft;
+  onChange: (patch: Partial<Draft>) => void;
+  errorId: string | undefined;
+}) {
   const j = useJournal();
   let meal: MealDetails;
   try {
@@ -1913,7 +2157,13 @@ function MealDraftEditor({ d, onChange }: { d: Draft; onChange: (patch: Partial<
   const patch = (change: Partial<MealDetails>) =>
     onChange({ f: { ...d.f, meal: JSON.stringify({ ...meal, ...change }) } });
   return (
-    <div className="space-y-3">
+    <div
+      role="group"
+      aria-label={t("type.meal")}
+      aria-invalid={!!errorId || undefined}
+      aria-describedby={errorId}
+      className="space-y-3"
+    >
       <p className="text-sm text-muted-foreground">{t("meal.hint")}</p>
       <label className="block">
         {t("meal.title")}
@@ -1926,8 +2176,25 @@ function MealDraftEditor({ d, onChange }: { d: Draft; onChange: (patch: Partial<
       <MealItemsEditor
         meal={meal}
         patch={patch}
-        fraction={meal.consumedFraction === null ? "" : String(meal.consumedFraction)}
-        setFraction={(value) => patch({ consumedFraction: value === "" ? null : Number(value) })}
+        fraction={
+          d.mealFractionInput ??
+          (meal.consumedFraction === null ? "" : String(meal.consumedFraction))
+        }
+        setFraction={(value) => {
+          const fraction = parseMealFractionInput(value);
+          onChange({
+            mealFractionInput: value,
+            f: {
+              ...d.f,
+              meal: JSON.stringify({
+                ...meal,
+                // JSON cannot keep NaN. The separate input above preserves invalid
+                // intent for recovery and commit validation without claiming intake.
+                consumedFraction: Number.isFinite(fraction) ? fraction : null,
+              }),
+            },
+          });
+        }}
         newId={j.newId}
       />
       <details>

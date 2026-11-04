@@ -219,4 +219,13 @@ export const findMedication = (value: string) =>
   MEDICATIONS.find((m) =>
     [m.ko, m.en, ...m.aliases].some((name) => normalize(name) === normalize(value)),
   );
+
+/** Choice visibility only: preserve stored spellings and exact lot identity when saving. */
+export const sameCatalogMedication = (a: string, b: string) => {
+  if (a.trim() === b.trim()) return true;
+  const first = findMedication(a);
+  const second = findMedication(b);
+  return !!first && !!second && first.id === second.id;
+};
+
 export const medicationLabel = (m: Medication, locale: Locale) => (locale === "ko" ? m.ko : m.en);

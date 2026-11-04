@@ -21,6 +21,7 @@ vi.mock("@/lib/media", async (importOriginal) => ({
   shrinkPhoto: photo.shrink,
 }));
 const j = vi.hoisted(() => ({
+  isCurrentOwner: () => true,
   user: null as { id: string } | null,
   tz: "Asia/Seoul",
   settings: { showMomo: true },
@@ -68,6 +69,12 @@ beforeEach(() => {
   sessionStorage.clear();
   vi.clearAllMocks();
   ai.extract.mockReset();
+  photo.shrink.mockReset();
+  j.saveMomoBatch.mockReset();
+  // Clear per-test promises and keep the async contract even when photo tests run first.
+  vi.mocked(photoUrl)
+    .mockReset()
+    .mockImplementation(async (src) => src);
   j.snapshot.mockImplementation(() => ({
     records: j.records,
     purchases: j.purchases,
@@ -210,7 +217,7 @@ it("does not offer a previous account's guest handoff after switching accounts",
   expect(screen.getByRole("textbox")).toHaveValue("");
 });
 
-it("opens the first invalid Momo card and names the field instead of saving incomplete entries", () => {
+it("opens the first invalid Momo card and names the field instead of saving incomplete entries", async () => {
   sessionStorage.setItem(
     "mds.momo.draft.guest",
     JSON.stringify({
@@ -229,12 +236,16 @@ it("opens the first invalid Momo card and names the field instead of saving inco
     }),
   );
   render(<MomoSheet onDone={vi.fn()} onManual={vi.fn()} />);
-  const edit = screen.getByRole("button", { name: t("mc.fixField", { field: t("f.date") }) });
+  const edit = screen.getByRole("button", {
+    name: t("mr.fixEntry", { field: t("f.date"), entry: `${t("type.weight")}: 78.2 kg` }),
+  });
   expect(edit).toHaveAttribute("aria-expanded", "false");
   fireEvent.click(screen.getByRole("button", { name: t("mc.checkSelected", { n: 1 }) }));
   expect(edit).toHaveAttribute("aria-expanded", "true");
-  expect(edit).toHaveFocus();
-  expect(screen.getByLabelText(new RegExp(t("f.date")))).toBeVisible();
+  await waitFor(() =>
+    expect(screen.getByLabelText(new RegExp(t("f.date")), { selector: "input" })).toHaveFocus(),
+  );
+  expect(screen.getByLabelText(new RegExp(t("f.date")), { selector: "input" })).toBeVisible();
   expect(j.saveMomoBatch).not.toHaveBeenCalled();
 });
 
@@ -309,7 +320,7 @@ it("takes a mocked multi-fact day through consent, review, correction and one co
   expect(ai.extract).toHaveBeenCalledTimes(1);
   expect(j.saveMomoBatch).not.toHaveBeenCalled();
   const weight = screen.getByText("78.2 kg", { selector: "p" }).closest("li")!;
-  fireEvent.click(within(weight).getByRole("button", { name: t("evidence.edit") }));
+  fireEvent.click(within(weight).getByRole("button", { name: new RegExp(t("evidence.edit")) }));
   fireEvent.change(within(weight).getByLabelText(t("f.value") + " · " + t("evidence.suggested")), {
     target: { value: "78.3" },
   });
@@ -579,13 +590,15 @@ it("shows the key facts of collapsed suggestions before any save", () => {
   expect(card("measure-preview").getByText(t("f.hip") + ": 96")).toBeVisible();
   expect(card("expense-preview").getByText("Fictional receipt")).toBeVisible();
   expect(card("expense-preview").getByText(t("f.amount") + ": 12.5 EUR")).toBeVisible();
-  expect(card("expense-preview").getByText(t("f.merchant") + ": Fictional shop")).toBeVisible();
+  expect(
+    card("expense-preview").queryByText(t("f.merchant") + ": Fictional shop"),
+  ).not.toBeInTheDocument();
   expect(card("purchase-preview").getByText(t("f.quantity") + ": 3")).toBeVisible();
   expect(card("purchase-preview").getByText(t("f.amount") + ": 24 USD")).toBeVisible();
-  expect(card("condition-preview").getByText("Fictional extra context")).toBeVisible();
+  expect(card("condition-preview").queryByText("Fictional extra context")).not.toBeInTheDocument();
   expect(
     screen
-      .getAllByRole("button", { name: t("evidence.edit") })
+      .getAllByRole("button", { name: new RegExp(t("evidence.edit")) })
       .every((button) => button.getAttribute("aria-expanded") === "false"),
   ).toBe(true);
   expect(j.saveMomoBatch).not.toHaveBeenCalled();
@@ -1093,9 +1106,9 @@ it("lets the user confirm a missing stock unit without changing its original pro
   fireEvent.click(screen.getByRole("checkbox", { name: t("mc.consent") }));
   fireEvent.click(screen.getByRole("button", { name: t("mc.organize") }));
   await screen.findByRole("button", { name: t("mm.confirm", { n: 1 }) });
-  expect(screen.getByText(t("momo.stockReview"))).toBeVisible();
+  expect(screen.getByText(t("mr.stockReview"))).toBeVisible();
   expect(j.saveMomoBatch).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: t("evidence.edit") }));
+  fireEvent.click(screen.getByRole("button", { name: new RegExp(t("evidence.edit")) }));
   fireEvent.change(screen.getByRole("combobox", { name: t("f.unit") }), {
     target: { value: "pen" },
   });
@@ -1208,7 +1221,7 @@ it("keeps reviewed corrections after a failed save and retries the same entry ID
     fireEvent.click(screen.getByRole("checkbox", { name: t("mc.consent") }));
     fireEvent.click(screen.getByRole("button", { name: t("mc.organize") }));
     await screen.findByRole("button", { name: t("mm.confirm", { n: 1 }) });
-    fireEvent.click(screen.getByRole("button", { name: t("evidence.edit") }));
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(t("evidence.edit")) }));
     fireEvent.change(screen.getByLabelText(t("f.value") + " · " + t("evidence.suggested")), {
       target: { value: "78.3" },
     });
@@ -1263,7 +1276,7 @@ it.each(["morning", ""])(
     fireEvent.click(screen.getByRole("checkbox", { name: t("mc.consent") }));
     fireEvent.click(screen.getByRole("button", { name: t("mc.organize") }));
     await screen.findByRole("button", { name: t("mm.confirm", { n: 1 }) });
-    fireEvent.click(screen.getByRole("button", { name: t("evidence.edit") }));
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(t("evidence.edit")) }));
     expect(screen.getByRole("combobox", { name: t("time.period") })).toHaveValue("evening");
     fireEvent.change(screen.getByRole("combobox", { name: t("time.period") }), {
       target: { value: period },
@@ -1651,7 +1664,7 @@ it("recovers an unfinished reused meal and can reset it without changing saved h
 });
 it.each(["editing", "recovered", "photo", "note", "demo"])(
   "does not offer recent meal reuse over %s",
-  (kind) => {
+  async (kind) => {
     const previous = repeatFixture();
     if (kind === "demo") previous.demo = true;
     j.records = [previous];
@@ -1673,6 +1686,11 @@ it.each(["editing", "recovered", "photo", "note", "demo"])(
         {...(kind === "note" ? { note: "Unsaved note" } : {})}
       />,
     );
+    if (kind === "editing" || kind === "photo")
+      expect(await screen.findByAltText(`${t("type.meal")} 1`)).toHaveAttribute(
+        "src",
+        previous.meal.photoRefs[0],
+      );
     expect(screen.queryByText(t("meal.recent"))).not.toBeInTheDocument();
     expect(j.saveRecord).not.toHaveBeenCalled();
   },
@@ -1761,12 +1779,27 @@ it.each(["unknown", "half"])(
     fireEvent.change(screen.getByRole("textbox"), { target: { value: twoMealWords } });
     fireEvent.click(screen.getByRole("checkbox", { name: t("mc.consent") }));
     fireEvent.click(screen.getByRole("button", { name: t("me.organize") }));
-    const first = await screen.findByRole("group", {
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: t("mr.editEntry", { entry: `${t("type.meal")}: Oats breakfast` }),
+      }),
+    );
+    const first = screen.getByRole("group", {
       name: t("mm.portionQuestion", { meal: "Oats breakfast" }),
     });
     fireEvent.click(
       within(first).getByRole("button", {
         name: t(firstAnswer === "half" ? "meal.half" : "unknown"),
+      }),
+    );
+    expect(
+      screen.getByRole("button", {
+        name: t("mr.closeEntry", { entry: `${t("type.meal")}: Oats breakfast` }),
+      }),
+    ).toHaveFocus();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: t("mr.editEntry", { entry: `${t("type.meal")}: Lentil lunch` }),
       }),
     );
     const second = screen.getByRole("group", {
@@ -1809,7 +1842,12 @@ it("asks about newly analyzed meals after a prior unknown answer", async () => {
   fireEvent.change(screen.getByRole("textbox"), { target: { value: twoMealWords } });
   fireEvent.click(screen.getByRole("checkbox", { name: t("mc.consent") }));
   fireEvent.click(screen.getByRole("button", { name: t("me.organize") }));
-  const first = await screen.findByRole("group", {
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: t("mr.editEntry", { entry: `${t("type.meal")}: Oats breakfast` }),
+    }),
+  );
+  const first = screen.getByRole("group", {
     name: t("mm.portionQuestion", { meal: "Oats breakfast" }),
   });
   fireEvent.click(within(first).getByRole("button", { name: t("unknown") }));
@@ -1818,8 +1856,13 @@ it("asks about newly analyzed meals after a prior unknown answer", async () => {
     target: { value: twoMealWords + " Extra fictional context." },
   });
   fireEvent.click(screen.getByRole("button", { name: t("me.organize") }));
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: t("mr.editEntry", { entry: `${t("type.meal")}: Oats breakfast` }),
+    }),
+  );
   expect(
-    await screen.findByRole("group", { name: t("mm.portionQuestion", { meal: "Oats breakfast" }) }),
+    screen.getByRole("group", { name: t("mm.portionQuestion", { meal: "Oats breakfast" }) }),
   ).toBeVisible();
   expect(ai.extract).toHaveBeenCalledTimes(2);
   expect(j.saveMomoBatch).not.toHaveBeenCalled();
@@ -1991,7 +2034,7 @@ it("reuses a recovered matching analysis while preserving corrections after retu
   fireEvent.click(screen.getByRole("checkbox", { name: t("mc.consent") }));
   fireEvent.click(screen.getByRole("button", { name: t("me.organize") }));
   await screen.findByRole("button", { name: t("mm.confirm", { n: 1 }) });
-  fireEvent.click(screen.getByRole("button", { name: t("evidence.edit") }));
+  fireEvent.click(screen.getByRole("button", { name: new RegExp(t("evidence.edit")) }));
   fireEvent.change(
     screen.getByLabelText((label) => label.startsWith(t("f.value"))),
     { target: { value: "78.3" } },
@@ -2308,3 +2351,440 @@ it.each(["success", "error", "cancel"] as const)(
     }
   },
 );
+
+it.each(["flag", "duplicate-key", "evidence"])(
+  "keeps the original capture when recovered %s data is unsafe",
+  async (kind) => {
+    const draft = {
+      key: "review-safe",
+      type: "weight",
+      on: true,
+      dup: false,
+      quote: null,
+      timeHint: null,
+      f: { value: "78.2", date: todayLocal(j.tz), time: "" },
+    };
+    const drafts =
+      kind === "duplicate-key"
+        ? [draft, { ...draft }]
+        : [
+            {
+              ...draft,
+              ...(kind === "flag"
+                ? { on: "false" }
+                : { evidence: { method: "text", proposed: null } }),
+            },
+          ];
+    sessionStorage.setItem(
+      "mds.momo.draft.guest",
+      JSON.stringify({ text: "Fictional original to keep", images: [], drafts, step: "review" }),
+    );
+    render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    expect(screen.getByRole("textbox")).toHaveValue("Fictional original to keep");
+    expect(screen.getByRole("alert")).toHaveTextContent(t("mr.recoveryReset"));
+    expect(document.querySelector("[data-draft-key]")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(JSON.parse(sessionStorage.getItem("mds.momo.draft.guest")!).text).toBe(
+        "Fictional original to keep",
+      ),
+    );
+    expect(j.saveMomoBatch).not.toHaveBeenCalled();
+  },
+);
+
+it("rechecks edited drafts against each other before the confirmed batch save", async () => {
+  const date = todayLocal(j.tz);
+  const drafts = ["78.2", "79.1"].map((value, i) => ({
+    key: `edited-batch-${i}`,
+    type: "weight",
+    on: true,
+    dup: false,
+    quote: null,
+    timeHint: null,
+    f: { value, date, time: "" },
+  }));
+  sessionStorage.setItem(
+    "mds.momo.draft.guest",
+    JSON.stringify({ text: "Fictional two-entry review", images: [], drafts, step: "review" }),
+  );
+  j.saveMomoBatch.mockImplementation(() => {});
+  render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+  const second = within(document.querySelector('[data-draft-key="edited-batch-1"]') as HTMLElement);
+  fireEvent.click(
+    second.getByRole("button", {
+      name: t("mr.editEntry", { entry: `${t("type.weight")}: 79.1 kg` }),
+    }),
+  );
+  fireEvent.change(second.getByLabelText(t("f.value") + " · " + t("evidence.suggested")), {
+    target: { value: "78.2" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: t("mm.confirm", { n: 2 }) }));
+  expect(j.saveMomoBatch).not.toHaveBeenCalled();
+  expect(second.getByRole("checkbox")).not.toBeChecked();
+  expect(second.getAllByText(t("momo.dup")).length).toBeGreaterThan(0);
+  fireEvent.click(screen.getByRole("button", { name: t("mm.confirm", { n: 1 }) }));
+  await waitFor(() => expect(j.saveMomoBatch).toHaveBeenCalledOnce());
+  expect(j.saveMomoBatch.mock.calls[0]![0]).toHaveLength(1);
+});
+
+it.each(["text", "photos"])(
+  "does not resume stale proposals after changing their %s source, including after remount",
+  async (changedSource) => {
+    const key = "mds.momo.draft.guest";
+    const words = "Fictional analyzed source";
+    const sourceImage = "data:image/jpeg;base64,YWJj";
+    const images = changedSource === "photos" ? [sourceImage] : [];
+    const date = todayLocal(j.tz);
+    sessionStorage.setItem(
+      key,
+      JSON.stringify({
+        text: words,
+        images,
+        step: "review",
+        analysisContext: { today: date, timezone: j.tz },
+        drafts: [
+          {
+            key: "source-bound-review",
+            type: "weight",
+            on: true,
+            dup: false,
+            quote: null,
+            timeHint: null,
+            f: { value: "78.2", date, time: "" },
+          },
+        ],
+      }),
+    );
+    const view = render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    expect(screen.getByRole("button", { name: t("mm.confirm", { n: 1 }) })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: t("momo.original") }));
+    expect(screen.getByRole("button", { name: t("mm.resume") })).toBeVisible();
+    if (changedSource === "text")
+      fireEvent.change(screen.getByRole("textbox"), {
+        target: { value: "Fictional changed source" },
+      });
+    else fireEvent.click(screen.getByRole("button", { name: `${t("photo.remove")} 1` }));
+    expect(screen.queryByRole("button", { name: t("mm.resume") })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: t("mm.confirm", { n: 1 }) }),
+    ).not.toBeInTheDocument();
+    view.unmount();
+    render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    expect(screen.getByRole("textbox")).toHaveValue(
+      changedSource === "text" ? "Fictional changed source" : words,
+    );
+    expect(screen.queryByRole("button", { name: t("mm.resume") })).not.toBeInTheDocument();
+    expect(document.querySelector("[data-draft-key]")).not.toBeInTheDocument();
+    expect(document.querySelector(`img[src="${sourceImage}"]`)).not.toBeInTheDocument();
+    expect(ai.extract).not.toHaveBeenCalled();
+    expect(j.saveMomoBatch).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["mixed-array", "not-array"])(
+  "salvages valid unsent text from %s image recovery without rendering external URLs",
+  async (kind) => {
+    const key = "mds.momo.draft.guest";
+    const words = "Fictional valuable unsent note";
+    const validImage = "data:image/jpeg;base64,YWJj";
+    const external = "https://external.invalid/unrequested-photo.jpg";
+    sessionStorage.setItem(
+      key,
+      JSON.stringify({
+        text: words,
+        images: kind === "mixed-array" ? [null, external, validImage] : { invalid: external },
+        drafts: [],
+        step: "input",
+      }),
+    );
+    const view = render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    expect(screen.getByRole("textbox")).toHaveValue(words);
+    expect(document.querySelector(`img[src="${external}"]`)).not.toBeInTheDocument();
+    if (kind === "mixed-array")
+      expect(document.querySelector(`img[src="${validImage}"]`)).toBeInTheDocument();
+    view.unmount();
+    const kept = JSON.parse(sessionStorage.getItem(key)!);
+    expect(kept.text).toBe(words);
+    expect(kept.images).toEqual(kind === "mixed-array" ? [validImage] : []);
+    render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    expect(screen.getByRole("textbox")).toHaveValue(words);
+    expect(document.querySelector(`img[src="${external}"]`)).not.toBeInTheDocument();
+    expect(ai.extract).not.toHaveBeenCalled();
+    expect(j.saveMomoBatch).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["2026-99-99", "2026-02-30"])(
+  "keeps the impossible recovered date %s editable without crashing or normalizing its summary",
+  async (invalidDate) => {
+    sessionStorage.setItem(
+      "mds.momo.draft.guest",
+      JSON.stringify({
+        text: "Fictional draft with an unfinished date",
+        images: [],
+        step: "review",
+        drafts: [
+          {
+            key: "invalid-date-review",
+            type: "weight",
+            on: true,
+            dup: false,
+            quote: null,
+            timeHint: null,
+            f: { value: "78.2", date: invalidDate, time: "" },
+          },
+        ],
+      }),
+    );
+    j.saveMomoBatch.mockImplementation(() => {});
+    render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    const card = within(
+      document.querySelector('[data-draft-key="invalid-date-review"]') as HTMLElement,
+    );
+    expect(card.getByText(invalidDate)).toBeVisible();
+    expect(card.getByText(t("mr.needsField", { field: t("f.date") }))).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: t("mc.checkSelected", { n: 1 }) }));
+    expect(j.saveMomoBatch).not.toHaveBeenCalled();
+    const input = card.getByLabelText(t("f.date") + " · " + t("evidence.suggested"));
+    fireEvent.change(input, { target: { value: "2026-03-01" } });
+    fireEvent.click(screen.getByRole("button", { name: t("mm.confirm", { n: 1 }) }));
+    await waitFor(() => expect(j.saveMomoBatch).toHaveBeenCalledOnce());
+    expect(j.saveMomoBatch.mock.calls[0]![0][0]).toMatchObject({
+      localDate: "2026-03-01",
+    });
+    expect(ai.extract).not.toHaveBeenCalled();
+  },
+);
+
+it("keeps an unsupported-source cue visible without silently excluding or saving the draft", async () => {
+  const f = { value: "78.2", date: todayLocal(j.tz), time: "" };
+  sessionStorage.setItem(
+    "mds.momo.draft.guest",
+    JSON.stringify({
+      text: "Fictional unrelated source",
+      images: [],
+      step: "review",
+      drafts: [
+        {
+          key: "unclear-source",
+          type: "weight",
+          on: true,
+          dup: false,
+          quote: null,
+          timeHint: null,
+          f,
+          evidence: {
+            method: "text",
+            text: "Fictional unrelated source",
+            photos: [],
+            quote: null,
+            attribution: { status: "unclear", linkedPhotoIndices: [] },
+            proposed: f,
+            confirmed: {},
+          },
+        },
+      ],
+    }),
+  );
+  j.saveMomoBatch.mockImplementation(() => {});
+  render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+  const card = within(document.querySelector('[data-draft-key="unclear-source"]') as HTMLElement);
+  expect(card.getByText(t("evidence.sourceUnclear"))).toBeVisible();
+  expect(card.getByRole("checkbox")).toBeChecked();
+  expect(card.getByRole("button")).toHaveAttribute("aria-expanded", "false");
+  expect(j.saveMomoBatch).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: t("mm.confirm", { n: 1 }) }));
+  await waitFor(() => expect(j.saveMomoBatch).toHaveBeenCalledOnce());
+  expect(j.saveMomoBatch.mock.calls[0]![0][0].evidence.attribution.status).toBe("unclear");
+});
+
+it("moves focus through explicit inline review stages without stealing initial input focus", async () => {
+  j.user = { id: "focus-owner" };
+  const words = "Fictional example: today I weighed 78.2kg.";
+  ai.extract.mockResolvedValue({
+    candidates: sanitizeCandidates(
+      [{ type: "weight", value: 78.2, date: todayLocal(j.tz), quote: "78.2kg" }],
+      words,
+    ),
+    reply: "",
+  });
+  j.saveMomoBatch.mockImplementation(() => {});
+  render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+  expect(screen.getByRole("textbox")).not.toHaveFocus();
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: words } });
+  fireEvent.click(screen.getByRole("checkbox", { name: t("mc.consent") }));
+  const organize = screen.getByRole("button", { name: t("me.organize") });
+  organize.focus();
+  fireEvent.click(organize);
+  const review = await screen.findByRole("heading", { name: t("mr.title") });
+  await waitFor(() => expect(review).toHaveFocus());
+  fireEvent.click(screen.getByRole("button", { name: t("momo.original") }));
+  expect(screen.getByRole("textbox")).toHaveFocus();
+  fireEvent.click(screen.getByRole("button", { name: t("mm.resume") }));
+  expect(screen.getByRole("heading", { name: t("mr.title") })).toHaveFocus();
+  const entry = `${t("type.weight")}: 78.2 kg`;
+  fireEvent.click(screen.getByRole("button", { name: t("mr.editEntry", { entry }) }));
+  const close = screen.getByRole("button", { name: t("mr.closeEntry", { entry }) });
+  expect(close).toHaveTextContent(t("mr.doneEditing"));
+  expect(close).toHaveAttribute("aria-expanded", "true");
+  close.focus();
+  fireEvent.click(close);
+  expect(screen.getByRole("button", { name: t("mr.editEntry", { entry }) })).toHaveFocus();
+  fireEvent.click(screen.getByRole("button", { name: t("mm.confirm", { n: 1 }) }));
+  await waitFor(() => expect(screen.getByRole("heading", { name: t("mm.saved") })).toHaveFocus());
+  expect(j.saveMomoBatch).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole("button", { name: t("mm.new") }));
+  expect(screen.getByRole("textbox")).toHaveFocus();
+  expect(screen.getByRole("textbox")).toHaveValue("");
+  expect(ai.extract).toHaveBeenCalledOnce();
+});
+
+it("associates a focused Momo validation field with its specific error and clears it after correction", async () => {
+  sessionStorage.setItem(
+    "mds.momo.draft.guest",
+    JSON.stringify({
+      text: "Fictional undated weight",
+      images: [],
+      step: "review",
+      drafts: [
+        {
+          key: "accessible-error",
+          type: "weight",
+          on: true,
+          quote: null,
+          timeHint: null,
+          f: { value: "78.2", date: "", time: "" },
+        },
+      ],
+    }),
+  );
+  render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+  expect(screen.getByRole("heading", { name: t("mr.title") })).not.toHaveFocus();
+  fireEvent.click(screen.getByRole("button", { name: t("mc.checkSelected", { n: 1 }) }));
+  const date = screen.getByLabelText(t("f.date") + " · " + t("evidence.suggested"));
+  await waitFor(() => expect(date).toHaveFocus());
+  expect(date).toHaveAttribute("aria-invalid", "true");
+  expect(document.getElementById(date.getAttribute("aria-describedby")!)).toHaveTextContent(
+    t("mc.checkField", { field: t("f.date") }),
+  );
+  fireEvent.change(date, { target: { value: todayLocal(j.tz) } });
+  expect(date).not.toHaveAttribute("aria-invalid");
+  expect(date).not.toHaveAttribute("aria-describedby");
+  expect(j.saveMomoBatch).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: t("momo.original") }));
+  expect(screen.queryByText(t("evidence.clarify"))).not.toBeInTheDocument();
+  expect(screen.getByRole("textbox")).toHaveFocus();
+});
+
+it("keeps the time-of-day hint and exposes an invalid recovered period for correction", async () => {
+  sessionStorage.setItem(
+    "mds.momo.draft.guest",
+    JSON.stringify({
+      text: "Fictional weight with an invalid period",
+      images: [],
+      step: "review",
+      drafts: [
+        {
+          key: "accessible-period",
+          type: "weight",
+          on: true,
+          quote: null,
+          timeHint: null,
+          f: { value: "78.2", date: todayLocal(j.tz), time: "", partOfDay: "not-a-period" },
+        },
+      ],
+    }),
+  );
+  render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: t("mc.checkSelected", { n: 1 }) }));
+  const period = screen.getByRole("combobox", { name: t("time.period") });
+  await waitFor(() => expect(period).toHaveFocus());
+  expect(period).toHaveAttribute("aria-invalid", "true");
+  const descriptions = period
+    .getAttribute("aria-describedby")!
+    .split(" ")
+    .map((id) => document.getElementById(id)?.textContent);
+  expect(descriptions).toContain(t("time.periodHelp"));
+  expect(descriptions).toContain(t("mc.checkField", { field: t("time.period") }));
+  fireEvent.change(period, { target: { value: "" } });
+  expect(period).not.toHaveAttribute("aria-invalid");
+  expect(period.getAttribute("aria-describedby")!.split(" ")).toHaveLength(1);
+  expect(j.saveMomoBatch).not.toHaveBeenCalled();
+});
+
+it.each(["footer", "navigation", "none"] as const)(
+  "only scrolls a focused Momo correction when obscured by sticky actions or navigation (%s)",
+  async (obscured) => {
+    sessionStorage.setItem(
+      "mds.momo.draft.guest",
+      JSON.stringify({
+        text: "Fictional undated weight",
+        images: [],
+        step: "review",
+        drafts: [
+          {
+            key: "visible-error",
+            type: "weight",
+            on: true,
+            quote: null,
+            timeHint: null,
+            f: { value: "78.2", date: "", time: "" },
+          },
+        ],
+      }),
+    );
+    render(
+      <>
+        <MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />
+        <nav className="app-nav" />
+      </>,
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: t("mr.fixEntry", { field: t("f.date"), entry: `${t("type.weight")}: 78.2 kg` }),
+      }),
+    );
+    const date = screen.getByLabelText(t("f.date") + " · " + t("evidence.suggested"));
+    const footer = document.querySelector(".momo-review-actions")!;
+    const fieldBounds = vi.spyOn(date, "getBoundingClientRect").mockReturnValue({
+      top: obscured === "footer" ? 590 : 300,
+      bottom: obscured === "footer" ? 640 : 350,
+    } as DOMRect);
+    const footerBounds = vi
+      .spyOn(footer, "getBoundingClientRect")
+      .mockReturnValue({ top: 590, bottom: 768 } as DOMRect);
+    const navBounds = vi
+      .spyOn(document.querySelector(".app-nav")!, "getBoundingClientRect")
+      .mockReturnValue({ top: obscured === "navigation" ? 318 : 800, bottom: 876 } as DOMRect);
+    const scroll = vi.spyOn(date, "scrollIntoView");
+    fireEvent.click(screen.getByRole("button", { name: t("mc.checkSelected", { n: 1 }) }));
+    await waitFor(() => expect(date).toHaveFocus());
+    // The focus visibility check is queued after the browser's ordinary focus scrolling.
+    await act(async () => {
+      await new Promise(requestAnimationFrame);
+    });
+    if (obscured !== "none")
+      expect(scroll).toHaveBeenCalledWith({
+        block: "center",
+        inline: "nearest",
+        behavior: "instant",
+      });
+    else expect(scroll).not.toHaveBeenCalled();
+    fieldBounds.mockRestore();
+    footerBounds.mockRestore();
+    navBounds.mockRestore();
+    scroll.mockRestore();
+  },
+);
+
+it("keeps manual meal copy independent of photos while showing the date caution for attached images", async () => {
+  const manual = render(<MealForm initialDate="2026-11-04" onDone={vi.fn()} />);
+  expect(screen.queryByText(t("meal.dateDefault"))).not.toBeInTheDocument();
+  expect(screen.getByText(t("meal.picturedEstimate"))).toBeVisible();
+  manual.unmount();
+  sessionStorage.clear();
+  render(<MealForm editing={repeatFixture()} onDone={vi.fn()} />);
+  expect(await screen.findByAltText(`${t("type.meal")} 1`)).toBeVisible();
+  expect(screen.getByText(t("meal.dateDefault"))).toBeVisible();
+  expect(screen.getAllByLabelText(t("meal.portion"))[0]).toBeVisible();
+});

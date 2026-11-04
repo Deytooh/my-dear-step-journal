@@ -18,7 +18,7 @@ Meta choisit une occasion et une courte formulation parmi deux variantes traduit
 
 ## Fréquence et états
 
-Le cache local est isolé par compte, langue et jour local. Une marque d’essai, indépendante de la langue, empêche les nouvelles tentatives automatiques du même jour ; une modification/suppression ne déclenche aucun nouvel appel. La migration `0003_context_questions.sql` réserve atomiquement une proposition par propriétaire/jour en base, y compris entre appareils, et conserve le résultat. Un échec consomme aussi la réservation. La réparation JSON du provider peut refaire une requête pour la même proposition ; elle ne crée pas une seconde proposition.
+Le cache local est isolé par compte, langue et jour local. Une marque d’essai, indépendante de la langue, empêche les nouvelles tentatives automatiques du même jour ; une modification/suppression ne déclenche aucun nouvel appel. La migration combinée `drizzle/migrations/0001_momo_quota_and_questions.sql` réserve atomiquement une proposition par propriétaire/jour en base, y compris entre appareils, et conserve le résultat. Un échec consomme aussi la réservation. La réparation JSON du provider peut refaire une requête pour la même proposition ; elle ne crée pas une seconde proposition.
 
 Proposée, répondue, passée, obsolète et désactivée sont des états distincts. Toute modification d’une entrée liée change son empreinte ; sa suppression ou sa sortie de la fenêtre d’éligibilité ferme la question. Une quantité consommée renseignée par un autre parcours marque la question résolue. L’Undo peut la rendre à nouveau actionnable. Une carte fermée laisse une confirmation neutre à la même place ; aucune nouvelle proposition n’est générée pour la remplacer.
 
@@ -31,19 +31,19 @@ Les effets sont isolés par compte/langue/jour/zone et nettoyés au changement d
 - 27 combinaisons visuelles : 360/390/430 px × ko/en/fr × repas/ressenti/eau. Pas de débordement horizontal ; cibles tactiles ≥44 px. Bouton français long corrigé. Hauteur avant/après réponse identique (224 px pour le ressenti ; 238,25 px pour le repas français à 360 px).
 - Le banc d’essai temporaire utilisait le vrai composant de présentation et des données fictives, sans compte, enregistrement ni appel Meta. Les règles CSS exactes du mode mouvement réduit y ont été appliquées : transformations absentes et transitions à 0,01 ms. Cela ne remplace pas un test du réglage natif d’un téléphone. Le banc d’essai a été supprimé après vérification.
 
-| Coréen 360 px | Français 390 px, règles réduites |
-| --- | --- |
+| Coréen 360 px                                                        | Français 390 px, règles réduites                                              |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | ![Carte coréenne dans le banc d’essai](context-questions/ko-360.png) | ![Carte française dans le banc d’essai](context-questions/fr-390-reduced.png) |
 
-| Français 360 px, bouton corrigé | Anglais 430 px |
-| --- | --- |
+| Français 360 px, bouton corrigé                               | Anglais 430 px                                |
+| ------------------------------------------------------------- | --------------------------------------------- |
 | ![Trois réponses lisibles](context-questions/fr-feel-360.png) | ![Question eau](context-questions/en-430.png) |
 
 ## Activation externe restante
 
 Aucun appel Meta réel n’a été testé : `BASETEN_API_KEY` est absent de l’environnement local. Le modèle configuré reste `meta-models/muse-spark-open-1026` ; sa disponibilité n’est pas affirmée comme vérifiée.
 
-L’inspection en lecture seule de la base Lovable connectée a confirmé les tables de journal existantes et l’absence de `momo_usage` et `momo_daily_questions`. Appliquer `drizzle/migrations/0001_momo_quota.sql` puis `0003_context_questions.sql` dans le projet existant, configurer la clé côté serveur et tester avec deux vrais comptes. Ces migrations additives sont préparées ; aucune migration de production ni publication n’a été exécutée. Sans elles, le secours déterministe reste utilisable et aucune erreur intrusive ne s’affiche.
+L’inspection en lecture seule de la base Lovable connectée a confirmé les tables de journal existantes et l’absence de `momo_usage` et `momo_daily_questions`. Vérifier puis appliquer `drizzle/migrations/0001_momo_quota_and_questions.sql` dans le projet existant, configurer la clé côté serveur et tester avec deux vrais comptes. Cette migration additive est présente dans le dépôt ; aucune migration de production ni publication n’a été exécutée. Sans cette migration, le secours déterministe reste utilisable et aucune erreur intrusive ne s’affiche.
 
 Les tests serveur utilisent des doubles pour le provider, les requêtes propriétaires et la réservation persistante. Ils ne prouvent pas l’exécution des migrations, la concurrence SQL ni les politiques déployées avec de vrais comptes. Une vérification connectée et un contrôle sur téléphone restent à faire avant de revendiquer une validation de production.
 
@@ -59,10 +59,10 @@ Chaque carte garde ses réponses principales et « Plus tard ». Le bouton « �
 
 Vérifications : 99 tests, TypeScript et build passent ; lint 0 erreur / 22 avertissements existants. Trois nouvelles régressions vérifient l’absence d’envoi à l’ouverture, le consentement explicite, l’accès aux options par menu et le masquage/rétablissement sans perte de focus. Contrôle dans l’application complète à 360/390/430 px, avec textes français, coréens et anglais : aucun débordement horizontal de la sheet, bouton de fermeture visible. Les boutons français longs ont été corrigés sans changer les valeurs sauvegardées. Aucun appel Meta réel ni migration de production dans cette passe ; les prérequis ci-dessus restent inchangés.
 
-| Accueil à 360 px | Sheet à 360 px |
-| --- | --- |
+| Accueil à 360 px                                              | Sheet à 360 px                                                             |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | ![Accueil français allégé](question-settings/home-fr-360.png) | ![Consentement regroupé dans la sheet](question-settings/sheet-fr-360.png) |
 
-| Coréen à 390 px | Anglais à 430 px |
-| --- | --- |
+| Coréen à 390 px                                       | Anglais à 430 px                                      |
+| ----------------------------------------------------- | ----------------------------------------------------- |
 | ![Sheet coréenne](question-settings/sheet-ko-390.png) | ![Sheet anglaise](question-settings/sheet-en-430.png) |

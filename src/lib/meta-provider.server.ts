@@ -57,31 +57,56 @@ export async function metaJSON<T>(
   const key = process.env["BASETEN_API_KEY"];
   if (!key) throw new ProviderError("not_configured");
   validateImages(images);
-  if (!(await reserve())) throw new ProviderError("quota");
   const model = MODEL();
   if (!model.startsWith("meta-models/muse-spark-open")) throw new ProviderError("model");
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 45000);
-  const messages: { role: string; content: unknown }[] = [
-    { role: "system", content: RULES + "\n" + task },
-    {
-      role: "user",
-      content: images.length
-        ? [
-            { type: "text", text: JSON.stringify(data) },
-            ...images.map((url) => ({ type: "image_url", image_url: { url } })),
-          ]
-        : JSON.stringify(data),
-    },
-  ];
+  const deadline = Date.now() + 45000;
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new ProviderError("timeout"));
+      controller.abort();
+    }, 45000);
+  });
+  const checkDeadline = () => {
+    if (controller.signal.aborted || Date.now() >= deadline) {
+      controller.abort();
+      throw new ProviderError("timeout");
+    }
+  };
+  // A signal alone cannot bound an uncooperative quota RPC or response body.
+  // Race each awaited step against the same deadline, observing late rejections
+  // without allowing late results to start a paid request or JSON repair.
+  const bounded = async <V>(operation: () => Promise<V>): Promise<V> => {
+    checkDeadline();
+    const result = await Promise.race([operation(), timeout]);
+    checkDeadline();
+    return result;
+  };
   try {
+    if (!(await bounded(reserve))) throw new ProviderError("quota");
+    const messages: { role: string; content: unknown }[] = [
+      { role: "system", content: RULES + "\n" + task },
+      {
+        role: "user",
+        content: images.length
+          ? [
+              { type: "text", text: JSON.stringify(data) },
+              ...images.map((url) => ({ type: "image_url", image_url: { url } })),
+            ]
+          : JSON.stringify(data),
+      },
+    ];
     for (let attempt = 0; attempt < 2; attempt++) {
-      const response = await fetch("https://inference.baseten.co/v1/chat/completions", {
-        method: "POST",
-        signal: controller.signal,
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, temperature: 0, max_tokens: 4000, messages }),
-      });
+      const body = JSON.stringify({ model, temperature: 0, max_tokens: 4000, messages });
+      const response = await bounded(() =>
+        fetch("https://inference.baseten.co/v1/chat/completions", {
+          method: "POST",
+          signal: controller.signal,
+          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          body,
+        }),
+      );
       if (!response.ok)
         throw new ProviderError(
           response.status === 401 || response.status === 403
@@ -92,7 +117,7 @@ export async function metaJSON<T>(
                 ? "quota"
                 : "service",
         );
-      const payload = await response.text();
+      const payload = await bounded(() => response.text());
       if (payload.length > 100000) throw new ProviderError("parse");
       let result: {
         choices?: { finish_reason?: string; message?: { content?: string; refusal?: string } }[];
@@ -115,8 +140,9 @@ export async function metaJSON<T>(
       // Tolerate one complete JSON fence, never fish a JSON fragment out of surrounding prose.
       const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
       const content = fenced ? fenced[1]! : trimmed;
+      let value: T;
       try {
-        return { value: parse(JSON.parse(content)), model };
+        value = parse(JSON.parse(content));
       } catch {
         if (attempt) throw new ProviderError("parse");
         messages.push({
@@ -124,14 +150,17 @@ export async function metaJSON<T>(
           content:
             "Return a complete valid JSON object matching the task schema. Null for unknown fields.",
         });
+        continue;
       }
+      checkDeadline();
+      return { value, model };
     }
     throw new ProviderError("parse");
   } catch (error) {
     if (error instanceof ProviderError) throw error;
     throw new ProviderError(controller.signal.aborted ? "timeout" : "service");
   } finally {
-    clearTimeout(timer);
+    clearTimeout(timer!);
   }
 }
 export function quota(client: unknown) {

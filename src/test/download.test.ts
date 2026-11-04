@@ -62,3 +62,16 @@ it("does not leak an attached link or blob URL if the browser rejects starting t
   expect(document.querySelector('a[download="fictional.json"]')).toBeNull();
   expect(revoke).toHaveBeenCalledExactlyOnceWith("blob:fictional-export");
 });
+
+it("propagates object-URL creation errors so callers can report a failed download", () => {
+  create.mockImplementationOnce(() => {
+    throw new Error("Object URLs unavailable");
+  });
+  const click = vi.spyOn(HTMLAnchorElement.prototype, "click");
+  expect(() => downloadText("Fictional backup", "fictional.json", "application/json")).toThrow(
+    "Object URLs unavailable",
+  );
+  expect(click).not.toHaveBeenCalled();
+  expect(document.querySelector('a[download="fictional.json"]')).toBeNull();
+  expect(revoke).not.toHaveBeenCalled();
+});

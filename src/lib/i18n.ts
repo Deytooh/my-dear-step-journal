@@ -2,6 +2,46 @@
 export type Locale = "ko" | "en" | "fr";
 
 const ko = {
+  "evidence.sourceUnclear": "출처 확인 필요",
+  "evidence.sourceUnclearHint": "이 항목에 연결된 원문이나 사진이 없어요. 저장 전에 확인해 주세요.",
+  "evidence.linkedPhotos": "연결된 사진",
+  "evidence.contextPhotos": "함께 보낸 사진 · 직접 연결되지 않음",
+  "evidence.requestedModel": "요청한 모델",
+  "evidence.promptVersion": "프롬프트 버전",
+  "evidence.analyzedAt": "분석 시간",
+
+  "sync.reviewConflict": "충돌 확인",
+  "backup.recoverData": "데이터 복구",
+
+  "mr.sourceChanged": "원문이 바뀌었어요. 다시 정리한 뒤 기록을 확인해 주세요.",
+  "hist.noMatches": "이 조건에 맞는 기록이 없어요.",
+  "hist.invalidRange": "종료일을 시작일과 같거나 이후로 선택해 주세요.",
+  "hist.clearFilters": "필터 초기화",
+  "prog.showAll": "전체 기간 보기",
+
+  "mr.recoveryReset":
+    "임시 기록을 모두 복원하지 못했어요. 남아 있는 글과 사진을 확인한 뒤 다시 정리하거나 직접 기록해 주세요.",
+  "mr.stockReview": "재고 상세 확인 필요",
+  "mr.title": "기록 확인",
+  "mr.proposed": "모모가 정리한 기록 {n}개",
+  "mr.onePhotoSource": "사진 1장 · 원문 보기",
+  "mr.photoSource": "사진 {n}장 · 원문 보기",
+  "mr.textSource": "원문 보기",
+  "mr.readyCount": "{n}개 선택 · 아직 저장되지 않았어요",
+  "mr.selectEntries": "저장할 기록을 선택해 주세요",
+  "mr.addMissing": "빠진 기록 추가",
+  "mr.includeEntry": "{entry} 포함",
+  "mr.editEntry": "{entry} 상세 보기 · 수정",
+  "mr.closeEntry": "{entry} 상세 접기",
+  "mr.undoKept": "이후 수정한 기록 {n}개는 그대로 두었어요.",
+  "mr.savedConflict": "선택한 기록이 저장 후 수정되었어요. 저장된 기록을 열어 수정해 주세요.",
+  "mr.openSaved": "저장된 기록 열기",
+  "mr.fixEntry": "{entry}의 {field} 확인하기",
+  "mr.edit": "수정",
+  "mr.fix": "확인",
+  "mr.doneEditing": "접기",
+  "mr.needsField": "{field} 확인 필요",
+
   "mq.pause": "질문 자동 변경 멈추기",
   "mq.play": "질문 자동 변경 다시 시작",
   "mb.reading": "모모가 남겨 주신 내용을 읽고 있어요…",
@@ -227,6 +267,8 @@ const ko = {
 
   "cal.prevMonth": "이전 달",
   "cal.nextMonth": "다음 달",
+  "cal.keyboardHelp":
+    "방향키로 날짜를 이동해요. Home·End는 주의 처음·마지막 날, Page Up·Down은 이전·다음 달로 이동해요. Shift를 함께 누르면 1년씩 이동해요.",
   "pod.morning": "아침",
   "pod.afternoon": "오후",
   "pod.evening": "저녁",
@@ -244,6 +286,11 @@ const ko = {
   "backup.invalidLocal":
     "이 기기의 저장 내용을 검증하지 못했어요. 덮어쓰기를 막았어요. 복구용 파일을 내려받아 보관해 주세요.",
   "backup.recovery": "복구용 원본 내려받기",
+  "backup.invalidBaseline":
+    "이 기기의 기록은 읽을 수 있지만 동기화 이력을 확인하지 못해 동기화를 멈췄어요. 동기화 이력 복구 파일을 내려받은 뒤 유지할 기록을 선택해 주세요.",
+  "backup.baselineRecovery": "동기화 이력 복구 파일 내려받기",
+  "backup.baselineChoice":
+    "동기화 이력을 다시 만들려면 유지할 기록을 선택해 주세요. 다른 버전은 클라우드에 저장된 최신 기록이에요.",
 
   "pr.restore": "숨긴 질문 다시 표시",
   "photo.unavailable": "사진을 불러올 수 없어요",
@@ -269,7 +316,7 @@ const ko = {
   "meal.dateDefault":
     "날짜는 직접 확인해 주세요. 사진에서 식사 날짜·시간을 추측하지 않아요. 빈 시간은 모름으로 저장해요.",
   "meal.food": "음식 이름",
-  "meal.portion": "사진 속 양 설명",
+  "meal.portion": "음식 양 설명",
   "meal.energyKnown": "열량을 입력하거나 수정하기",
   "meal.low": "최소",
   "meal.high": "최대",
@@ -279,7 +326,8 @@ const ko = {
   "meal.all": "전부",
   "meal.half": "절반",
   "meal.fraction": "먹은 비율 (0–1)",
-  "meal.picturedEstimate": "사진 속 음식 추정치",
+  "meal.fractionInvalid": "0에서 1 사이의 숫자를 입력하거나 ‘모름’을 선택해 주세요.",
+  "meal.picturedEstimate": "음식 목록 기준 추정치",
   "meal.consumedEstimate": "선택한 양 기준 추정치",
   "meal.partial": "알려진 음식만 계산 · 전체 식사 열량은 모름",
   "meal.assumptions": "추정 근거 · 가정",
@@ -301,10 +349,14 @@ const ko = {
   "ai.service": "AI에 연결하지 못했어요. 입력은 유지했어요.",
   "ai.parse": "분석 결과를 확인하지 못했어요. 다시 시도하거나 직접 입력해 주세요.",
   "sync.conflict":
-    "기기의 미동기화 기록과 계정 기록이 달라요. 백업 후 보관할 버전을 선택해 주세요.",
-  "sync.keepLocal": "기기 버전 유지",
-  "sync.useCloud": "계정 버전 사용",
+    "저널에 두 버전이 있어요. 현재 버전을 백업한 뒤 보관할 저널을 선택해 주세요. 두 버전은 합쳐지지 않아요.",
+  "sync.keepLocal": "현재 버전 유지",
+  "sync.useCloud": "다른 버전 사용",
   "sync.importGuest": "기기의 실제 기록 가져오기 (예시 제외)",
+  "sync.importStockConflict":
+    "기기 기록의 재고 보정을 자동으로 합칠 수 없어요. 아무것도 가져오지 않았고 원본 기기 기록은 유지돼요.",
+  "sync.importFailed":
+    "기기 기록을 가져오지 못했어요. 원본 기기 기록은 유지돼요. 다시 시도해 주세요.",
   "sync.importConfirm":
     "이 기기의 예시가 아닌 기록을 현재 계정에 추가할까요? 기존 기록은 유지돼요.",
   "demo.reset": "가상 예시 시작·초기화 (기기 기록 대체)",
@@ -312,7 +364,15 @@ const ko = {
   "find.ai": "모모로 내 기록 찾기",
   "find.fallback": "키워드 검색 결과 · AI 검색 아님",
   "backup.preview":
-    "가져올 기록 {n}개를 확인했어요. 기존 기록을 유지하고 추가할까요? 같은 ID는 덮어쓰지 않아요.",
+    "새 기록 {n}개를 추가할까요? 같은 ID {skipped}개는 건너뛰어요. 현재 설정과 알림은 유지돼요.",
+  "backup.importHelp":
+    "기존 ID·설정·알림을 유지하고 기록만 추가해요. 재고 보정은 정확히 연결된 새 구매와 함께 가져와요.",
+  "backup.imported": "기록 {n}개를 추가했어요. 같은 ID {skipped}개는 건너뛰었어요.",
+  "backup.noNew": "추가할 새 기록이 없어요. 같은 ID {skipped}개는 건너뛰었어요.",
+  "backup.stockConflict":
+    "이 백업의 재고 보정은 자동으로 합칠 수 없어요. 아무것도 추가하지 않았어요. 원본 백업을 보관해 주세요.",
+  "backup.saveFailed":
+    "이 기기에 기록을 저장하지 못했어요. 아무것도 추가하지 않았어요. 백업을 보관하고 다시 시도해 주세요.",
   "backup.media":
     "백업은 구조화된 기록과 사진 참조를 포함해요. 사진 원본 파일은 별도로 보관해 주세요.",
 
@@ -407,6 +467,8 @@ const ko = {
   "sync.error": "저장하지 못했어요. 잠시 후 다시 시도해요.",
   "sync.signin": "로그인하고 기록 보관하기",
   "sync.signout": "로그아웃",
+  "sync.signingOut": "로그아웃 중…",
+  "sync.signoutError": "로그아웃을 확인하지 못했어요. 연결 상태를 확인하고 다시 시도해 주세요.",
   "nav.today": "오늘",
   "nav.calendar": "캘린더",
   "nav.add": "기록추가",
@@ -506,6 +568,8 @@ const ko = {
   "toast.exported": "다운로드를 시작했어요",
   "demo.badge": "예시",
   "demo.banner": "예시 기록이 표시되고 있어요.",
+  "demo.notice":
+    "연습 모드예요. 새 기록도 예시로 저장되며, 설정의 ‘예시 지우기’를 누르면 함께 지워져요.",
   "demo.clear": "예시 지우기",
   "set.momo": "모모 그림 표시",
   "set.settings": "설정",

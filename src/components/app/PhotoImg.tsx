@@ -1,19 +1,20 @@
-import { useEffect, useRef, useState } from "react";
-import { photoUrl, clearPhotoCache } from "@/lib/cloud-sync";
+import { useEffect, useState } from "react";
+import { photoUrl, invalidatePhotoUrl } from "@/lib/cloud-sync";
 import { useJournal } from "@/lib/journal";
 import { t } from "@/lib/i18n";
-export function PhotoImg({
-  src,
-  alt = "",
-  className,
-}: {
+type PhotoImgProps = {
   src: string;
   alt?: string;
   className?: string;
-}) {
+};
+
+export function PhotoImg(props: PhotoImgProps) {
   const { user } = useJournal();
-  const resolvedOwner = useRef<string | undefined>(undefined);
-  const resolvedSource = useRef<string | undefined>(undefined);
+  // Remount all display and retry state together when the photo or account changes.
+  return <PhotoImage key={JSON.stringify([user?.id ?? null, props.src])} {...props} />;
+}
+
+function PhotoImage({ src, alt = "", className }: PhotoImgProps) {
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -27,8 +28,6 @@ export function PhotoImg({
       photoUrl(src)
         .then((value) => {
           if (live) {
-            resolvedOwner.current = user?.id;
-            resolvedSource.current = src;
             setUrl(value);
             setFailed(!value);
           }
@@ -42,22 +41,20 @@ export function PhotoImg({
       live = false;
       clearInterval(timer);
     };
-  }, [src, user?.id, retry]);
-  const visibleUrl =
-    resolvedOwner.current === user?.id && resolvedSource.current === src ? url : null;
+  }, [src, retry]);
   return (
     <span
       className={`photo-frame block ${className ?? ""}`}
-      data-loaded={loaded && !!visibleUrl}
+      data-loaded={loaded && !!url}
       aria-busy={!failed && !loaded}
     >
       {failed ? (
         <span className="photo-failure" role="img" aria-label={t("photo.unavailable")}>
           {t("photo.unavailable")}
         </span>
-      ) : visibleUrl ? (
+      ) : url ? (
         <img
-          src={visibleUrl}
+          src={url}
           loading="lazy"
           decoding="async"
           alt={alt}
@@ -65,7 +62,7 @@ export function PhotoImg({
           onError={() => {
             setLoaded(false);
             if (!retry) {
-              clearPhotoCache();
+              invalidatePhotoUrl(src);
               setRetry(1);
             } else setFailed(true);
           }}

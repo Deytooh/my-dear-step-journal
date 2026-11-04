@@ -16,10 +16,20 @@ const evidence = z
     text: z.string().max(4000),
     photos: z.array(photoRefSchema).max(3),
     quote: z.string().nullable(),
+    attribution: z
+      .object({
+        status: z.enum(["linked", "unclear"]),
+        linkedPhotoIndices: z.array(z.number().int().min(0).max(2)).max(3),
+      })
+      .optional(),
     proposed: z.record(z.string()),
     confirmed: z.record(z.string()),
   })
   .passthrough()
+  .refine(
+    (e) => !e.attribution || e.attribution.linkedPhotoIndices.every((i) => i < e.photos.length),
+    "photo attribution",
+  )
   .refine((e) => e.quote === null || e.text.includes(e.quote), "quote");
 const base = z
   .object({
@@ -88,11 +98,19 @@ const schema = z
       .object({
         showMomo: z.boolean(),
         locale: z.enum(["ko", "en", "fr"]).optional(),
-        trackingInterests: z.array(z.enum(["injection", "weight", "condition", "meal", "memory"])).max(5).optional(),
-        onboarding: z.object({
-          status: z.enum(["completed", "skipped"]),
-          dismissedHints: z.array(z.enum(["manual", "momo"])).max(2).optional(),
-        }).optional(),
+        trackingInterests: z
+          .array(z.enum(["injection", "weight", "condition", "meal", "memory"]))
+          .max(5)
+          .optional(),
+        onboarding: z
+          .object({
+            status: z.enum(["completed", "skipped"]),
+            dismissedHints: z
+              .array(z.enum(["manual", "momo"]))
+              .max(2)
+              .optional(),
+          })
+          .optional(),
         demoMode: z.boolean().optional(),
         stockAdjustments: z.record(z.object({ identity: z.string(), delta: num })).optional(),
         prompts: z

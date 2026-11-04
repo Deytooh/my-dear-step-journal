@@ -1,88 +1,64 @@
-# Guided Momo home — design QA
+# Compact Momo review ledger — design QA
 
-Date: 2026-11-03 (Asia/Seoul).
+Date: 2026-11-04 UTC. Scope: the post-analysis review and its local edit/confirm flow. Earlier composer reports are preserved in [previous-design-qa.md](docs/momo-review/previous-design-qa.md); their historical limitations are not retroactively removed.
 
 ## Visual truth and evidence
 
-- Selected option: the third displayed result in the latest variation set, `exec-0343714b-a647-4245-8bb6-43347e62be5e.png`. Exact copy: [selected-reference.png](docs/momo-guided/selected-reference.png).
-- Local implementation: `http://127.0.0.1:8081/today`, existing app and shared MomoSheet.
-- Source: 1002 × 1570 px, normalized with Lanczos to 390 × 611 solely for comparison. Original retained.
-- Browser: in-app browser, 390 × 844 CSS viewport; comparison screenshot clipped to the top 390 × 611 CSS px to match the source's upper-home crop. The screenshot PNG is 390 × 611 (effective capture density 1). Native bottom navigation remains below that crop.
-- State: Korean, empty composer, Feeling selected, guest, no recording, no consent granted.
-- Full comparison: [source and implementation in one image](docs/momo-guided/comparison-390.png).
-- Focused typography/asset comparison: [heading comparison](docs/momo-guided/comparison-heading.png).
-- Final full app: [390 px Korean](docs/momo-guided/12-home-ko-390.png), [360 px Korean](docs/momo-guided/07-ko-360-final.png), [360 px French](docs/momo-guided/09-fr-360-final.png), [360 px English](docs/momo-guided/11-en-360-final.png), [430 px English](docs/momo-guided/10-en-430.png).
+- Selected design: compact review ledger, exact image `/workspace/scratch/ae47a6763fd3/momo-design/mockups/01-selected-review-ledger.png` (852 × 1846 pixels). The generated image contains fictional records and is a design target, not a model-response capture.
+- [Normalized reference](docs/momo-review/source-normalized-390.png): resampled to 390 × 844 for comparison.
+- Actual cloud-browser app: existing shared MomoSheet, guest, Korean, three fictional proposals, photo source, all three selected, one missing date, details collapsed. The real review recovery/edit/save implementation is used by a local-only fixture, not a production QA route or live model request.
+- [Implemented 390 × 844 review](docs/momo-review/03-ko-390.png). Browser iframe viewport 390 × 844 CSS pixels, effective screenshot density 1. The desktop browser's 15 px scrollbar leaves 375 px of content; source has no scrollbar. Parent harness/chrome was cropped away, with no app content rearranged.
+- [Full paired comparison](docs/momo-review/comparison-390.png), [focused row comparison](docs/momo-review/comparison-review-rows.png). Both images were opened together and compared, not judged from paths alone.
+- Additional browser evidence: [Korean 360](docs/momo-review/04-ko-360.png), [French 360](docs/momo-review/05-fr-360.png), [English 390](docs/momo-review/06-en-390.png), [French 430](docs/momo-review/08-fr-430.png), [desktop 1024](docs/momo-review/09-desktop.png), [end of an eight-entry review](docs/momo-review/07-long-review.png).
 
-## Comparison history and resolved findings
+## Findings and iteration history
 
-1. **[P2, fixed] Capture was boxed and the hero sat too low.** The first settled capture [02](docs/momo-guided/02-ko-390-full.png) showed the shared form's white background/radius and excess masthead spacing. Scoped editorial textarea rules now remove these; only the home masthead spacing changes. Post-fix [03](docs/momo-guided/03-ko-390-comparison.png) and final [05](docs/momo-guided/05-final-ko-390.png) show the open writing surface and corrected rhythm. A transient failed screenshot before layout settled was rejected and discarded.
-2. **[P2, fixed] Display weight and topic proportions drifted.** Refined the heading to loaded Noto Serif KR 900, tuned type/spacing and shortened the Korean tab row. Final [comparison](docs/momo-guided/comparison-390.png) now preserves the selected hierarchy and regional proportions.
-3. **[P2, fixed] Korean heading wrapped to three lines at 360 px.** Earlier [06](docs/momo-guided/06-ko-360-full.png) showed the wrap. Smaller mascot/grid tracks at narrow widths restore two readable lines in [07](docs/momo-guided/07-ko-360-final.png).
-4. **[P2, fixed] French topic labels broke mid-word.** Earlier [08](docs/momo-guided/08-fr-360.png) showed broken labels. Non-Korean tabs use available width; final [09](docs/momo-guided/09-fr-360-final.png) shows intact labels. The English heading was shortened to a natural localized equivalent, with two measured single-line spans at 360 px in [11](docs/momo-guided/11-en-360-final.png).
+1. **[P2, fixed] The first source row inherited a surrounding disclosure card and circular thumbnail.** Replaced those with an unboxed source row, a 56 px photograph and 12 px corner radius. Final paired image preserves the reference's flat list hierarchy.
+2. **[P2, fixed] Initial inclusion targets were 32–36 px wide.** Made each target 44 × 44 px at every tested width while retaining a 21 px visual checkbox. Browser measurements verify the larger target.
+3. **[P2, fixed] The first expanded heading/source treatment let the sticky action obscure the last row's missing-date cue at the initial scroll position.** [Earlier capture](docs/momo-review/iteration-one.png) shows the problem. Reduced redundant source/section gaps and row padding. The post-fix 390, 360 and French captures show all three summaries and the warning above the action. The eight-entry test shows the final row and explicit batch-date control accessible above the footer after scrolling.
+4. **[P1, fixed] Canonical mascot failed in the cloud development preview.** Kept the approved asset identity, fixed the dev-only asset proxy's pre-forward header handling, and verified the real image loaded at 1222 × 1287 natural pixels. Final captures show the canonical mascot, not a placeholder.
+
+No actionable P0/P1/P2 visual findings remain for this review scope.
 
 ## Required fidelity surfaces
 
-- **Fonts/typography:** serif display heading, sans body/controls, two-line hierarchy, and readable 16–17 px input/control sizes. Browser confirmed the Noto Serif KR 900 face loaded. Existing Fraunces wordmark retained. Generated glyph shapes are approximated with a real selectable typeface rather than rasterized UI text.
-- **Spacing/layout:** same open hero, modest mascot on the right, topic row, one question, open editor, small capture toolbar, normal-sized primary action, quiet privacy. Fixed the actionable spacing/wrapping issues above. Controls inspected at 360 px retain 44 px height; no horizontal page overflow at 360/390/430.
-- **Colors/tokens:** existing cream/caramel/honey/espresso semantic tokens reused. No palette rewrite. The mock's subtle image-generation texture/gradient is intentionally replaced by clean existing app surfaces.
-- **Images/icons:** one canonical CDN hamster pointer reused, with no duplicated/new mascot file. Its actual approved illustration differs slightly from ImageGen's reinterpretation; preserving the canonical asset is intentional. Existing outline icons match the target language. No rasterized UI text or screenshot-as-interface.
-- **Copy/content:** Korean headline, subtitle, topics, default question, placeholder and primary label match the selected design. English/French stay localized through t(). Topic changes are local guidance, never statements attributed to the user or generated replies.
+- **Fonts/typography:** existing IBM Plex Sans KR body and Fraunces wordmark retained. Review heading is 26 px; titles 17–18 px with wrapping, statuses 12–14 px, controls 14–16 px. The source's larger generated heading is intentionally reduced to retain the real app shell and bottom navigation without hiding records. Long French titles wrap without clipping.
+- **Spacing/layout:** one compact heading/count, one source row, divider-separated records, inline required-field cue and one sticky primary action. Editing/source details expand in place. Real navigation and the current-day shell label remain; the mock's back arrow was not added as a second navigation system. Required correction uses the row's Check action and primary correction action rather than duplicating another date button.
+- **Colors/tokens:** existing cream, espresso, caramel and biscuit semantic tokens. No palette rewrite. Warning text plus an icon preserves meaning beyond color. Excluded entries remain fully readable. The generated paper texture/gradient is not copied into the production surface.
+- **Images/icons:** canonical approved mascot, generated fictional salad photo only in local QA data, existing outline icon family. No rasterized interface, invented mascot or custom-drawn replacement asset. The actual canonical mascot differs from the image generator's interpretation, intentionally.
+- **Copy/content:** current supported record types and known/unknown time semantics retained, rather than adopting mock labels as new data types. Selection is explicitly not saved. Meal estimates stay labelled estimates. Exact source text/photos, original proposals and confirmed edits remain in per-entry details.
 
-## Primary interactions actually inspected
+## Actual interaction checks
 
-- Empty primary action focuses the actual empty textarea and sends nothing.
-- All three topics update the prompt/pressed state. Typed QA text survives topic changes.
-- Expanded privacy exposes the existing unchecked consent, provider explanation and guest sign-in explanation. No provider request was made.
-- Central + opens existing manual forms; selecting Momo returns to the same focused textarea with its text retained.
-- Guest with source text shows the real sign-in-required disabled action.
-- Browser console had no errors in the inspected session. Existing synthetic QA journal entries were left intact; no new journal records were saved.
+- Primary correction opens the first invalid record and focuses its date field. Entering a valid date changes the action to count-specific confirmation.
+- Explicit confirmation saved exactly three fictional records locally; the success view separately states device-only sync status. This was not an authenticated cloud-sync test.
+- Unchecking the undated entry changed the count to two and allowed saving only the two selected valid entries. The excluded row stayed readable.
+- Meal detail expansion exposed editable food/energy fields, the optional portion question, a real Unknown option, and the source disclosure. Choosing Unknown removed the optional prompt without inventing a quantity.
+- Per-record source disclosure displayed the retained note, exact quote and photo control.
+- The final row of an eight-entry batch remained accessible; expand/collapse worked and the sticky action remained above bottom navigation.
+- Korean, English and French at 360/390/430 CSS widths measured zero horizontal document overflow. Every inclusion label measured 44 × 44 px. French desktop 1024 layout preserved the app's calm max-width column.
+- Console reviewed after final reload: no app errors during final interactions after 16:26 UTC. Earlier in-progress HMR import errors were corrected and reloaded. The cloud browser extension continued logging its own metadata-delivery errors; these are not claimed as app errors or silently omitted.
 
-## Verification and accepted limits
+## Automated checks and scope limits
 
-TypeScript, production build and focused ESLint passed (one existing React Refresh warning in AppShell). No tests written or run. No backend, evidence, inventory, voice engine or saved-record migration changes.
+At the 22:40 UTC final local gate, 981 tests across 72 files passed. TypeScript and production build passed. Changed-source lint passed with zero errors and 11 existing Fast Refresh warnings; repository-wide lint still reports unrelated pre-existing formatting errors/warnings and was not represented as clean.
 
-Real microphone, native mobile keyboard, authenticated Meta analysis, cloud synchronization, and end-to-end review/save/Undo of a new model response were not exercised in this guest visual pass. These are not claimed as validated. Browser resizing is not presented as a real keyboard test.
+New tests cover batch duplicate detection after edits, malformed recovery payloads, invalid calendar dates, source-change Resume guards across reload, safe raw-source salvage, DST clock validation, and timeline/calendar consistency. No inference was converted into a medical fact or unrequested inventory change.
 
-Accepted differences: live approved mascot artwork; native resize affordance and browser scrollbar; existing bottom navigation outside the reference crop; normal focus/disabled/guest/consent states that the static mock did not specify. The idle organize action focuses the field rather than sending an empty request. Manual logging remains available via the central +.
+Not exercised: live Meta inference, authenticated Supabase sync, actual microphone/hardware keyboard/mobile soft keyboard, assistive technology, and production deployment. No real personal health data was used. The fictional local fixtures and temporary proxy preload are excluded from the repository deliverable.
 
 ## Implementation checklist
 
-- [x] Exact selected option resolved and retained.
-- [x] Existing shared composer/provider/journal reused.
-- [x] Five fidelity surfaces compared using source plus rendered evidence.
-- [x] Actionable P0/P1/P2 differences fixed and recaptured.
-- [x] Primary local interactions and console inspected.
-- [x] Korean, English and French responsive layouts checked.
-- [x] No tests or deployment.
+- [x] Selected visual target resolved and paired with actual rendered evidence.
+- [x] Existing shared capture, review, editable data and explicit confirmation retained.
+- [x] Five fidelity surfaces compared; actionable layout issues fixed and recaptured.
+- [x] Primary correction, selection, source inspection and local save tested in browser.
+- [x] Narrow multilingual layouts and long batch checked.
+- [x] Tests, type checking and build passed; limitations disclosed.
+- [x] No push, deployment, repository visibility change or submission.
 
 ## Follow-up polish
 
-[P3] Browser-native textarea resize affordance and real font rasterization vary slightly from the generated mock. No further visual changes are required for this pass.
+[P3] Native checkbox/scrollbar styling and browser font rasterization differ from the generated mock. Natural English/French singular/plural photo labels and keyboard focus after optional portion answers were subsequently refined and regression-tested. Further global UX and persistence checks are recorded in [GLOBAL_QA.md](docs/momo-review/GLOBAL_QA.md).
 
-Historical result (2026-11-03): passed.
-# Refined Momo composer review
-
-- Source visual truth: the user-approved refined third mockup in this conversation, image-generation item exec-0e728e6e-2aba-4f6f-9d56-147c37ccc89c. The platform returned savedPath: null; an exact local source bitmap was not available.
-- Implementation screenshot: C:/Users/deyto/Documents/Codex/2026-11-04/task/momo-refined-implementation-en.jpg (425 x 510 px, composer-only capture).
-- Viewport: 440 x 900 CSS px; document client width 425 px after the desktop scrollbar. Capture aligned to the Momo component by scrolling 99 px. The mockup was displayed at 1150 x 1370 px and intended a 425 x 505 logical-pixel surface; exact paired density normalization remains incomplete.
-- State: English guest, empty composer, How was your day?, suggestions manually paused for capture, privacy collapsed. Existing app shell remains outside the composer scope.
-
-## Findings and evidence
-
-- Fonts/typography: retained the existing serif/sans system, with a 24 px question (22 px at the narrow breakpoint) and 15-16 px controls. Exact font fidelity against the source bitmap is unverified.
-- Spacing/layout: centred smaller Momo, one question and one softly bordered writing surface; duplicated hero/subtitle/help paragraphs removed from the empty view. Rendered composer captured; no completed paired full-view comparison is claimed.
-- Colors/tokens: reused existing cream, espresso, caramel and biscuit tokens. No new brand palette or gradient was introduced.
-- Image quality: reused the actual shared Momo asset pointer; no replacement drawing, generated mascot or new asset was introduced.
-- Copy/content: short English/Korean/French questions and placeholders; direct sign-in, manual input and privacy/consent routes retained. A labelled pause/play control intentionally supplements the mockup because automatic rotation was requested afterward.
-- Interactions: automatic question changes, manual pause/refresh and typing lock were observed in the actual browser. Exact five-second timing and voice/photo/IME/hidden-tab/reduced-motion guards are covered by component tests. Pending-only loading text rotates every 3.5 seconds without fake percentages or completed-stage claims; success/error/cancel cleanup is tested.
-- Focused region comparison: incomplete. Computer Use was stopped from the user's keyboard before the remaining visual review; no further Computer Use was attempted after that stop.
-
-## Verification
-
-338 tests across 33 files, TypeScript, production build and focused changed-file lint passed. All 631 Korean/English/French translation keys match, without duplicate/missing keys or mismatched placeholders. Live Meta, a real microphone/device and authenticated cloud behavior were not certified by this pass.
-
-## Remaining work
-
-Resume a paired source/implementation visual review, including narrow screens and all three languages, when computer control is available. Do not interpret the automated checks or this push as a passed pixel-fidelity review. The user separately requested publication of the current update with this limitation retained.
-
-final result: blocked
+final result: passed

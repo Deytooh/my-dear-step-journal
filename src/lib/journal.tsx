@@ -1,7 +1,8 @@
 import { copyGuestMedia, setMediaOwner } from "./media";
 import type { MealDetails } from "./meals";
 import { validateSnapshot } from "./snapshot";
-import { sameSnapshot, undoDelta } from "./journal-safety";
+import { planBackupImport } from "./backup-import";
+import { sameConfirmedEntry, sameSnapshot, undoDelta } from "./journal-safety";
 import { clearPhotoCache } from "./cloud-sync";
 import { inventory, lotIdentity } from "./inventory";
 export { canDeduct } from "./inventory";
@@ -24,6 +25,8 @@ export type Precision = "exact" | "date_only" | "part_of_day" | "unknown";
 export type PartOfDay = "morning" | "afternoon" | "evening" | "night";
 
 export type Evidence = {
+  /** All original photos stay in photos; only these indices support this item. */
+  attribution?: { status: "linked" | "unclear"; linkedPhotoIndices: number[] };
   analysis?: { model: string; promptVersion: string; schemaVersion: number; analyzedAt: string };
   method: "manual" | "text" | "voice" | "photos" | "mixed";
   text: string;
@@ -138,8 +141,8 @@ const uid = () =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
 
-function demoState(): State {
-  const tz = DEFAULT_TZ;
+function demoState(preferences: State["settings"]): State {
+  const tz = preferences.timezone;
   const today = todayLocal(tz);
   const now = new Date().toISOString();
   const d = (n: number) => addDays(today, n);
@@ -302,8 +305,27 @@ function demoState(): State {
     ],
     stockAdjust: 0,
     settings: {
-      showMomo: true,
+      // Reset fictional activity, not the person's interface or consent choices.
+      showMomo: preferences.showMomo,
       timezone: tz,
+      ...(preferences.locale ? { locale: preferences.locale } : {}),
+      ...(preferences.onboarding ? { onboarding: preferences.onboarding } : {}),
+      ...(preferences.trackingInterests
+        ? { trackingInterests: preferences.trackingInterests }
+        : {}),
+      ...(preferences.prompts
+        ? {
+            prompts: {
+              ...(preferences.prompts.aiConsent !== undefined
+                ? { aiConsent: preferences.prompts.aiConsent }
+                : {}),
+              ...(preferences.prompts.hidden !== undefined
+                ? { hidden: preferences.prompts.hidden }
+                : {}),
+              ...(preferences.prompts.off ? { off: preferences.prompts.off } : {}),
+            },
+          }
+        : {}),
       demoMode: true,
       stockAdjustments: {
         "demo-p1": { identity: JSON.stringify(["마운자로", "single", null]), delta: 1 },
@@ -315,7 +337,9 @@ function demoState(): State {
 export type SyncStatus = "local" | "syncing" | "synced" | "error";
 export type JournalContextValue = State & {
   storageBlocked: boolean;
+  storageRecovery: { key: string; source: "journal" | "baseline" } | null;
   conflict: boolean;
+  baselineConflict: boolean;
   resolveConflict: (choice: "local" | "cloud") => void;
   importGuest: () => Promise<void>;
   resetDemo: () => void;
@@ -352,6 +376,8 @@ export type JournalContextValue = State & {
   newId: () => string;
   /** Capture the whole journal so any change can be undone with restoreSnapshot. */
   snapshot: () => State;
+  /** A captured context stays valid only while its ownership session is current. */
+  isCurrentOwner: () => boolean;
   restoreSnapshot: (s: State) => void;
 };
 export type JournalSnapshot = State;
@@ -372,10 +398,13 @@ export function JournalProvider({ children }: { children: ReactNode }) {
   const [introductionPending, setIntroductionPending] = useState(false);
   const [user, setUser] = useState<{ id: string; email: string | null } | null>(null);
   const [sync, setSync] = useState<SyncStatus>("local");
-  const [storageBlocked, setStorageBlocked] = useState(false);
+  const [storageRecovery, setStorageRecovery] =
+    useState<JournalContextValue["storageRecovery"]>(null);
+  const storageBlocked = storageRecovery !== null;
   const invalidKeys = useRef(new Set<string>());
+  const orphanBaseKey = useRef<string | null>(null);
   const [conflict, setConflict] = useState(false);
-  const conflictSource = useRef<"cloud" | "tab">("cloud");
+  const conflictSource = useRef<"cloud" | "tab" | "baseline">("cloud");
   const remoteConflict = useRef<State | null>(null);
   const synced = useRef<State | null>(null);
   const latest = useRef(state);
@@ -392,36 +421,51 @@ export function JournalProvider({ children }: { children: ReactNode }) {
   const read = (key: string): State | null => {
     try {
       const raw = localStorage.getItem(key);
-      return raw ? validateSnapshot(JSON.parse(raw)) : null;
+      return raw === null ? null : validateSnapshot(JSON.parse(raw));
     } catch {
       invalidKeys.current.add(key);
-      setStorageBlocked(true);
+      setStorageRecovery({ key, source: key.endsWith(".base") ? "baseline" : "journal" });
       return null;
     }
   };
-  const commit = useCallback((change: (s: State) => State) => {
-    const key = owner.current ? `${KEY}.user.${owner.current}` : KEY;
-    if (invalidKeys.current.has(key)) throw new Error("invalid_local_snapshot");
-    const next = change(latest.current);
-    try {
-      localStorage.setItem(
-        owner.current ? `${KEY}.user.${owner.current}` : KEY,
-        JSON.stringify(next),
-      );
-    } catch (error) {
-      setSync("error");
-      throw error;
-    }
-    latest.current = next;
-    setState(next);
-    setSync(owner.current ? "syncing" : "local");
+  const retireOrphanBase = useCallback(() => {
+    if (!orphanBaseKey.current) return;
+    // A baseline contains only acknowledged cloud data, never unsynced edits.
+    // Without its local snapshot it cannot establish any intended deletions.
+    localStorage.removeItem(orphanBaseKey.current);
+    orphanBaseKey.current = null;
   }, []);
+  const commit = useCallback(
+    (change: (s: State) => State, cloudBase?: State) => {
+      const key = owner.current ? `${KEY}.user.${owner.current}` : KEY;
+      if (invalidKeys.current.has(key)) throw new Error("invalid_local_snapshot");
+      const next = change(latest.current);
+      try {
+        retireOrphanBase();
+        localStorage.setItem(key, JSON.stringify(next));
+        // Save the chosen snapshot first: a failed baseline write must never make
+        // an older local snapshot look like a new edit against the accepted cloud.
+        if (cloudBase) localStorage.setItem(`${key}.base`, JSON.stringify(cloudBase));
+      } catch (error) {
+        setSync("error");
+        throw error;
+      }
+      latest.current = next;
+      setState(next);
+      if (next.settings.onboarding || next.records.length || next.purchases.length || next.reminder)
+        setIntroductionPending(false);
+      setSync(owner.current ? "syncing" : "local");
+    },
+    [retireOrphanBase],
+  );
   useEffect(() => {
     const switchUser = (u: { id: string; email?: string | undefined | null } | null) => {
       const guestLocale = owner.current === null ? latest.current.settings.locale : undefined;
+      // Confirming the initial guest is handled separately. Every actual auth
+      // transition, including sign-out, invalidates the earlier ownership epoch.
       epoch.current += 1;
       owner.current = u?.id ?? null;
-      setStorageBlocked(false);
+      setStorageRecovery(null);
       setMediaOwner(owner.current);
       clearPhotoCache();
       synced.current = null;
@@ -429,6 +473,8 @@ export function JournalProvider({ children }: { children: ReactNode }) {
       remoteConflict.current = null;
       setConflict(false);
       const stored = read(keyFor(owner.current));
+      orphanBaseKey.current =
+        u && !stored && !invalidKeys.current.has(keyFor(u.id)) ? `${keyFor(u.id)}.base` : null;
       const next = stored ?? empty();
       // Carry only an explicit guest interface language; never journal data, consent or account-to-account preferences.
       accountLocale.current =
@@ -444,15 +490,43 @@ export function JournalProvider({ children }: { children: ReactNode }) {
       setSync(u ? "syncing" : "local");
       setReady(true);
     };
-    const initialEpoch = epoch.current;
-    supabase.auth.getUser().then(({ data }) => {
-      if (epoch.current === initialEpoch) switchUser(data.user);
-    });
     // Guest UI can initialize before the network; no account data is loaded into the guest namespace.
-    const guest = read(KEY) ?? empty();
+    const storedGuest = read(KEY);
+    const guest = storedGuest ?? empty();
+    setMediaOwner(null);
+    clearPhotoCache();
     latest.current = guest;
     setState(guest);
     setReady(true);
+    const initialEpoch = epoch.current;
+    supabase.auth
+      .getUser()
+      .then(({ data, error }) => {
+        if (epoch.current !== initialEpoch) return;
+        if (error && error.name !== "AuthSessionMissingError") return;
+        if (data.user) {
+          switchUser(data.user);
+          return;
+        }
+        // Confirming the guest is not an account transition: keep in-progress
+        // work, storage errors and conflict state instead of reloading a snapshot.
+        const current = latest.current;
+        setIntroductionPending(
+          !storedGuest &&
+            // Any successful guest action since boot may have created even an
+            // empty snapshot (for example Save, then Undo). Do not restart it.
+            localStorage.getItem(KEY) === null &&
+            !invalidKeys.current.has(KEY) &&
+            !current.settings.onboarding &&
+            !current.records.length &&
+            !current.purchases.length &&
+            !current.reminder,
+        );
+      })
+      .catch(() => {
+        // An unavailable auth service must not interrupt local work or pretend
+        // an unknown signed-in account is a confirmed first-time guest.
+      });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT") switchUser(null);
       else if (
@@ -475,16 +549,39 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     setSync("syncing");
     (async () => {
       try {
+        retireOrphanBase();
         const cloud = await loadCloud();
         if (!live || generation !== epoch.current || owner.current !== id) return;
         const local = latest.current;
-        const base = read(`${keyFor(id)}.base`);
+        const localKey = keyFor(id);
+        const stored = read(localKey);
+        // A read may fail after sign-in while the cloud request is pending.
+        // Never replace that primary snapshot with a cloud response.
+        if (invalidKeys.current.has(localKey)) {
+          setStorageRecovery({ key: localKey, source: "journal" });
+          setSync("error");
+          return;
+        }
+        const baseKey = `${localKey}.base`;
+        const base = read(baseKey);
+        // A retry can establish that an inaccessible baseline is valid again.
+        // Missing previously damaged metadata still cannot prove deletion intent.
+        if (base) invalidKeys.current.delete(baseKey);
+        if (invalidKeys.current.has(baseKey)) {
+          setStorageRecovery({ key: baseKey, source: "baseline" });
+          conflictSource.current = "baseline";
+          remoteConflict.current = cloud ?? empty();
+          setConflict(true);
+          setSync("error");
+          return;
+        }
         if (
           cloud &&
           !sameSnapshot(local, base) &&
-          read(keyFor(id)) &&
+          stored &&
           !sameSnapshot(cloud, base) &&
-          (local.records.length || local.purchases.length || local.reminder)
+          !sameSnapshot(local, cloud) &&
+          (base || local.records.length || local.purchases.length || local.reminder)
         ) {
           conflictSource.current = "cloud";
           remoteConflict.current = cloud;
@@ -492,7 +589,13 @@ export function JournalProvider({ children }: { children: ReactNode }) {
           setSync("error");
           return;
         }
-        const target = !cloud ? local : base && !sameSnapshot(local, base) ? local : cloud;
+        // A leftover baseline alone is not a saved offline deletion. Re-read
+        // after loading so edits committed while the request ran still count.
+        const target = !cloud
+          ? local
+          : stored && base && !sameSnapshot(local, base)
+            ? local
+            : cloud;
         if (target === cloud) {
           const preference = accountLocale.current;
           const locale =
@@ -516,6 +619,9 @@ export function JournalProvider({ children }: { children: ReactNode }) {
       } catch {
         if (live && generation === epoch.current) {
           synced.current = null;
+          const baseKey = `${keyFor(id)}.base`;
+          if (invalidKeys.current.has(baseKey))
+            setStorageRecovery((current) => current ?? { key: baseKey, source: "baseline" });
           setSync("error");
         }
       }
@@ -523,7 +629,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     return () => {
       live = false;
     };
-  }, [user, ready, bump, conflict, storageBlocked]);
+  }, [user, ready, bump, conflict, storageBlocked, retireOrphanBase]);
 
   useEffect(() => {
     if (!user || !synced.current || synced.current === state || conflict || storageBlocked) return;
@@ -601,6 +707,9 @@ export function JournalProvider({ children }: { children: ReactNode }) {
           remoteConflict.current = incoming;
           setConflict(true);
           setSync("error");
+          // A new version can replace an already-open conflict, so its source
+          // must render even when both booleans above were already unchanged.
+          setBump((n) => n + 1);
         }
       } catch {
         /* do not import invalid external state */
@@ -622,9 +731,23 @@ export function JournalProvider({ children }: { children: ReactNode }) {
   );
   const soleLot = stockInventory.lots.length === 1 ? stockInventory.lots[0] : undefined;
 
+  // Public actions belong to the ownership session that rendered their control.
+  // Auth callbacks invalidate it synchronously, before React replaces the UI.
+  const renderEpoch = epoch.current;
+  const assertCurrentOwner = useCallback(() => {
+    if (renderEpoch !== epoch.current) throw new Error("journal_owner_changed");
+  }, [renderEpoch]);
+  const commitForOwner = useCallback(
+    (change: (s: State) => State, cloudBase?: State) => {
+      assertCurrentOwner();
+      commit(change, cloudBase);
+    },
+    [assertCurrentOwner, commit],
+  );
+
   const saveRecord = useCallback(
     (r: JournalRecord) =>
-      commit((s) => {
+      commitForOwner((s) => {
         const record = !owner.current && s.settings.demoMode ? { ...r, demo: true } : r;
         return {
           ...s,
@@ -633,68 +756,100 @@ export function JournalProvider({ children }: { children: ReactNode }) {
             : [...s.records, record],
         };
       }),
-    [commit],
+    [commitForOwner],
   );
 
   setLocale(state.settings.locale ?? "ko");
   const value: JournalContextValue = {
     storageBlocked,
+    storageRecovery,
     conflict,
+    baselineConflict: conflict && conflictSource.current === "baseline",
     resolveConflict: (choice) => {
+      assertCurrentOwner();
       const remote = remoteConflict.current;
       if (!remote) return;
-      const isCloud = conflictSource.current === "cloud";
+      const isCloud = conflictSource.current !== "tab";
+      const isBaselineRecovery = conflictSource.current === "baseline";
+      try {
+        // Even keeping this tab needs a write: another tab has already replaced
+        // its on-disk snapshot. Keep both choices available until persistence succeeds.
+        commitForOwner(
+          (current) => (choice === "cloud" ? remote : current),
+          isCloud ? remote : undefined,
+        );
+      } catch {
+        setSync("error");
+        return;
+      }
       if (isCloud) synced.current = remote;
+      if (isBaselineRecovery) {
+        const baseKey = `${keyFor(owner.current)}.base`;
+        invalidKeys.current.delete(baseKey);
+        setStorageRecovery((current) => (current?.key === baseKey ? null : current));
+      }
       remoteConflict.current = null;
       setConflict(false);
-      if (choice === "cloud") {
-        commit(() => remote);
-        if (isCloud) setSync("synced");
-      }
+      if (isCloud && choice === "cloud") setSync("synced");
       setBump((n) => n + 1);
     },
     resetDemo: () => {
-      if (!owner.current) commit(() => demoState());
+      assertCurrentOwner();
+      if (!owner.current) commitForOwner((current) => demoState(current.settings));
     },
     importGuest: async () => {
-      const guest = read(KEY),
-        account = owner.current,
+      assertCurrentOwner();
+      const account = owner.current,
         generation = epoch.current;
-      if (!guest || !account) return;
+      if (!account) return;
+      // Import errors belong to the guest source, not the active account. Keep
+      // its recovery state intact and reject so the import control reports failure.
+      const raw = localStorage.getItem(KEY);
+      if (raw === null) return;
+      const guest = validateSnapshot(JSON.parse(raw));
+      const demoLotIds = new Set(guest.purchases.filter((p) => p.demo).map((p) => p.id));
       const real = {
         ...guest,
         records: guest.records.filter((r) => !r.demo),
         purchases: guest.purchases.filter((p) => !p.demo),
+        settings: {
+          ...guest.settings,
+          stockAdjustments: Object.fromEntries(
+            Object.entries(guest.settings.stockAdjustments ?? {}).filter(
+              ([id]) => !demoLotIds.has(id),
+            ),
+          ),
+        },
       };
+      // Refuse ambiguous stock before copying media, including orphan corrections
+      // and legacy scalars whose meaning cannot be carried into another journal.
+      if (planBackupImport(latest.current, real).status === "stock-conflict")
+        throw new Error("guest_stock_conflict");
       if (!real.records.length && !real.purchases.length) return;
       const copied = await copyGuestMedia(real, account);
       if (generation !== epoch.current || owner.current !== account) return;
-      commit((s) => ({
-        ...s,
-        records: [
-          ...s.records,
-          ...copied.records.filter((r) => !s.records.some((x) => x.id === r.id)),
-        ],
-        purchases: [
-          ...s.purchases,
-          ...copied.purchases.filter((p) => !s.purchases.some((x) => x.id === p.id)),
-        ],
-        stockAdjust: s.stockAdjust + (s.settings.guestImported ? 0 : copied.stockAdjust),
-        settings: {
-          ...s.settings,
-          guestImported: true,
-          stockAdjustments: { ...copied.settings.stockAdjustments, ...s.settings.stockAdjustments },
-        },
-      }));
+      commitForOwner((s) => {
+        // Account edits may have happened while media was being copied. Replan
+        // against the latest state so a new correction or ID is never overwritten.
+        const plan = planBackupImport(s, copied);
+        if (plan.status === "stock-conflict") throw new Error("guest_stock_conflict");
+        return validateSnapshot({
+          ...plan.snapshot,
+          settings: { ...plan.snapshot.settings, guestImported: true },
+        });
+      });
     },
     undoFor: (before) => {
+      assertCurrentOwner();
       const after = latest.current,
         generation = epoch.current;
       return () => {
-        if (generation === epoch.current) commit((current) => undoDelta(before, after, current));
+        if (generation === epoch.current)
+          commitForOwner((current) => undoDelta(before, after, current));
       };
     },
     respondPrompt: (id, day, record, contextId) => {
+      assertCurrentOwner();
       const current = latest.current;
       const prompts = current.settings.prompts ?? {};
       if (record && !owner.current && current.settings.demoMode) record = { ...record, demo: true };
@@ -713,12 +868,24 @@ export function JournalProvider({ children }: { children: ReactNode }) {
           },
         },
       };
-      commit(() => next);
+      commitForOwner(() => next);
     },
     saveMomoBatch: (records, purchases, expectedOwner) => {
       if (expectedOwner !== undefined && expectedOwner !== owner.current)
         throw new Error("momo_owner_changed");
+      assertCurrentOwner();
       const current = latest.current;
+      // Stable IDs make retries idempotent, not permission to drop a correction
+      // or overwrite a later edit. Check the whole batch before any local write.
+      for (const [incoming, existing] of [
+        [records, current.records],
+        [purchases, current.purchases],
+      ] as const)
+        for (const entry of incoming) {
+          const saved = existing.find((row) => row.id === entry.id);
+          if (saved && !sameConfirmedEntry(saved, entry))
+            throw new Error("momo_existing_entry_changed");
+        }
       const next = {
         ...current,
         records: [
@@ -730,11 +897,29 @@ export function JournalProvider({ children }: { children: ReactNode }) {
           ...purchases.filter((p) => !current.purchases.some((x) => x.id === p.id)),
         ],
       };
-      commit(() => next);
+      commitForOwner(() => next);
     },
     retrySync: () => {
-      if (owner.current) setBump((n) => n + 1);
-      else {
+      assertCurrentOwner();
+      if (invalidKeys.current.has(keyFor(owner.current))) return;
+      if (owner.current) {
+        if (storageRecovery?.source === "baseline") {
+          // Keep the recovery choices available unless this metadata can be
+          // validated again. Preserve unrelated tab conflicts as well.
+          if (conflict && conflictSource.current !== "baseline") return;
+          const recovered = read(storageRecovery.key);
+          if (!recovered && conflict) {
+            setSync("error");
+            return;
+          }
+          if (recovered) invalidKeys.current.delete(storageRecovery.key);
+          synced.current = null;
+          remoteConflict.current = null;
+          setConflict(false);
+          setStorageRecovery(null);
+        }
+        setBump((n) => n + 1);
+      } else {
         try {
           localStorage.setItem(KEY, JSON.stringify(latest.current));
           setSync("local");
@@ -761,14 +946,21 @@ export function JournalProvider({ children }: { children: ReactNode }) {
       !!state.reminder?.demo,
     saveRecord,
     deleteRecord: (id) => {
+      assertCurrentOwner();
       const r = state.records.find((x) => x.id === id);
-      commit((s) => ({ ...s, records: s.records.filter((x) => x.id !== id) }));
+      commitForOwner((s) => ({ ...s, records: s.records.filter((x) => x.id !== id) }));
       return r;
     },
     restoreRecord: (r) => saveRecord(r),
-    setReminder: (at) => commit((s) => ({ ...s, reminder: at ? { id: uid(), at } : null })),
+    setReminder: (at) =>
+      commitForOwner((s) => ({
+        ...s,
+        reminder: at
+          ? { id: uid(), at, ...(!owner.current && s.settings.demoMode ? { demo: true } : {}) }
+          : null,
+      })),
     savePurchase: (purchase) =>
-      commit((s) => {
+      commitForOwner((s) => {
         const p = !owner.current && s.settings.demoMode ? { ...purchase, demo: true } : purchase;
         return {
           ...s,
@@ -778,9 +970,20 @@ export function JournalProvider({ children }: { children: ReactNode }) {
         };
       }),
     deletePurchase: (id) =>
-      commit((s) => ({ ...s, purchases: s.purchases.filter((p) => p.id !== id) })),
+      commitForOwner((s) => ({
+        ...s,
+        purchases: s.purchases.filter((p) => p.id !== id),
+        settings: s.settings.stockAdjustments?.[id]
+          ? {
+              ...s.settings,
+              stockAdjustments: Object.fromEntries(
+                Object.entries(s.settings.stockAdjustments).filter(([lotId]) => lotId !== id),
+              ),
+            }
+          : s.settings,
+      })),
     setStock: (n, purchaseId) =>
-      commit((s) => {
+      commitForOwner((s) => {
         const lot = inventory(s.purchases, s.records).lots.find((l) => l.id === purchaseId);
         if (!lot) return s;
         return {
@@ -795,10 +998,13 @@ export function JournalProvider({ children }: { children: ReactNode }) {
         };
       }),
     confirmLegacyAdjustment: () =>
-      commit((s) => ({ ...s, settings: { ...s.settings, legacyAdjustmentConfirmed: true } })),
-    setSetting: (k, v) => commit((s) => ({ ...s, settings: { ...s.settings, [k]: v } })),
+      commitForOwner((s) => ({
+        ...s,
+        settings: { ...s.settings, legacyAdjustmentConfirmed: true },
+      })),
+    setSetting: (k, v) => commitForOwner((s) => ({ ...s, settings: { ...s.settings, [k]: v } })),
     clearDemo: () =>
-      commit((s) => ({
+      commitForOwner((s) => ({
         ...s,
         records: s.records.filter((r) => !r.demo),
         purchases: s.purchases.filter((p) => !p.demo),
@@ -814,8 +1020,17 @@ export function JournalProvider({ children }: { children: ReactNode }) {
         },
       })),
     newId: uid,
-    snapshot: () => latest.current,
-    restoreSnapshot: (s) => commit(() => validateSnapshot(s)),
+    snapshot: () => {
+      assertCurrentOwner();
+      return latest.current;
+    },
+    isCurrentOwner: () => renderEpoch === epoch.current,
+    restoreSnapshot: (s) => {
+      // Auth changes update the epoch before React renders. An asynchronous
+      // restore captured by an earlier session must not write into the new one.
+      assertCurrentOwner();
+      commitForOwner(() => validateSnapshot(s));
+    },
   };
   return <JournalCtx.Provider value={value}>{children}</JournalCtx.Provider>;
 }

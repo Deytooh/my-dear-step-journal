@@ -57,7 +57,7 @@ function Injections() {
       <PageTitle title={t("inj.title")} sub={t("inj.sub")} />
 
       <Card className="bg-sage p-5 shadow-none">
-        <div className="flex items-center gap-3">
+        <div className="stock-summary-heading flex items-center gap-3">
           <IconBubble size="sm">
             <Package className="size-5" />
           </IconBubble>

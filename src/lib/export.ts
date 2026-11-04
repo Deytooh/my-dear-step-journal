@@ -2,7 +2,10 @@ import type { JournalSnapshot } from "./journal";
 import { mealTotals } from "./meals";
 const cell = (value: unknown) => {
   const s = String(value ?? "");
-  return `"${(/^[=+@-]/.test(s) ? "'" + s : s).replace(/"/g, '""')}"`;
+  // Imported IDs can hide formula prefixes behind whitespace or control characters.
+  // Prefix only the CSV cell; preserve the original value, including in data_json.
+  const needsTextPrefix = /^[\s\p{Cc}]*[=+@\-\t\r\n＝＋－＠]/u.test(s);
+  return `"${(needsTextPrefix ? "'" + s : s).replace(/"/g, '""')}"`;
 };
 export function journalCSV(state: JournalSnapshot) {
   const header = [

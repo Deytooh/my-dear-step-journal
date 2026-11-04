@@ -62,6 +62,11 @@ function Today() {
         {fmtMonthDayWeekday(today)}
         <DemoTag show={j.hasDemo} />
       </p>
+      {!j.user && j.settings.demoMode && (
+        <p className="mt-3 rounded-2xl bg-muted px-4 py-3 text-sm text-muted-foreground">
+          {t("demo.notice")}
+        </p>
+      )}
       <MomoSheet
         key={`capture:${j.user?.id ?? "guest"}`}
         inline

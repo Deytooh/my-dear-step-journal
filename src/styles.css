@@ -1063,3 +1063,193 @@ input[type="checkbox"]:checked {
     height: 80px;
   }
 }
+
+.momo-review > p:first-child {
+  margin-bottom: 8px;
+}
+
+/* A single review ledger keeps the draft, its uncertainty, and its action together. */
+.journal-form details.momo-review-source {
+  border: 0;
+  border-radius: 0;
+  padding: 0 0 12px;
+  background: transparent;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+  margin-bottom: 0;
+}
+.journal-form details.momo-review-source > summary {
+  justify-content: start;
+  padding-block: 4px;
+  display: flex;
+  gap: 12px;
+  min-height: 52px;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+.momo-review-thumbnail {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+}
+.momo-review-source > summary::after {
+  margin-left: auto;
+}
+.momo-review-list {
+  margin: 0;
+  padding: 0;
+}
+.momo-workspace .momo-review-list {
+  margin-inline: 0;
+}
+.momo-review-row {
+  border-bottom: 1px solid var(--border);
+  padding: 16px 0;
+}
+.momo-review-row-main {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+}
+.momo-review-check {
+  min-height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.momo-review-check input {
+  width: 21px;
+  height: 21px;
+  cursor: pointer;
+}
+.momo-review-entry-title {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.45;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+.momo-review-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 3px 2px 3px 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.momo-review-estimate {
+  display: inline-flex;
+  margin-top: 7px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--secondary);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 500;
+}
+.momo-review-issue {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 7px;
+  color: var(--destructive);
+  font-size: 14px;
+  font-weight: 500;
+}
+.momo-review-issue svg {
+  align-self: center;
+}
+.momo-review-editor {
+  margin-top: 14px;
+  border-radius: 16px;
+  padding: 14px;
+  background: color-mix(in oklab, var(--secondary) 52%, var(--background));
+}
+.momo-review-row [data-draft-field] {
+  min-width: 0;
+  scroll-margin-block: 100px 210px;
+}
+.momo-review-row input,
+.momo-review-row select {
+  min-width: 0;
+}
+.momo-review-row[data-included="false"] .momo-review-entry-title {
+  font-weight: 500;
+}
+.momo-review-actions > button {
+  border-radius: 999px;
+}
+.momo-workspace .momo-review-actions {
+  position: sticky;
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  margin-top: 20px;
+  padding: 12px 0 6px;
+  background: var(--background);
+}
+.momo-review-shortcuts {
+  font-size: 14px;
+}
+@media (max-width: 380px) {
+  /* Keep localized manual actions readable rather than splitting short words. */
+  .feel-menu,
+  .journal-clock-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .feel-menu > li > button {
+    min-height: 72px;
+  }
+  .stock-summary-heading {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+  .stock-summary-heading > button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+  .momo-review-editor .feel-panel > [data-draft-field] {
+    grid-column: 1 / -1;
+  }
+  .momo-review-row-main {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    gap: 5px;
+  }
+  .momo-review-check {
+    min-width: 44px;
+  }
+  .momo-review-edit {
+    font-size: 13px;
+    gap: 2px;
+    padding-left: 5px;
+  }
+  .momo-review-entry-title {
+    font-size: 17px;
+  }
+}
+
+/* Keep the full translated navigation labels separate on the narrowest phones. */
+@media (max-width: 340px) {
+  .app-nav > div {
+    padding-inline: 4px;
+  }
+  .app-nav a,
+  .app-nav .feel-add {
+    font-size: 11px;
+  }
+}
+
+/* Zoomed/landscape viewports need room to correct a field, not stacked sticky bars. */
+@media (max-height: 600px) {
+  .momo-workspace .momo-review-actions {
+    position: static;
+  }
+}

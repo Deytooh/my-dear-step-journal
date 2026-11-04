@@ -12,6 +12,37 @@ function canonical(value: unknown): unknown {
 }
 const equal = (a: unknown, b: unknown) =>
   JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
+
+function photoIdentity(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  // The local and uploaded forms use the same SHA-256 of the original data URL.
+  // Keep both the owner and complete digest: another photo is a real edit.
+  const local = /^localphoto:([^:]+):([a-f0-9]{64})$/.exec(value);
+  const stored = /^storage:([^/]+)\/source-([a-f0-9]{64})$/.exec(value);
+  const parts = local ?? stored;
+  return parts ? `localphoto:${parts[1]}:${parts[2]}` : value;
+}
+
+function comparableEntry(value: unknown, ignoreCreatedAt = false): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const entry = { ...(value as Record<string, unknown>) };
+  if (ignoreCreatedAt) delete entry["createdAt"];
+  const evidence = entry["evidence"] as Record<string, unknown> | undefined;
+  if (Array.isArray(evidence?.["photos"]))
+    entry["evidence"] = { ...evidence, photos: evidence["photos"].map(photoIdentity) };
+  if (entry["type"] === "memory") entry["photo"] = photoIdentity(entry["photo"]);
+  const meal = entry["meal"] as Record<string, unknown> | undefined;
+  if (entry["type"] === "meal" && Array.isArray(meal?.["photoRefs"]))
+    entry["meal"] = { ...meal, photoRefs: meal["photoRefs"].map(photoIdentity) };
+  return entry;
+}
+
+/** Reconfirming an existing draft ID is safe only when its confirmed content still matches. */
+export const sameConfirmedEntry = (a: unknown, b: unknown) =>
+  equal(comparableEntry(a, true), comparableEntry(b, true));
+
+const sameUndoEntry = (a: unknown, b: unknown) => equal(comparableEntry(a), comparableEntry(b));
+
 export function sameSnapshot(a: JournalSnapshot | null, b: JournalSnapshot | null) {
   const normalize = (s: JournalSnapshot | null) =>
     s
@@ -59,7 +90,7 @@ export function undoDelta(
     for (const id of new Set([...b.map((r) => r.id), ...a.map((r) => r.id)])) {
       const old = b.find((r) => r.id === id),
         changed = a.find((r) => r.id === id);
-      if (equal(old, changed) || !equal(result.get(id), changed)) continue;
+      if (sameUndoEntry(old, changed) || !sameUndoEntry(result.get(id), changed)) continue;
       if (old) result.set(id, old);
       else result.delete(id);
     }

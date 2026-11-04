@@ -92,7 +92,7 @@ export function SectionHeader({ title, action }: { title: string; action?: React
 export function DemoTag({ show }: { show?: boolean | undefined }) {
   if (!show) return null;
   return (
-    <span className="ml-2 rounded-full bg-accent px-2 py-0.5 align-middle text-[11px] font-medium text-muted-foreground">
+    <span className="ml-2 inline-block whitespace-nowrap rounded-full bg-accent px-2 py-0.5 align-middle text-[11px] font-medium text-muted-foreground">
       {t("demo.badge")}
     </span>
   );
@@ -214,6 +214,7 @@ export function RecordRow({
           <div className="mt-1 text-xs text-muted-foreground">
             {t(totals?.consumed ? "meal.consumedEstimate" : "meal.picturedEstimate")} ·{" "}
             {Math.round(energy.low)}–{Math.round(energy.high)} kcal
+            {totals?.partial && <> · {t("meal.partial")}</>}
           </div>
         )}
       </div>
@@ -241,7 +242,15 @@ export function Segmented<T extends string>({
     <div
       role="tablist"
       data-tone={size}
-      style={{ "--segment-count": options.length, "--segment-index": Math.max(0, options.findIndex((o) => o.value === value)) } as React.CSSProperties}
+      style={
+        {
+          "--segment-count": options.length,
+          "--segment-index": Math.max(
+            0,
+            options.findIndex((o) => o.value === value),
+          ),
+        } as React.CSSProperties
+      }
       className={cn(
         "segmented flex rounded-[18px]",
         size === "lg" ? "bg-secondary" : "border bg-card",

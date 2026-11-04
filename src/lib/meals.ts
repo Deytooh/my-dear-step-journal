@@ -63,6 +63,7 @@ export function mealTotals(meal: MealDetails) {
       Number.isFinite(i.kcal.low) &&
       Number.isFinite(i.kcal.high) &&
       i.kcal.low >= 0 &&
+      i.kcal.high <= 10000 &&
       i.kcal.low <= i.kcal.high,
   );
   const pictured = known.length
@@ -75,7 +76,11 @@ export function mealTotals(meal: MealDetails) {
     pictured,
     partial: known.length < included.length,
     consumed:
-      pictured && meal.consumedFraction !== null
+      pictured &&
+      meal.consumedFraction !== null &&
+      Number.isFinite(meal.consumedFraction) &&
+      meal.consumedFraction >= 0 &&
+      meal.consumedFraction <= 1
         ? { low: pictured.low * meal.consumedFraction, high: pictured.high * meal.consumedFraction }
         : null,
   };
@@ -107,25 +112,30 @@ export function parseMealAnalysis(raw: unknown, model: string): MealDetails | nu
   };
 }
 
-// Recovery accepts unfinished fields; the strict meal schema is still mandatory at commit.
+// Check editable structure, not save readiness. Over-limit and unfinished input must
+// survive each render and recovery so users can repair it. Keep source fields strict;
+// the full meal schema is still mandatory at commit.
 export const draftMealSchema = mealSchema
   .innerType()
   .extend({
-    title: z.string().max(300),
-    items: z
-      .array(
-        mealItemSchema.extend({
-          name: z.string().max(300),
-          kcal: z
-            .object({
-              low: z.number().nullable(),
-              high: z.number().nullable(),
-              basis: z.enum(["photo_estimate", "label", "user_entered"]),
-            })
-            .nullable(),
-        }),
-      )
-      .max(30),
+    title: z.string(),
+    consumedFraction: z.number().nullable(),
+    consumptionNote: z.string().optional(),
+    note: z.string().optional(),
+    items: z.array(
+      mealItemSchema.extend({
+        name: z.string(),
+        portionDescription: z.string().nullable(),
+        ingredients: z.array(mealItemSchema.shape.ingredients.element.extend({ name: z.string() })),
+        kcal: z
+          .object({
+            low: z.number().nullable(),
+            high: z.number().nullable(),
+            basis: z.enum(["photo_estimate", "label", "user_entered"]),
+          })
+          .nullable(),
+      }),
+    ),
   })
   .transform((m): MealDetails => ({
     ...m,

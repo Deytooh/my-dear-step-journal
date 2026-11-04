@@ -14,7 +14,8 @@ import {
   type MealDetails,
 } from "@/lib/meals";
 import { analyzeMeal } from "@/lib/momo-tasks.functions";
-import { fmtMonthDay, instantFromLocal, timeOf, todayLocal } from "@/lib/dates";
+import { parseMealFractionInput } from "@/lib/meal-fraction";
+import { exactLocalInstant, fmtMonthDay, timeOf, todayLocal } from "@/lib/dates";
 import { validDate } from "@/lib/snapshot";
 import { retainPhoto, shrinkPhoto } from "@/lib/media";
 import { photoUrl } from "@/lib/cloud-sync";
@@ -26,20 +27,24 @@ import { MealItemsEditor } from "./MealItemsEditor";
 import { celebrateSave } from "./AppFeel";
 
 const input = "min-h-12 w-full min-w-0 rounded-xl border bg-card px-3 py-2 text-[16px]";
+const currentStandaloneSession = () => true;
 export function MealForm({
   editing,
   images = [],
   note = "",
   initialDate,
   onDone,
+  isSessionCurrent = currentStandaloneSession,
 }: {
   editing?: MealRec | undefined;
   images?: string[];
   note?: string;
   initialDate?: string | undefined;
   onDone: () => void;
+  isSessionCurrent?: () => boolean;
 }) {
   const j = useJournal();
+  const isCurrentOwner = j.isCurrentOwner;
   const analyze = useServerFn(analyzeMeal);
   const [meal, setMeal] = useState<MealDetails>(
     () => editing?.meal ?? { ...emptyMeal(), photoRefs: images, note },
@@ -75,6 +80,24 @@ export function MealForm({
     generation = useRef(0);
   const owner = j.user?.id ?? "guest";
   const recoveryKey = `mds.meal.draft.${owner}.${editing?.id ?? "new"}`;
+  const active = useRef(true);
+  // Own the complete asynchronous operation, including the gap before an auth rerender.
+  const ownsForm = () => active.current && isSessionCurrent() && j.isCurrentOwner();
+  useLayoutEffect(() => {
+    active.current = true;
+    // A new sheet or recovery context must release the invalidated operation's locks.
+    photoPending.current = false;
+    guard.current = false;
+    setAttaching(false);
+    setBusy(false);
+    const requests = generation;
+    const photos = photoGeneration;
+    return () => {
+      active.current = false;
+      requests.current++;
+      photos.current++;
+    };
+  }, [isSessionCurrent, recoveryKey, editing, j.tz]);
   const [restoredNotice, setRestoredNotice] = useState(false);
   const [repeated, setRepeated] = useState(false);
   const [recovered, setRecovered] = useState(false);
@@ -115,20 +138,22 @@ export function MealForm({
           )
             setAnalysisInput(stored.analysisInput);
           if (typeof stored.id === "string") id.current = stored.id;
-          setFraction(stored.fraction ?? "");
+          setFraction(
+            typeof stored.fraction === "string"
+              ? stored.fraction
+              : parsed.data.consumedFraction === null
+                ? ""
+                : String(parsed.data.consumedFraction),
+          );
         }
       }
     } catch {
       /* retain a fresh manual form */
     }
     setRecovered(true);
-    return () => {
-      generation.current += 1;
-      photoGeneration.current += 1;
-    };
   }, [recoveryKey, editing, j.tz]);
   useEffect(() => {
-    if (!recovered) return;
+    if (!recovered || !active.current || !isSessionCurrent() || !isCurrentOwner()) return;
     try {
       if (saved) sessionStorage.removeItem(recoveryKey);
       else
@@ -161,10 +186,18 @@ export function MealForm({
     fraction,
     analysisInput,
     repeated,
+    isCurrentOwner,
+    isSessionCurrent,
   ]);
-  const resetDraft = () => {
-    generation.current++;
+  const cancelPhotos = () => {
     photoGeneration.current++;
+    photoPending.current = false;
+    setAttaching(false);
+  };
+  const resetDraft = () => {
+    if (!ownsForm()) return;
+    generation.current++;
+    cancelPhotos();
     guard.current = false;
     setBusy(false);
     setError("");
@@ -187,48 +220,64 @@ export function MealForm({
     setMeal((m) => ({ ...m, ...p }));
   };
   const attach = async (files: FileList | null) => {
-    if (!files || photoPending.current) return;
+    if (!files || photoPending.current || !ownsForm()) return;
     photoPending.current = true;
     setAttaching(true);
-    const token = photoGeneration.current;
+    const token = ++photoGeneration.current;
+    const isCurrent = () => ownsForm() && token === photoGeneration.current;
     try {
       const refs = await Promise.all(
         Array.from(files)
           .slice(0, 3 - meal.photoRefs.length)
-          .map(async (f) => retainPhoto(await shrinkPhoto(f), owner)),
+          .map(async (f) => {
+            const data = await shrinkPhoto(f);
+            return isCurrent() ? retainPhoto(data, owner) : null;
+          }),
       );
-      if (token === photoGeneration.current)
-        setMeal((m) => ({ ...m, photoRefs: [...m.photoRefs, ...refs].slice(0, 3) }));
+      if (isCurrent())
+        setMeal((m) => ({
+          ...m,
+          photoRefs: [...m.photoRefs, ...refs.filter((ref): ref is string => ref !== null)].slice(
+            0,
+            3,
+          ),
+        }));
     } catch {
-      setError(t("meal.photoError"));
+      if (isCurrent()) setError(t("meal.photoError"));
     } finally {
-      photoPending.current = false;
-      setAttaching(false);
+      if (isCurrent()) {
+        photoPending.current = false;
+        setAttaching(false);
+      }
     }
   };
   const run = async () => {
-    if (guard.current || attaching || !j.user || !consent) return;
+    if (!ownsForm() || guard.current || photoPending.current || !j.user || !consent) return;
     guard.current = true;
     setBusy(true);
     setError("");
     const token = generation.current;
+    const isCurrent = () => ownsForm() && token === generation.current;
     try {
       const urls = await Promise.all(meal.photoRefs.map(photoUrl));
-      if (token !== generation.current) return;
+      if (!isCurrent()) return;
       // Owned storage URLs are not fetched by the provider adapter: resolve to bounded data locally.
       const images = await Promise.all(
         urls.map(async (url) => {
           if (!url) throw new Error("media");
           if (url.startsWith("data:")) return url;
-          const blob = await (await fetch(url)).blob();
+          const response = await fetch(url);
+          if (!isCurrent()) throw new Error("cancelled_photo_analysis");
+          const blob = await response.blob();
+          if (!isCurrent()) throw new Error("cancelled_photo_analysis");
           return shrinkPhoto(new File([blob], "source.jpg", { type: blob.type }));
         }),
       );
-      if (token !== generation.current) return;
+      if (!isCurrent()) return;
       const result = await analyze({
         data: { text: meal.note ?? "", images, locale: getLocale() },
       });
-      if (token !== generation.current) return;
+      if (!isCurrent()) return;
       if (result.error) {
         setError(t(`ai.${result.error}`));
         return;
@@ -247,19 +296,22 @@ export function MealForm({
         consumedFraction: m.consumedFraction,
       }));
     } catch {
-      if (token === generation.current) setError(t("ai.service"));
+      if (isCurrent()) setError(t("ai.service"));
     } finally {
-      if (token === generation.current) {
+      if (isCurrent()) {
         guard.current = false;
         setBusy(false);
       }
     }
   };
   const save = () => {
-    if (guard.current || attaching || saved) return;
-    const finalMeal = { ...meal, consumedFraction: fraction === "" ? null : Number(fraction) };
+    if (!ownsForm() || guard.current || photoPending.current || saved) return;
+    const finalMeal = { ...meal, consumedFraction: parseMealFractionInput(fraction) };
     const parsed = mealSchema.safeParse(finalMeal);
-    if (!parsed.success || !validDate(date) || (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time))) {
+    const at = time
+      ? exactLocalInstant(date, time, j.tz, editing?.precision === "exact" ? editing.at : null)
+      : null;
+    if (!parsed.success || !validDate(date) || (time && !at)) {
       setError(t("meal.invalid"));
       return;
     }
@@ -272,7 +324,7 @@ export function MealForm({
         id: id.current,
         type: "meal",
         localDate: date,
-        at: time ? instantFromLocal(date, time, j.tz) : null,
+        at,
         precision: time ? "exact" : period ? "part_of_day" : "date_only",
         partOfDay: time ? null : period || null,
         source: "manual_text",
@@ -460,8 +512,9 @@ export function MealForm({
                 variant="outline"
                 className="min-h-11 w-full rounded-xl"
                 onClick={() => {
+                  if (!ownsForm()) return;
                   generation.current++;
-                  photoGeneration.current++;
+                  cancelPhotos();
                   guard.current = false;
                   setBusy(false);
                   patch({ photoRefs: meal.photoRefs.filter((r) => r !== ref) });
@@ -543,7 +596,7 @@ export function MealForm({
           />
         </label>
       </div>
-      <p className="text-sm">{t("meal.dateDefault")}</p>
+      {meal.photoRefs.length > 0 && <p className="text-sm">{t("meal.dateDefault")}</p>}
       <MealItemsEditor
         meal={meal}
         patch={patch}
@@ -610,9 +663,14 @@ export function MealForm({
             type="button"
             variant="outline"
             onClick={() => {
+              if (!ownsForm()) return;
               try {
                 const before = j.snapshot();
                 j.deleteRecord(editing.id);
+                // Exit animations may retain the form briefly after a successful delete.
+                active.current = false;
+                generation.current++;
+                photoGeneration.current++;
                 toast(t("toast.deleted"), {
                   action: { label: t("toast.undo"), onClick: j.undoFor(before) },
                 });

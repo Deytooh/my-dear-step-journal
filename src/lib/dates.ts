@@ -30,13 +30,24 @@ export function todayLocal(tz = DEFAULT_TZ) {
   return localDateOf(new Date(), tz);
 }
 
-/** Build an ISO instant from a local date + HH:mm in the timezone. */
+/**
+ * Build an ISO instant from a local date + HH:mm in the timezone.
+ * Repeated clocks use the earlier instant. Nonexistent clocks are rejected,
+ * never silently moved to a different time. Use exactLocalInstant for inputs
+ * that need a validation result rather than an exception.
+ */
 export function instantFromLocal(localDate: string, time: string, tz = DEFAULT_TZ): string {
   const [y = 0, m = 1, d = 1] = localDate.split("-").map(Number);
   const [hh = 0, mm = 0] = time.split(":").map(Number);
-  const guess = Date.UTC(y, m - 1, d, hh, mm);
-  // offset of tz at that moment
-  const parts = dateFormatter("en-US", {
+  const wallTime = (year: number, month: number, day: number, hour: number, minute: number) => {
+    // Date.UTC treats years 0–99 as 1900–1999; retain the user's actual year.
+    const value = new Date(0);
+    value.setUTCFullYear(year, month - 1, day);
+    value.setUTCHours(hour, minute, 0, 0);
+    return value.getTime();
+  };
+  const guess = wallTime(y, m, d, hh, mm);
+  const formatter = dateFormatter("en-US", {
     timeZone: tz,
     hourCycle: "h23",
     year: "numeric",
@@ -44,10 +55,56 @@ export function instantFromLocal(localDate: string, time: string, tz = DEFAULT_T
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-  }).formatToParts(new Date(guess));
-  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
-  const asTz = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"));
-  return new Date(guess - (asTz - guess)).toISOString();
+  });
+  const localWallTime = (instant: number) => {
+    const parts = formatter.formatToParts(new Date(instant));
+    const get = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+    return wallTime(get("year"), get("month"), get("day"), get("hour"), get("minute"));
+  };
+  // The UTC guess can be on the opposite side of a clock change. Try both
+  // surrounding offsets rather than trusting its offset for the desired clock.
+  // Two days also covers full-day date-line transitions and UTC+14 zones.
+  const offsets = new Set<number>();
+  for (const days of [-2, -1, 0, 1, 2]) {
+    const probe = guess + days * 86_400_000;
+    offsets.add(localWallTime(probe) - probe);
+  }
+  const candidates = [...offsets].map((offset) => {
+    const instant = guess - offset;
+    return { instant, wall: localWallTime(instant) };
+  });
+  const exact = candidates.filter((candidate) => candidate.wall === guess);
+  if (exact.length)
+    return new Date(Math.min(...exact.map((candidate) => candidate.instant))).toISOString();
+  throw new RangeError("nonexistent_local_time");
+}
+
+/**
+ * Resolve an editable clock, rejecting DST gaps. Keep an existing instant when
+ * it still matches both inputs in this timezone: minute-only controls must not
+ * discard its seconds or choose a different occurrence of a repeated clock.
+ */
+export function exactLocalInstant(
+  localDate: string,
+  time: string,
+  tz = DEFAULT_TZ,
+  existingInstant?: string | null,
+): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(localDate) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time))
+    return null;
+  try {
+    if (
+      existingInstant &&
+      Number.isFinite(Date.parse(existingInstant)) &&
+      localDateOf(existingInstant, tz) === localDate &&
+      timeOf(existingInstant, tz) === time
+    )
+      return existingInstant;
+    const instant = instantFromLocal(localDate, time, tz);
+    return localDateOf(instant, tz) === localDate && timeOf(instant, tz) === time ? instant : null;
+  } catch {
+    return null;
+  }
 }
 
 export function timeOf(iso: string, tz = DEFAULT_TZ) {

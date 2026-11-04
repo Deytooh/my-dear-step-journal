@@ -12,13 +12,12 @@ export default defineConfig({
       // Keep the canonical Lovable asset pointer working in local previews too.
       proxy: {
         "/__l5e/assets-v1/": {
-          target: "https://id-preview--0e8ecf7b-bcc5-435d-a927-f51d157f4667.lovable.app",
+          target: "https://my-dear-step-journal.lovable.app",
           changeOrigin: true,
-          configure(proxy) {
-            proxy.on("proxyReq", (request) => {
-              request.removeHeader("cookie");
-              request.removeHeader("authorization");
-            });
+          bypass(request) {
+            // Strip private headers before the public asset request is created.
+            delete request.headers.cookie;
+            delete request.headers.authorization;
           },
         },
       },

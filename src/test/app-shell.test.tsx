@@ -20,6 +20,7 @@ const j = vi.hoisted(() => ({
   hasDemo: false,
   tz: "Asia/Seoul",
   snapshot: vi.fn(),
+  isCurrentOwner: vi.fn(() => true),
 }));
 const sheet = vi.hoisted(() => ({
   seen: [] as Array<{
@@ -88,6 +89,7 @@ beforeEach(() => {
   j.records = [];
   sheet.seen = [];
   vi.clearAllMocks();
+  j.isCurrentOwner.mockReturnValue(true);
   downloads.start.mockReset();
   j.snapshot.mockImplementation(() => ({
     records: j.records,
@@ -203,4 +205,26 @@ it("reports a failed backup download without claiming success or changing saved 
   expect(failure).toHaveBeenCalledWith(t("export.failed"));
   expect(success).not.toHaveBeenCalled();
   expect(j.records).toEqual([fixture]);
+});
+
+it("does not read or export a newer owner's snapshot through a stale JSON export control", () => {
+  const success = vi.spyOn(toast, "success");
+  const failure = vi.spyOn(toast, "error");
+  render(
+    <AppShell>
+      <div>Journal</div>
+    </AppShell>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: t("set.settings") }));
+  // Auth refs can change before this component rerenders for the new owner.
+  j.isCurrentOwner.mockReturnValue(false);
+  j.snapshot.mockReturnValue({
+    records: [{ ...fixture, id: "B-entry", note: "Fictional B-only note" }],
+  });
+  fireEvent.click(screen.getByRole("button", { name: t("set.backup") }));
+  expect(j.isCurrentOwner).toHaveBeenCalledOnce();
+  expect(j.snapshot).not.toHaveBeenCalled();
+  expect(downloads.start).not.toHaveBeenCalled();
+  expect(success).not.toHaveBeenCalled();
+  expect(failure).not.toHaveBeenCalled();
 });

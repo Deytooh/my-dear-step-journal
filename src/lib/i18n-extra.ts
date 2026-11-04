@@ -2,6 +2,48 @@
 type D = Record<string, string>;
 
 export const en: D = {
+  "evidence.sourceUnclear": "Check source",
+  "evidence.sourceUnclearHint":
+    "No note excerpt or photo is linked to this item. Check it before saving.",
+  "evidence.linkedPhotos": "Linked photos",
+  "evidence.contextPhotos": "Batch photos · not linked to this item",
+  "evidence.requestedModel": "Requested model",
+  "evidence.promptVersion": "Prompt version",
+  "evidence.analyzedAt": "Analyzed at",
+
+  "sync.reviewConflict": "Review conflict",
+  "backup.recoverData": "Recover data",
+
+  "mr.sourceChanged": "Your source changed. Organize again to review the updated entries.",
+  "hist.noMatches": "No entries match these filters.",
+  "hist.invalidRange": "Choose an end date on or after the start date.",
+  "hist.clearFilters": "Clear filters",
+  "prog.showAll": "Show all dates",
+
+  "mr.recoveryReset":
+    "We couldn’t restore the full draft. Check the recovered text and photos, then organize again or add entries yourself.",
+  "mr.stockReview": "Stock details need review",
+  "mr.title": "Review entries",
+  "mr.proposed": "Momo found {n} possible entries",
+  "mr.onePhotoSource": "1 photo · View source",
+  "mr.photoSource": "{n} photos · View source",
+  "mr.textSource": "View original note",
+  "mr.readyCount": "{n} selected · Not saved yet",
+  "mr.selectEntries": "Choose entries to save",
+  "mr.addMissing": "Add a missing entry",
+  "mr.includeEntry": "Include {entry}",
+  "mr.editEntry": "Edit details: {entry}",
+  "mr.closeEntry": "Close details: {entry}",
+  "mr.undoKept": "Kept {n} saved entries because they were changed afterward.",
+  "mr.savedConflict":
+    "A selected entry has changed since it was saved. Open the saved entry to edit it.",
+  "mr.openSaved": "Open saved entries",
+  "mr.fixEntry": "Check {field}: {entry}",
+  "mr.edit": "Edit",
+  "mr.fix": "Check",
+  "mr.doneEditing": "Close",
+  "mr.needsField": "Check {field}",
+
   "mq.pause": "Pause suggestions",
   "mq.play": "Resume suggestions",
   "mb.reading": "Momo is reading what you shared…",
@@ -244,6 +286,8 @@ export const en: D = {
 
   "cal.prevMonth": "Previous month",
   "cal.nextMonth": "Next month",
+  "cal.keyboardHelp":
+    "Use arrow keys to move by day or week, Home and End for the start or end of the week, and Page Up or Page Down to move by month. Add Shift to move by year.",
   "pod.morning": "Morning",
   "pod.afternoon": "Afternoon",
   "pod.evening": "Evening",
@@ -294,6 +338,11 @@ export const en: D = {
   "backup.invalidLocal":
     "Local data could not be validated. Writes are blocked to protect it. Download a recovery copy.",
   "backup.recovery": "Download recovery copy",
+  "backup.invalidBaseline":
+    "Your local journal is readable, but its sync history could not be validated. Sync is paused. Download the sync-history recovery copy, then choose which journal to keep.",
+  "backup.baselineRecovery": "Download sync-history recovery copy",
+  "backup.baselineChoice":
+    "Choose which journal to keep to rebuild sync history. The other version is the latest journal saved in the cloud.",
 
   "pr.restore": "Restore hidden questions",
   "photo.unavailable": "Photo unavailable",
@@ -320,7 +369,7 @@ export const en: D = {
   "meal.dateDefault":
     "Confirm the date. A photo does not establish when you ate. Blank time stays unknown.",
   "meal.food": "Food name",
-  "meal.portion": "Pictured portion",
+  "meal.portion": "Portion description",
   "meal.energyKnown": "Enter or edit energy",
   "meal.low": "Low",
   "meal.high": "High",
@@ -330,7 +379,8 @@ export const en: D = {
   "meal.all": "All",
   "meal.half": "Half",
   "meal.fraction": "Eaten fraction (0–1)",
-  "meal.picturedEstimate": "Pictured-food estimate",
+  "meal.fractionInvalid": "Enter a number from 0 to 1, or choose Unknown.",
+  "meal.picturedEstimate": "Estimate for listed food",
   "meal.consumedEstimate": "Estimate for the chosen eaten amount",
   "meal.partial": "Known items only · complete meal total unknown",
   "meal.assumptions": "Estimate assumptions",
@@ -353,10 +403,14 @@ export const en: D = {
   "ai.service": "Could not reach AI. Your input is retained.",
   "ai.parse": "Could not validate the result. Retry or enter manually.",
   "sync.conflict":
-    "Device edits conflict with account data. Export a backup, then choose which version to keep.",
-  "sync.keepLocal": "Keep device version",
-  "sync.useCloud": "Use account version",
+    "Your journal has two versions. Back up this version, then choose the journal to keep. The versions won’t be merged.",
+  "sync.keepLocal": "Keep this version",
+  "sync.useCloud": "Use other version",
   "sync.importGuest": "Import guest records (excluding examples)",
+  "sync.importStockConflict":
+    "The device journal’s stock corrections cannot be combined automatically. Nothing was imported. Your original device journal is unchanged.",
+  "sync.importFailed":
+    "Could not import device entries. Your original device journal is unchanged. Try again.",
   "sync.importConfirm":
     "Add this device’s non-demo guest records to the account? Existing records remain.",
   "demo.reset": "Start/reset fictional demo (replaces guest data)",
@@ -364,7 +418,15 @@ export const en: D = {
   "find.ai": "Find my records with Momo",
   "find.fallback": "Keyword results · not AI retrieval",
   "backup.preview":
-    "Validated {n} entries. Add them while preserving existing entries? Matching IDs will not be overwritten.",
+    "Add {n} new entries? {skipped} matching IDs will be skipped. Current settings and reminders stay unchanged.",
+  "backup.importHelp":
+    "Import adds entries without replacing existing IDs, settings, or reminders. Stock corrections are added only with their matching new purchase.",
+  "backup.imported": "Added {n} entries. Skipped {skipped} matching IDs.",
+  "backup.noNew": "No new entries to add. Skipped {skipped} matching IDs.",
+  "backup.stockConflict":
+    "This backup’s stock corrections cannot be combined automatically. Nothing was added. Keep the original backup.",
+  "backup.saveFailed":
+    "Could not save the entries on this device. Nothing was added. Keep the backup and try again.",
   "backup.media":
     "Backup includes structured entries and photo references. Keep photo files separately.",
 
@@ -426,6 +488,8 @@ export const en: D = {
   "sync.error": "Sync failed. Your device copy remains; retry when connected.",
   "sync.signin": "Sign in to keep your journal",
   "sync.signout": "Sign out",
+  "sync.signingOut": "Signing out…",
+  "sync.signoutError": "We couldn’t confirm sign-out. Check your connection and try again.",
   "nav.today": "Today",
   "nav.calendar": "Calendar",
   "nav.add": "Add",
@@ -525,6 +589,8 @@ export const en: D = {
   "toast.exported": "Download started",
   "demo.badge": "Example",
   "demo.banner": "Example entries are showing.",
+  "demo.notice":
+    "Practice mode. New entries are examples; Clear examples in Settings removes them.",
   "demo.clear": "Clear examples",
   "set.momo": "Show Momo artwork",
   "set.settings": "Settings",
@@ -695,6 +761,49 @@ export const en: D = {
 };
 
 export const fr: D = {
+  "evidence.sourceUnclear": "Vérifier la source",
+  "evidence.sourceUnclearHint":
+    "Aucun extrait ni aucune photo n’est lié à cet élément. Vérifiez-le avant d’enregistrer.",
+  "evidence.linkedPhotos": "Photos liées",
+  "evidence.contextPhotos": "Photos du lot · non liées à cet élément",
+  "evidence.requestedModel": "Modèle demandé",
+  "evidence.promptVersion": "Version du prompt",
+  "evidence.analyzedAt": "Date d’analyse",
+
+  "sync.reviewConflict": "Examiner le conflit",
+  "backup.recoverData": "Récupérer les données",
+
+  "mr.sourceChanged":
+    "Votre source a changé. Réorganisez-la pour vérifier les entrées mises à jour.",
+  "hist.noMatches": "Aucune entrée ne correspond à ces filtres.",
+  "hist.invalidRange": "Choisissez une date de fin égale ou postérieure à la date de début.",
+  "hist.clearFilters": "Effacer les filtres",
+  "prog.showAll": "Voir toutes les dates",
+
+  "mr.recoveryReset":
+    "Le brouillon n’a pas pu être restauré en entier. Vérifiez le texte et les photos récupérés, puis réorganisez-les ou ajoutez les notes vous-même.",
+  "mr.stockReview": "Stock à vérifier",
+  "mr.title": "Vérifier les notes",
+  "mr.proposed": "Momo propose {n} notes",
+  "mr.onePhotoSource": "1 photo · Voir la source",
+  "mr.photoSource": "{n} photos · Voir la source",
+  "mr.textSource": "Voir le texte d’origine",
+  "mr.readyCount": "{n} sélectionnée(s) · Pas encore enregistrées",
+  "mr.selectEntries": "Choisissez les notes à enregistrer",
+  "mr.addMissing": "Ajouter une note manquante",
+  "mr.includeEntry": "Inclure {entry}",
+  "mr.editEntry": "Modifier les détails : {entry}",
+  "mr.closeEntry": "Fermer les détails : {entry}",
+  "mr.undoKept": "{n} entrées modifiées depuis ont été conservées.",
+  "mr.savedConflict":
+    "Une entrée sélectionnée a changé depuis son enregistrement. Ouvrez la note enregistrée pour la modifier.",
+  "mr.openSaved": "Ouvrir les notes enregistrées",
+  "mr.fixEntry": "Vérifier {field} : {entry}",
+  "mr.edit": "Modifier",
+  "mr.fix": "Vérifier",
+  "mr.doneEditing": "Fermer",
+  "mr.needsField": "Vérifier {field}",
+
   "mq.pause": "Mettre les questions en pause",
   "mq.play": "Reprendre les questions",
   "mb.reading": "Momo lit ce que vous avez partagé…",
@@ -951,6 +1060,8 @@ export const fr: D = {
 
   "cal.prevMonth": "Mois précédent",
   "cal.nextMonth": "Mois suivant",
+  "cal.keyboardHelp":
+    "Utilisez les flèches pour changer de jour ou de semaine, Début et Fin pour les extrémités de la semaine, et Page précédente ou suivante pour changer de mois. Ajoutez Maj pour changer d’année.",
   "pod.morning": "Matin",
   "pod.afternoon": "Après-midi",
   "pod.evening": "Soir",
@@ -1002,6 +1113,11 @@ export const fr: D = {
   "backup.invalidLocal":
     "Les données locales ne sont pas valides. Écriture bloquée pour les protéger. Téléchargez une copie de récupération.",
   "backup.recovery": "Télécharger la copie de récupération",
+  "backup.invalidBaseline":
+    "Votre journal local est lisible, mais son historique de synchronisation n’a pas pu être validé. La synchronisation est en pause. Téléchargez la copie de récupération de cet historique, puis choisissez le journal à conserver.",
+  "backup.baselineRecovery": "Télécharger l’historique de synchronisation à récupérer",
+  "backup.baselineChoice":
+    "Choisissez le journal à conserver pour reconstruire l’historique de synchronisation. L’autre version est le dernier journal enregistré dans le cloud.",
 
   "pr.restore": "Réafficher les questions masquées",
   "photo.unavailable": "Photo indisponible",
@@ -1028,7 +1144,7 @@ export const fr: D = {
   "meal.dateDefault":
     "Confirmez la date. Une photo ne prouve pas l’heure du repas. L’heure vide reste inconnue.",
   "meal.food": "Nom de l’aliment",
-  "meal.portion": "Portion photographiée",
+  "meal.portion": "Description de la portion",
   "meal.energyKnown": "Saisir ou modifier l’énergie",
   "meal.low": "Minimum",
   "meal.high": "Maximum",
@@ -1038,7 +1154,8 @@ export const fr: D = {
   "meal.all": "Tout",
   "meal.half": "La moitié",
   "meal.fraction": "Fraction consommée (0–1)",
-  "meal.picturedEstimate": "Estimation des aliments photographiés",
+  "meal.fractionInvalid": "Saisissez un nombre entre 0 et 1, ou choisissez Inconnu.",
+  "meal.picturedEstimate": "Estimation des aliments indiqués",
   "meal.consumedEstimate": "Estimation pour la quantité choisie",
   "meal.partial": "Aliments connus uniquement · total complet inconnu",
   "meal.assumptions": "Hypothèses de l’estimation",
@@ -1061,10 +1178,14 @@ export const fr: D = {
   "ai.service": "Impossible de joindre l’IA. Votre saisie est conservée.",
   "ai.parse": "Résultat non valide. Réessayez ou saisissez manuellement.",
   "sync.conflict":
-    "Les modifications locales diffèrent du compte. Exportez une sauvegarde avant de choisir la version.",
-  "sync.keepLocal": "Garder la version locale",
-  "sync.useCloud": "Utiliser la version du compte",
+    "Deux versions du journal diffèrent. Sauvegardez cette version, puis choisissez le journal à garder. Les versions ne seront pas fusionnées.",
+  "sync.keepLocal": "Garder cette version",
+  "sync.useCloud": "Utiliser l’autre version",
   "sync.importGuest": "Importer les entrées invitées (hors exemples)",
+  "sync.importStockConflict":
+    "Les corrections de stock du journal local ne peuvent pas être combinées automatiquement. Rien n’a été importé. Le journal d’origine sur cet appareil est conservé.",
+  "sync.importFailed":
+    "Impossible d’importer les entrées. Le journal d’origine sur cet appareil est conservé. Réessayez.",
   "sync.importConfirm":
     "Ajouter les entrées invitées hors exemples au compte ? Les entrées existantes sont conservées.",
   "demo.reset": "Démarrer/réinitialiser la démo fictive (remplace les données invitées)",
@@ -1073,7 +1194,15 @@ export const fr: D = {
   "find.ai": "Retrouver mes entrées avec Momo",
   "find.fallback": "Résultats par mots-clés · sans IA",
   "backup.preview":
-    "{n} entrées validées. Les ajouter en conservant les entrées existantes ? Les mêmes identifiants ne seront pas écrasés.",
+    "Ajouter {n} nouvelles entrées ? {skipped} identifiants déjà présents seront ignorés. Les réglages et rappels actuels sont conservés.",
+  "backup.importHelp":
+    "L’import ajoute des entrées sans remplacer les identifiants, réglages ou rappels existants. Les corrections de stock accompagnent uniquement le nouvel achat correspondant.",
+  "backup.imported": "{n} entrées ajoutées. {skipped} identifiants déjà présents ignorés.",
+  "backup.noNew": "Aucune nouvelle entrée à ajouter. {skipped} identifiants déjà présents ignorés.",
+  "backup.stockConflict":
+    "Les corrections de stock de cette sauvegarde ne peuvent pas être combinées automatiquement. Rien n’a été ajouté. Conservez la sauvegarde d’origine.",
+  "backup.saveFailed":
+    "Impossible d’enregistrer les entrées sur cet appareil. Rien n’a été ajouté. Gardez la sauvegarde et réessayez.",
   "backup.media":
     "La sauvegarde contient les entrées et références photo. Conservez les fichiers photo séparément.",
 
@@ -1135,6 +1264,9 @@ export const fr: D = {
   "sync.error": "Échec de synchronisation. Copie locale conservée ; réessayez une fois connecté.",
   "sync.signin": "Se connecter pour garder le journal",
   "sync.signout": "Se déconnecter",
+  "sync.signingOut": "Déconnexion…",
+  "sync.signoutError":
+    "La déconnexion n’a pas pu être confirmée. Vérifiez votre connexion et réessayez.",
   "nav.today": "Aujourd'hui",
   "nav.calendar": "Calendrier",
   "nav.add": "Ajouter",
@@ -1234,6 +1366,8 @@ export const fr: D = {
   "toast.exported": "Téléchargement démarré",
   "demo.badge": "Exemple",
   "demo.banner": "Des exemples sont affichés.",
+  "demo.notice":
+    "Mode essai. Les nouvelles notes sont des exemples ; « Effacer les exemples » dans Réglages les supprime aussi.",
   "demo.clear": "Effacer les exemples",
   "set.momo": "Afficher Momo",
   "set.settings": "Réglages",

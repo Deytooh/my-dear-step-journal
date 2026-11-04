@@ -10,7 +10,17 @@ import { SourceEvidence } from "./SourceEvidence";
 import { lotIdentity, matchesLot } from "@/lib/inventory";
 import { Button } from "@/components/ui/button";
 import { PhotoImg } from "@/components/app/PhotoImg";
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useCallback,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -28,7 +38,7 @@ import {
 import { toast } from "sonner";
 import { DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { t, type Key } from "@/lib/i18n";
-import { instantFromLocal, localDateOf, timeOf, todayLocal } from "@/lib/dates";
+import { exactLocalInstant, localDateOf, timeOf, todayLocal } from "@/lib/dates";
 import {
   canDeduct,
   useJournal,
@@ -44,6 +54,7 @@ import { celebrateSave } from "./AppFeel";
 import { cn } from "@/lib/utils";
 import { EntrySheet } from "./EntrySheet";
 import { MedicationPicker } from "./MedicationPicker";
+import { sameCatalogMedication } from "@/lib/medications";
 
 export type EntryKind =
   | "meal"
@@ -67,6 +78,8 @@ type Props = {
   kind: EntryKind;
   setKind: (k: EntryKind) => void;
   editing?: JournalRecord | Purchase | undefined;
+  returnFocusTo?: HTMLElement | null;
+  fallbackFocus?: RefObject<HTMLElement | null>;
 };
 
 export function QuickAddSheet({
@@ -77,10 +90,30 @@ export function QuickAddSheet({
   setKind,
   editing,
   initialDate,
+  returnFocusTo,
+  fallbackFocus,
 }: Props) {
   const { settings, user } = useJournal();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const homeVoice = kind === "voice" && pathname === "/today";
+  const sheetKey = `${session}-${kind}-${editing?.id ?? "new"}-${user?.id ?? "guest"}`;
+  // Closing invalidates work immediately, before Radix finishes its exit animation.
+  // Each opening gets a distinct token so an old task cannot revive on rapid reopen.
+  const sheetSession = useMemo(
+    () => ({ active: open && !homeVoice, key: sheetKey }),
+    [open, homeVoice, sheetKey],
+  );
+  const isSessionCurrent = useCallback(() => sheetSession.active, [sheetSession]);
+  useLayoutEffect(() => {
+    sheetSession.active = open && !homeVoice;
+    return () => {
+      sheetSession.active = false;
+    };
+  }, [sheetSession, open, homeVoice]);
+  const changeOpen = (next: boolean) => {
+    if (!next) sheetSession.active = false;
+    onOpenChange(next);
+  };
   useEffect(() => {
     if (!open || !homeVoice) return;
     onOpenChange(false);
@@ -98,14 +131,25 @@ export function QuickAddSheet({
     note: "",
   });
   // edits are keyed by record id so the form remounts with fresh values
-  const close = () => onOpenChange(false);
+  const close = () => changeOpen(false);
   useEffect(() => {
     if (!open) setMealSeed({ images: [], note: "" });
   }, [open]);
   return (
     <EntrySheet
       open={open && !homeVoice}
-      onOpenChange={onOpenChange}
+      onOpenChange={changeOpen}
+      returnFocusTo={returnFocusTo}
+      fallbackFocus={fallbackFocus}
+      onCloseAutoFocus={(event) => {
+        if (!homeVoice) return;
+        // The Home workspace is the deliberate next destination, not the opener.
+        event.preventDefault();
+        document
+          .getElementById("momo-workspace")
+          ?.querySelector<HTMLTextAreaElement>("textarea")
+          ?.focus({ preventScroll: true });
+      }}
       header={
         <div className="relative z-30 flex shrink-0 justify-between border-b border-primary/5 bg-background px-5 py-1">
           {kind !== "menu" && !editing ? (
@@ -137,13 +181,18 @@ export function QuickAddSheet({
         ref={scrollPane}
         className="sheet-scroll relative z-0 min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(1rem,env(safe-area-inset-bottom))]"
       >
+        {!user && settings.demoMode && (
+          <p role="note" className="mb-3 rounded-xl border bg-secondary px-3 py-2 text-sm">
+            {t("demo.notice")}
+          </p>
+        )}
         {kind === "menu" ? (
           <div key="menu" className="feel-panel">
             <Menu setKind={setKind} showMomo={settings.showMomo} />
           </div>
         ) : homeVoice ? null : (
           <EntryForm
-            key={`${session}-${kind}-${editing && "id" in editing ? editing.id : "new"}-${user?.id ?? "guest"}`}
+            key={sheetSession.key}
             initialDate={initialDate}
             mealSeed={mealSeed}
             onMeal={(images, note) => {
@@ -153,6 +202,7 @@ export function QuickAddSheet({
             kind={kind}
             editing={editing}
             onDone={close}
+            isSessionCurrent={isSessionCurrent}
             onManual={() => setKind("menu")}
           />
         )}
@@ -267,7 +317,7 @@ function Menu({ setKind, showMomo }: { setKind: (k: EntryKind) => void; showMomo
               variant="unstyled"
               size="unstyled"
               onClick={() => setKind(it.k)}
-              className="press flex min-h-24 w-full min-w-0 items-center gap-2 rounded-2xl border bg-card p-3 text-left"
+              className="press flex h-full min-h-24 w-full min-w-0 items-center gap-2 rounded-2xl border bg-card p-3 text-left"
             >
               <IconBubble tone={it.tone} size="sm">
                 {it.icon}
@@ -359,6 +409,7 @@ function EntryForm({
   initialDate,
   mealSeed,
   onMeal,
+  isSessionCurrent,
 }: {
   initialDate?: string | undefined;
   mealSeed: { images: string[]; note: string };
@@ -367,6 +418,7 @@ function EntryForm({
   editing?: JournalRecord | Purchase | undefined;
   onDone: () => void;
   onManual: () => void;
+  isSessionCurrent: () => boolean;
 }) {
   const j = useJournal();
   const tz = j.tz;
@@ -378,7 +430,9 @@ function EntryForm({
   const [date, setDate] = useState(
     () => rec?.localDate ?? pur?.localDate ?? initialDate ?? todayLocal(tz),
   );
-  const [timeKnown, setTimeKnown] = useState(rec ? rec.precision === "exact" : true);
+  const [timeKnown, setTimeKnown] = useState(() =>
+    rec ? rec.precision === "exact" : !initialDate || initialDate === todayLocal(tz),
+  );
   const [period, setPeriod] = useState<PartOfDay | "">(rec?.partOfDay ?? "");
   const [time, setTime] = useState(() =>
     rec?.at ? timeOf(rec.at, tz) : timeOf(new Date().toISOString(), tz),
@@ -407,6 +461,21 @@ function EntryForm({
     rec?.type === "condition" ? (rec.note ?? "") : rec?.type === "memory" ? rec.note : "",
   );
   const [photoBusy, setPhotoBusy] = useState(false);
+  const photoPending = useRef(false);
+  const photoGeneration = useRef(0);
+  const active = useRef(true);
+  // Auth can invalidate this render before React closes or replaces the form.
+  const ownsForm = () => active.current && isSessionCurrent() && j.isCurrentOwner();
+  useLayoutEffect(() => {
+    active.current = true;
+    photoPending.current = false;
+    setPhotoBusy(false);
+    const photos = photoGeneration;
+    return () => {
+      active.current = false;
+      photos.current++;
+    };
+  }, [isSessionCurrent]);
   const [photo, setPhoto] = useState<string | null>(
     rec?.type === "memory" ? (rec.photo ?? null) : null,
   );
@@ -493,7 +562,7 @@ function EntryForm({
       confirmed,
     };
   };
-  const base = () => ({
+  const base = (at: string | null) => ({
     ...(rec ?? {}),
     ...(rec?.evidence ? { evidence: editedEvidence()! } : {}),
     ...(rec?.demo ? { demo: true } : {}),
@@ -506,12 +575,12 @@ function EntryForm({
       : period
         ? ("part_of_day" as const)
         : ("date_only" as const),
-    at: timeKnown ? instantFromLocal(date, time, tz) : null,
+    at,
     partOfDay: timeKnown ? null : period || null,
   });
 
   const save = () => {
-    if (submitted.current || photoBusy) return;
+    if (!ownsForm() || submitted.current || photoPending.current) return;
     submitted.current = true;
     setSaving(true);
     let completed = false;
@@ -523,10 +592,13 @@ function EntryForm({
         !validDate(date)
       )
         return setErr(t("validation.date"));
+      const at = timeKnown
+        ? exactLocalInstant(date, time, tz, rec?.precision === "exact" ? rec.at : null)
+        : null;
       if (
         timeKnown &&
         ["weight", "injection", "condition", "memory", "measure", "water"].includes(kind) &&
-        !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)
+        !at
       )
         return setErr(t("validation.date"));
       const before = j.snapshot();
@@ -534,14 +606,14 @@ function EntryForm({
         const v = Number(weight.replace(",", "."));
         if (!weight || !Number.isFinite(v) || v < 20 || v > 400)
           return setErr(t("validation.manual0"));
-        j.saveRecord({ ...base(), type: "weight", value: Math.round(v * 10) / 10, unit: "kg" });
+        j.saveRecord({ ...base(at), type: "weight", value: Math.round(v * 10) / 10, unit: "kg" });
       } else if (kind === "injection") {
         const dv = dose ? Number(dose.replace(",", ".")) : null;
         if (dose && (!Number.isFinite(dv) || (dv !== null && dv < 0)))
           return setErr(t("validation.manual1"));
         if (useStock && !stockOk) return setErr(t("stock.choose"));
         j.saveRecord({
-          ...base(),
+          ...base(at),
           type: "injection",
           medication: med.trim() || null,
           doseValue: dv,
@@ -552,17 +624,17 @@ function EntryForm({
           stockIdentity: useStock && selectedLot ? lotIdentity(selectedLot) : null,
         });
       } else if (kind === "water") {
-        j.saveRecord({ ...base(), type: "water", answer: water });
+        j.saveRecord({ ...base(at), type: "water", answer: water });
       } else if (kind === "condition") {
         j.saveRecord({
-          ...base(),
+          ...base(at),
           type: "condition",
           label: feel,
-          ...(note.trim() ? { note: note.trim() } : {}),
+          note: note.trim(),
         });
       } else if (kind === "memory") {
         if (!note.trim() && !photo) return setErr(t("validation.manual2"));
-        j.saveRecord({ ...base(), type: "memory", note: note.trim(), photo });
+        j.saveRecord({ ...base(at), type: "memory", note: note.trim(), photo });
       } else if (kind === "measure") {
         const vals: Record<string, number | null> = {};
         for (const [k, raw] of Object.entries(meas)) {
@@ -576,7 +648,7 @@ function EntryForm({
         }
         if (Object.values(vals).every((v) => v == null)) return setErr(t("validation.manual4"));
         j.saveRecord({
-          ...base(),
+          ...base(at),
           type: "measure",
           unit: "cm",
           waist: vals["waist"] ?? null,
@@ -628,9 +700,9 @@ function EntryForm({
           ...(pur?.demo ? { demo: true } : {}),
         });
       } else if (kind === "reminder") {
-        if (!validDate(remDate) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(remTime))
-          return setErr(t("validation.date"));
-        j.setReminder(instantFromLocal(remDate, remTime, tz));
+        const reminderAt = exactLocalInstant(remDate, remTime, tz, j.reminder?.at);
+        if (!validDate(remDate) || !reminderAt) return setErr(t("validation.date"));
+        j.setReminder(reminderAt);
       } else if (kind === "stock") {
         const n = Number(stock);
         if (!stock.trim() || !Number.isInteger(n) || n < 0) return setErr(t("validation.manual7"));
@@ -654,11 +726,14 @@ function EntryForm({
   };
 
   const remove = () => {
+    if (!ownsForm()) return;
     try {
       const before = j.snapshot();
       if (rec) j.deleteRecord(rec.id);
       else if (pur) j.deletePurchase(pur.id);
       else if (kind === "reminder") j.setReminder(null);
+      active.current = false;
+      photoGeneration.current++;
       toast(t("toast.deleted"), { action: { label: t("toast.undo"), onClick: j.undoFor(before) } });
       onDone();
     } catch {
@@ -666,7 +741,15 @@ function EntryForm({
     }
   };
 
-  if (kind === "voice") return <MomoSheet onMeal={onMeal} onDone={onDone} onManual={onManual} />;
+  if (kind === "voice")
+    return (
+      <MomoSheet
+        onMeal={onMeal}
+        onDone={onDone}
+        onManual={onManual}
+        isSessionCurrent={isSessionCurrent}
+      />
+    );
 
   if (kind === "meal")
     return (
@@ -676,6 +759,7 @@ function EntryForm({
         note={mealSeed.note}
         initialDate={initialDate}
         onDone={onDone}
+        isSessionCurrent={isSessionCurrent}
       />
     );
 
@@ -780,10 +864,20 @@ function EntryForm({
           </div>
           {j.inventory.lots.length > 0 ? (
             <Field label={t("stock.lot")}>
-              <select className={inputCls} value={lotId} onChange={(e) => setLotId(e.target.value)}>
+              <select
+                className={inputCls}
+                value={lotId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setLotId(id);
+                  const lot = j.inventory.lots.find((l) => l.id === id);
+                  // Explicit lot choice adopts its spelling; stock matching stays exact.
+                  if (lot) setMed(lot.medication);
+                }}
+              >
                 <option value="">{t("stock.choose")}</option>
                 {j.inventory.lots
-                  .filter((l) => l.medication === med.trim() && canDeduct(l.unit))
+                  .filter((l) => sameCatalogMedication(l.medication, med) && canDeduct(l.unit))
                   .map((l) => (
                     <option key={l.id} value={l.id}>
                       {l.medication} · {l.product} · {l.localDate} · {l.balance}{" "}
@@ -880,13 +974,26 @@ function EntryForm({
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     e.target.value = "";
-                    if (!f || photoBusy) return;
+                    if (!f || photoPending.current || !ownsForm()) return;
+                    photoPending.current = true;
                     setPhotoBusy(true);
+                    const token = ++photoGeneration.current;
+                    const owner = j.user?.id ?? "guest";
+                    const isCurrent = () => ownsForm() && token === photoGeneration.current;
                     shrinkPhoto(f)
-                      .then((data) => retainPhoto(data, j.user?.id ?? "guest"))
-                      .then(setPhoto)
-                      .catch(() => setErr(t("validation.manual8")))
-                      .finally(() => setPhotoBusy(false));
+                      .then(async (data) => {
+                        if (!isCurrent()) return;
+                        const ref = await retainPhoto(data, owner);
+                        if (isCurrent()) setPhoto(ref);
+                      })
+                      .catch(() => {
+                        if (isCurrent()) setErr(t("validation.manual8"));
+                      })
+                      .finally(() => {
+                        if (!isCurrent()) return;
+                        photoPending.current = false;
+                        setPhotoBusy(false);
+                      });
                   }}
                 />
               </label>
@@ -895,7 +1002,13 @@ function EntryForm({
                   variant="unstyled"
                   size="unstyled"
                   type="button"
-                  onClick={() => setPhoto(null)}
+                  onClick={() => {
+                    if (!ownsForm()) return;
+                    photoGeneration.current++;
+                    photoPending.current = false;
+                    setPhotoBusy(false);
+                    setPhoto(null);
+                  }}
                   className="press min-h-14 rounded-[16px] border px-4 text-[15px]"
                 >
                   {t("photo.remove")}
@@ -1065,7 +1178,7 @@ function EntryForm({
           <p id={reminderHelpId} className="mb-3 text-sm leading-relaxed text-muted-foreground">
             {t("reminder.inApp")}
           </p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="journal-clock-fields grid grid-cols-2 gap-3">
             <label className="block text-sm">
               {t("f.date")}
               <input
@@ -1139,7 +1252,12 @@ function EntryForm({
                 : ` · ${period ? t(`pod.${period}`) : t("unknown")}`)}
           </summary>
           {showDate && (
-            <div className={cn("grid gap-3", showTime ? "grid-cols-2" : "grid-cols-1")}>
+            <div
+              className={cn(
+                "journal-clock-fields grid gap-3",
+                showTime ? "grid-cols-2" : "grid-cols-1",
+              )}
+            >
               <Field label={t("f.date")}>
                 <input
                   type="date"

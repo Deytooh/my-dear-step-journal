@@ -161,7 +161,8 @@ describe("Momo water check-ins", () => {
           evidence: {
             text: words,
             quote: words,
-            photos: [],
+            photos: ["data:image/jpeg;base64,YWJj"],
+            attribution: { status: "linked", linkedPhotoIndices: [] },
             proposed: { answer },
             confirmed: { answer },
           },
@@ -558,5 +559,37 @@ describe("editable approximate time", () => {
         evidence: { proposed: { partOfDay: "evening" }, confirmed: { partOfDay: "" } },
       },
     });
+  });
+});
+
+describe("Momo exact clocks on daylight-saving transitions", () => {
+  const clockDraft = (date: string, time: string) => {
+    const [candidate] = sanitizeCandidates([{ type: "weight", value: 78, date, time }], "");
+    return candidateToDraft(candidate!, "dst-clock", today);
+  };
+  it("does not throw during review or silently change a nonexistent clock", () => {
+    const draft = clockDraft("2026-03-08", "02:30");
+    expect(draftToEntry(draft, draft.key, "America/New_York", today)).toEqual({ error: "time" });
+    expect(draft.f["time"]).toBe("02:30");
+  });
+  it("saves a valid clock on the far side of the transition exactly", () => {
+    const draft = clockDraft("2026-03-08", "03:30");
+    expect(draftToEntry(draft, draft.key, "America/New_York", today)).toMatchObject({
+      record: { localDate: "2026-03-08", at: "2026-03-08T07:30:00.000Z", precision: "exact" },
+    });
+  });
+  it("still allows date-only and approximate records on a transition day", () => {
+    const draft = clockDraft("2026-03-08", "");
+    expect(draftToEntry(draft, draft.key, "America/New_York", today)).toMatchObject({
+      record: { localDate: "2026-03-08", at: null, precision: "date_only" },
+    });
+    draft.f["partOfDay"] = "morning";
+    expect(draftToEntry(draft, draft.key, "America/New_York", today)).toMatchObject({
+      record: { at: null, precision: "part_of_day", partOfDay: "morning" },
+    });
+  });
+  it("requires the calendar day before resolving an exact clock", () => {
+    const draft = clockDraft("", "02:30");
+    expect(draftToEntry(draft, draft.key, "America/New_York", today)).toEqual({ error: "date" });
   });
 });

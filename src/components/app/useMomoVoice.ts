@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 type Result = ArrayLike<{ transcript: string }> & { isFinal: boolean };
 type Recognition = {
@@ -57,6 +57,7 @@ export function useMomoVoice(options: {
   usedVoice: boolean;
   lang: string;
   owner: string;
+  isSessionCurrent?: () => boolean;
   onText(text: string): void;
   onVoice(value: boolean): void;
 }) {
@@ -96,13 +97,16 @@ export function useMomoVoice(options: {
     continuation.current = null;
     setStatus("interrupted");
   };
+  const isCurrent = () => latest.current.isSessionCurrent?.() !== false;
   const connect = () => {
-    if (!session.current || document.hidden) {
+    if (!isCurrent() || !session.current || document.hidden) {
       interrupt();
       return;
     }
     release();
     const token = generation.current;
+    const owner = latest.current.owner;
+    const captureIsCurrent = latest.current.isSessionCurrent;
     const W = window as unknown as {
       SpeechRecognition?: new () => Recognition;
       webkitSpeechRecognition?: new () => Recognition;
@@ -126,7 +130,12 @@ export function useMomoVoice(options: {
     r.lang = latest.current.lang;
     r.continuous = true;
     r.interimResults = true;
-    const valid = () => token === generation.current && session.current !== null;
+    const valid = () =>
+      token === generation.current &&
+      session.current !== null &&
+      owner === latest.current.owner &&
+      captureIsCurrent?.() !== false &&
+      isCurrent();
     r.onstart = () => {
       if (!valid()) return;
       if (watchdog.current) clearTimeout(watchdog.current);
@@ -253,6 +262,7 @@ export function useMomoVoice(options: {
     }
   };
   const start = () => {
+    if (!isCurrent()) return;
     if (!session.current) {
       session.current = { before: latest.current.text, wasVoice: latest.current.usedVoice };
       setRecovery(session.current);
@@ -275,6 +285,7 @@ export function useMomoVoice(options: {
     setProvisional(false);
   };
   const cancel = () => {
+    if (!isCurrent()) return;
     const before = session.current;
     finish();
     if (before) {
@@ -284,6 +295,7 @@ export function useMomoVoice(options: {
     }
   };
   const edit = (text: string) => {
+    if (!isCurrent()) return;
     // Treat user edits as authoritative, including an edited interim hypothesis.
     if (timer.current || cycle.current.boundary) interrupt();
     cycle.current.base = text;
@@ -301,6 +313,11 @@ export function useMomoVoice(options: {
     setRecovery(data);
     setStatus("interrupted");
   };
+  useLayoutEffect(() => {
+    // A closing sheet can stay mounted for its exit animation. Stop listening
+    // before paint while preserving accepted words and explicit resume/cancel.
+    if (!isCurrent() && (engine.current || timer.current || watchdog.current)) interrupt();
+  });
   useEffect(() => {
     finish();
     const hidden = () => {

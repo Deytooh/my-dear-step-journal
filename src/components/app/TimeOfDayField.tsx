@@ -7,10 +7,14 @@ export function TimeOfDayField({
   value,
   onChange,
   disabled = false,
+  invalid = false,
+  errorDescription,
 }: {
   value: string;
   onChange: (value: PartOfDay | "") => void;
   disabled?: boolean;
+  invalid?: boolean;
+  errorDescription?: string;
 }) {
   const hint = useId();
   return (
@@ -18,7 +22,8 @@ export function TimeOfDayField({
       <span className="mb-1 block text-sm font-medium">{t("time.period")}</span>
       <select
         aria-label={t("time.period")}
-        aria-describedby={hint}
+        aria-invalid={invalid || undefined}
+        aria-describedby={[hint, invalid ? errorDescription : undefined].filter(Boolean).join(" ")}
         className="min-h-12 w-full rounded-xl border bg-card px-3 py-2 text-[16px] disabled:opacity-50"
         value={disabled ? "" : value}
         disabled={disabled}

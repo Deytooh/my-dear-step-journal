@@ -1,11 +1,14 @@
+import { Button } from "@/components/ui/button";
+import { TimelineRow } from "@/components/app/TimelineRow";
+import { journalTimeline, type TimelineEntry } from "@/lib/journal-timeline";
 import { RecordFinder } from "@/components/app/RecordFinder";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { t } from "@/lib/i18n";
 import { fmtMonthDay, todayLocal } from "@/lib/dates";
-import { sortByTime, useJournal, type JournalRecord } from "@/lib/journal";
+import { useJournal, type JournalRecord } from "@/lib/journal";
 import { useQuickAdd } from "@/components/app/AppShell";
-import { Card, PageTitle, RecordRow, EmptyState } from "@/components/app/ui";
+import { Card, PageTitle, EmptyState } from "@/components/app/ui";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/history")({
@@ -25,7 +28,7 @@ export const Route = createFileRoute("/history")({
   component: History,
 });
 
-type Filter = "all" | JournalRecord["type"];
+type Filter = "all" | "purchase" | "expense" | JournalRecord["type"];
 const FILTERS: Filter[] = [
   "all",
   "weight",
@@ -35,6 +38,8 @@ const FILTERS: Filter[] = [
   "memory",
   "water",
   "meal",
+  "purchase",
+  "expense",
 ];
 
 function History() {
@@ -45,19 +50,30 @@ function History() {
   const [filter, setFilter] = useState<Filter>("all");
   const today = todayLocal(j.tz);
 
+  const hasEntries = j.records.length + j.purchases.length > 0;
+  const invalidRange = !!from && !!until && from > until;
+  const clearFilters = () => {
+    setFrom("");
+    setUntil("");
+    setFilter("all");
+  };
   const groups = useMemo(() => {
-    const list = j.records
-      .filter(
-        (r) =>
-          (filter === "all" || r.type === filter) &&
-          (!from || r.localDate >= from) &&
-          (!until || r.localDate <= until),
-      )
-      .sort(sortByTime);
-    const map = new Map<string, JournalRecord[]>();
-    list.forEach((r) => map.set(r.localDate, [...(map.get(r.localDate) ?? []), r]));
-    return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]));
-  }, [j.records, filter, from, until]);
+    const list = journalTimeline(j.records, j.purchases).filter(
+      ({ kind, value }) =>
+        (filter === "all" ||
+          (kind === "record"
+            ? value.type === filter
+            : (value.addsStock === false ? "expense" : "purchase") === filter)) &&
+        (!from || value.localDate >= from) &&
+        (!until || value.localDate <= until),
+    );
+    const map = new Map<string, TimelineEntry[]>();
+    list.forEach((entry) => {
+      const day = entry.value.localDate;
+      map.set(day, [...(map.get(day) ?? []), entry]);
+    });
+    return [...map.entries()];
+  }, [j.records, j.purchases, filter, from, until]);
 
   return (
     <div>
@@ -65,7 +81,7 @@ function History() {
       <RecordFinder />
       <details className="journal-disclosure my-3">
         <summary className="min-h-11 cursor-pointer py-3">{t("hist.range")}</summary>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="journal-clock-fields grid grid-cols-2 gap-3">
           <label>
             {t("hist.from")}
             <input
@@ -103,7 +119,19 @@ function History() {
       </div>
       {groups.length === 0 ? (
         <Card className="mt-4">
-          <EmptyState>{t("hist.empty")}</EmptyState>
+          <EmptyState>
+            <span role={invalidRange ? "alert" : undefined}>
+              {t(invalidRange ? "hist.invalidRange" : hasEntries ? "hist.noMatches" : "hist.empty")}
+            </span>
+          </EmptyState>
+          <div className="px-4 pb-4">
+            <Button
+              className="min-h-12 w-full rounded-full"
+              onClick={hasEntries || invalidRange ? clearFilters : () => open("menu")}
+            >
+              {t(hasEntries || invalidRange ? "hist.clearFilters" : "nav.add")}
+            </Button>
+          </div>
         </Card>
       ) : (
         groups.map(([day, recs]) => (
@@ -113,7 +141,7 @@ function History() {
             </h2>
             <div className="history-group mt-2 divide-y">
               {recs.map((r) => (
-                <RecordRow key={r.id} r={r} onEdit={() => open(r.type, r)} />
+                <TimelineRow key={`${r.kind}:${r.value.id}`} entry={r} />
               ))}
             </div>
           </section>

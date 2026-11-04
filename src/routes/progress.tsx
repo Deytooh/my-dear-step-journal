@@ -88,6 +88,7 @@ function Progress() {
   const hasDemoPoints = data.some((p) => p.demo) || injDays.some((i) => i.demo);
 
   const exportCsv = () => {
+    if (!j.isCurrentOwner()) return;
     try {
       downloadText(
         "\uFEFF" + journalCSV(j.snapshot()),
@@ -105,9 +106,6 @@ function Progress() {
       <PageTitle title={t("prog.title")} sub={t("prog.sub")} />
 
       <Card className="flex items-center gap-4 p-5">
-        <IconBubble>
-          <Scale className="size-7" />
-        </IconBubble>
         <div className="min-w-0 flex-1">
           <div className="text-sm text-muted-foreground">
             {t("prog.latest")}
@@ -125,7 +123,7 @@ function Progress() {
           {latest && (
             <div className="text-sm text-muted-foreground">
               {fmtMonthDay(latest.localDate)}
-              {latest.at ? ` ${fmtTime(latest.at, j.tz)}` : ""} · {t("prog.mine")}
+              {latest.at ? ` ${fmtTime(latest.at, j.tz)}` : ""}
             </div>
           )}
         </div>
@@ -186,7 +184,19 @@ function Progress() {
           </div>
           <Card className="mt-3 p-4">
             {data.length === 0 && injDays.length === 0 ? (
-              <EmptyState icon={<Scale className="size-5" />}>{t("prog.noData")}</EmptyState>
+              <>
+                <p className="py-4 text-center text-sm text-muted-foreground">{t("prog.noData")}</p>
+                <Button
+                  className="min-h-12 w-full rounded-full"
+                  onClick={
+                    weights.length && range !== "all" ? () => setRange("all") : () => open("weight")
+                  }
+                >
+                  {weights.length && range !== "all"
+                    ? t("prog.showAll")
+                    : `${t("nav.add")} · ${t("type.weight")}`}
+                </Button>
+              </>
             ) : (
               <>
                 <p className="mb-1 text-sm font-medium text-muted-foreground">
@@ -360,7 +370,7 @@ function Progress() {
                     <DemoTag show={w.demo} />
                   </span>
                   <span className="mt-0.5 block text-sm text-muted-foreground">
-                    {fmtMonthDay(w.localDate)} · {t("prog.manual")}
+                    {fmtMonthDay(w.localDate)}
                   </span>
                 </span>
                 <ChevronRight className="size-5 text-muted-foreground" />

@@ -164,10 +164,20 @@ export async function pushDiff(
 export const isStoredPhoto = (p?: string | null) => !!p?.startsWith(STORAGE_PREFIX);
 
 const urlCache = new Map<string, { url: string; until: number }>();
+const photoEpochs = new Map<string, number>();
 let cacheEpoch = 0;
 export const clearPhotoCache = () => {
   cacheEpoch++;
   urlCache.clear();
+  photoEpochs.clear();
+};
+
+/** Evict only the failed photo; unrelated pending requests remain valid. */
+export const invalidatePhotoUrl = (p: string) => {
+  if (!isStoredPhoto(p)) return;
+  const path = p.slice(STORAGE_PREFIX.length);
+  urlCache.delete(path);
+  photoEpochs.set(path, (photoEpochs.get(path) ?? 0) + 1);
 };
 export async function photoUrl(p: string): Promise<string | null> {
   if (p.startsWith("localphoto:")) return readLocalPhoto(p);
@@ -175,10 +185,14 @@ export async function photoUrl(p: string): Promise<string | null> {
   const path = p.slice(STORAGE_PREFIX.length);
   if (!path.startsWith(`${mediaOwner()}/`)) return null;
   const generation = cacheEpoch;
+  const photoGeneration = photoEpochs.get(path) ?? 0;
   const cached = urlCache.get(path);
   if (cached && cached.until > Date.now()) return cached.url;
   const { data } = await supabase.storage.from("photos").createSignedUrl(path, 60 * 60);
   if (generation !== cacheEpoch) return null;
+  // Another rendering refreshed this photo while our request was pending.
+  // Resolve the current generation instead of failing that healthy sibling.
+  if (photoGeneration !== (photoEpochs.get(path) ?? 0)) return photoUrl(p);
   if (data?.signedUrl)
     urlCache.set(path, { url: data.signedUrl, until: Date.now() + 55 * 60 * 1000 });
   return data?.signedUrl ?? null;
