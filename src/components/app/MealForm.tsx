@@ -3,7 +3,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { Camera, Check, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
-import { useJournal, type MealRec } from "@/lib/journal";
+import { useJournal, type MealRec, type PartOfDay } from "@/lib/journal";
+import { isPartOfDay } from "@/lib/time-of-day";
+import { TimeOfDayField } from "./TimeOfDayField";
 import { emptyMeal, draftMealSchema, mealSchema, type MealDetails } from "@/lib/meals";
 import { analyzeMeal } from "@/lib/momo-tasks.functions";
 import { instantFromLocal, timeOf, todayLocal } from "@/lib/dates";
@@ -38,11 +40,13 @@ export function MealForm({
   );
   const [date, setDate] = useState(editing?.localDate ?? initialDate ?? todayLocal(j.tz));
   const [time, setTime] = useState(editing?.at ? timeOf(editing.at, j.tz) : "");
+  const [period, setPeriod] = useState<PartOfDay | "">(editing?.partOfDay ?? "");
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const errorRef = useRef<HTMLParagraphElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
   useLayoutEffect(() => {
     if (error) {
       errorRef.current?.focus({ preventScroll: true });
@@ -75,10 +79,16 @@ export function MealForm({
         // Untitled drafts are allowed in recovery, never in saved records.
         const parsed = draftMealSchema.safeParse(stored.meal);
         if (parsed.success && typeof stored.date === "string") {
+          const recoveredPeriod = isPartOfDay(stored.partOfDay)
+            ? stored.partOfDay
+            : stored.partOfDay === ""
+              ? ""
+              : (editing?.partOfDay ?? "");
           setRestoredNotice(
             !editing ||
               JSON.stringify(parsed.data) !== JSON.stringify(draftMealSchema.parse(editing.meal)) ||
               stored.date !== editing.localDate ||
+              recoveredPeriod !== (editing.partOfDay ?? "") ||
               (stored.time || "") !== (editing.at ? timeOf(editing.at, j.tz) : "") ||
               (stored.fraction ?? "") !==
                 (editing.meal.consumedFraction === null
@@ -88,6 +98,7 @@ export function MealForm({
           setMeal({ ...parsed.data, title: parsed.data.title });
           setDate(stored.date);
           setTime(stored.time || "");
+          setPeriod(recoveredPeriod);
           setProposal(stored.proposal || "");
           if (
             stored.analysisInput &&
@@ -115,12 +126,21 @@ export function MealForm({
       else
         sessionStorage.setItem(
           recoveryKey,
-          JSON.stringify({ meal, date, time, proposal, id: id.current, fraction, analysisInput }),
+          JSON.stringify({
+            meal,
+            date,
+            time,
+            partOfDay: period,
+            proposal,
+            id: id.current,
+            fraction,
+            analysisInput,
+          }),
         );
     } catch {
       /* in-memory draft remains usable */
     }
-  }, [meal, date, time, proposal, saved, recovered, recoveryKey, fraction, analysisInput]);
+  }, [meal, date, time, period, proposal, saved, recovered, recoveryKey, fraction, analysisInput]);
   const resetDraft = () => {
     generation.current++;
     photoGeneration.current++;
@@ -131,6 +151,7 @@ export function MealForm({
     setMeal(original);
     setDate(editing?.localDate ?? initialDate ?? todayLocal(j.tz));
     setTime(editing?.at ? timeOf(editing.at, j.tz) : "");
+    setPeriod(editing?.partOfDay ?? "");
     setFraction(original.consumedFraction === null ? "" : String(original.consumedFraction));
     setProposal(editing?.evidence?.proposed["meal"] ?? "");
     setAnalysisInput(null);
@@ -171,6 +192,7 @@ export function MealForm({
     const token = generation.current;
     try {
       const urls = await Promise.all(meal.photoRefs.map(photoUrl));
+      if (token !== generation.current) return;
       // Owned storage URLs are not fetched by the provider adapter: resolve to bounded data locally.
       const images = await Promise.all(
         urls.map(async (url) => {
@@ -180,6 +202,7 @@ export function MealForm({
           return shrinkPhoto(new File([blob], "source.jpg", { type: blob.type }));
         }),
       );
+      if (token !== generation.current) return;
       const result = await analyze({
         data: { text: meal.note ?? "", images, locale: getLocale() },
       });
@@ -227,27 +250,43 @@ export function MealForm({
         type: "meal",
         localDate: date,
         at: time ? instantFromLocal(date, time, j.tz) : null,
-        precision: time
-          ? "exact"
-          : editing && editing.precision !== "exact"
-            ? editing.precision
-            : "date_only",
-        partOfDay: !time ? (editing?.partOfDay ?? null) : null,
+        precision: time ? "exact" : period ? "part_of_day" : "date_only",
+        partOfDay: time ? null : period || null,
         source: "manual_text",
         createdAt: editing?.createdAt ?? new Date().toISOString(),
         meal: parsed.data,
         evidence: editing?.evidence
           ? {
               ...editing.evidence,
-              confirmed: { ...editing.evidence.confirmed, meal: JSON.stringify(parsed.data) },
+              proposed: {
+                ...editing.evidence.proposed,
+                partOfDay: editing.evidence.proposed["partOfDay"] ?? editing.partOfDay ?? "",
+              },
+              confirmed: {
+                ...editing.evidence.confirmed,
+                meal: JSON.stringify(parsed.data),
+                date,
+                time,
+                partOfDay: time ? "" : period,
+              },
             }
           : {
               method: meal.analysis ? (meal.photoRefs.length ? "photos" : "text") : "manual",
               text: analysisInput?.text ?? meal.note ?? "",
               photos: analysisInput?.photos ?? [...meal.photoRefs],
               quote: null,
-              proposed: { meal: proposal || JSON.stringify(parsed.data) },
-              confirmed: { meal: JSON.stringify(parsed.data) },
+              proposed: {
+                meal: proposal || JSON.stringify(parsed.data),
+                date: meal.analysis ? "" : date,
+                time: meal.analysis ? "" : time,
+                partOfDay: meal.analysis || time ? "" : period,
+              },
+              confirmed: {
+                meal: JSON.stringify(parsed.data),
+                date,
+                time,
+                partOfDay: time ? "" : period,
+              },
               ...(meal.analysis ? { analysis: meal.analysis } : {}),
             },
       };
@@ -359,9 +398,16 @@ export function MealForm({
             <input
               type="checkbox"
               checked={consent}
-              onChange={(e) => setConsent(e.target.checked)}
+              onChange={(e) => {
+                setConsent(e.target.checked);
+                if (!e.target.checked) {
+                  generation.current++;
+                  guard.current = false;
+                  setBusy(false);
+                }
+              }}
             />
-            {t("ai.consent")}
+            {t("meal.consent")}
           </label>
           {!j.user && <p className="text-sm">{t("ai.signin")}</p>}
           <Button
@@ -375,6 +421,21 @@ export function MealForm({
             </span>
             {t(busy ? "momo.thinking" : "meal.analyze")}
           </Button>
+          {busy && (
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 w-full"
+              onClick={() => {
+                generation.current++;
+                guard.current = false;
+                setBusy(false);
+                titleRef.current?.focus();
+              }}
+            >
+              {t("ai.keepEditing")}
+            </Button>
+          )}
           <p className="text-sm text-muted-foreground">{t("meal.replace")}</p>
         </div>
       </details>
@@ -383,6 +444,7 @@ export function MealForm({
         {t("meal.title")}
         <input
           className={input}
+          ref={titleRef}
           value={meal.title}
           onChange={(e) => patch({ title: e.target.value })}
         />
@@ -435,6 +497,7 @@ export function MealForm({
               onChange={(e) => setTime(e.target.value)}
             />
           </label>
+          {!time && <TimeOfDayField value={period} onChange={setPeriod} />}
           <label className="block">
             {t("f.note")}
             <textarea

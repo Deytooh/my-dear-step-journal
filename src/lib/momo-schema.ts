@@ -5,6 +5,7 @@ type S = string | null;
 type N = number | null;
 type Common = { date: S; quote: S; photoIndices?: number[]; time?: S; timeHint?: S };
 export type MomoCandidate =
+  | (Common & { type: "water"; answer: "yes" | "not_yet" | null })
   | (Common & { type: "meal"; meal: MealDetails })
   | (Common & { type: "weight"; value: N; time: S; timeHint: S })
   | (Common & {
@@ -23,6 +24,7 @@ export type MomoCandidate =
       type: "purchase";
       medication: S;
       quantity: N;
+      stockUnit: "pen" | "single" | "dose" | null;
       amount: N;
       currency: S;
       merchant: S;
@@ -39,6 +41,18 @@ const num = (v: unknown): N => {
 const date = (v: unknown): S => (typeof v === "string" && validDate(v) ? v : null);
 const time = (v: unknown): S =>
   typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : null;
+
+type PurchaseUnit = "pen" | "single" | "dose";
+function statedStockUnit(quote: string): PurchaseUnit | null {
+  const words = quote.normalize("NFD").replace(/\p{M}/gu, "").normalize("NFC").toLowerCase();
+  const patterns: Array<[PurchaseUnit, RegExp]> = [
+    ["pen", /\bpens?\b|\bstylos?\b|(?:^|[\s\d])펜(?=$|[\s\d개을를은는이가과와])/],
+    ["dose", /\bdoses?\b|회분/],
+    ["single", /\bsingle[ -]use\b|\ba\s+usage\s+unique\b|일회용|1회용/],
+  ];
+  const matches = patterns.filter(([, pattern]) => pattern.test(words));
+  return matches.length === 1 ? matches[0]![0] : null;
+}
 
 export function sanitizeCandidates(
   raw: unknown[],
@@ -74,6 +88,16 @@ export function sanitizeCandidates(
     };
 
     switch (c["type"]) {
+      case "water":
+        // A water check-in needs words from the user, never an inference from a photo.
+        if (quote)
+          out.push({
+            ...common,
+            photoIndices: [],
+            type: "water",
+            answer: c["answer"] === "yes" || c["answer"] === "not_yet" ? c["answer"] : null,
+          });
+        break;
       case "meal": {
         const meal = parseMealAnalysis(c["meal"], "pending");
         if (meal) out.push({ ...common, type: "meal", meal });
@@ -132,10 +156,16 @@ export function sanitizeCandidates(
       case "memory":
         out.push({ ...common, type: "memory", note: str(c["note"], 1000) });
         break;
-      case "purchase":
+      case "purchase": {
+        if (!quote) break;
+        const statedUnit = statedStockUnit(quote);
         out.push({
           ...common,
           type: "purchase",
+          stockUnit:
+            c["stockUnit"] === undefined || c["stockUnit"] === null || c["stockUnit"] === statedUnit
+              ? statedUnit
+              : null,
           medication: str(c["medication"], 60),
           quantity: num(c["quantity"]),
           amount: num(c["amount"]),
@@ -143,6 +173,7 @@ export function sanitizeCandidates(
           merchant: str(c["merchant"], 80),
         });
         break;
+      }
       case "expense":
         out.push({
           ...common,

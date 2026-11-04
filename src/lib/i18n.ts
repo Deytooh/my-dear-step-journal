@@ -2,6 +2,65 @@
 export type Locale = "ko" | "en" | "fr";
 
 const ko = {
+  "recovery.language": "언어",
+  "recovery.missingTitle": "페이지를 찾을 수 없어요",
+  "recovery.missingHelp": "주소를 확인하거나 오늘 화면으로 돌아가 주세요.",
+  "recovery.errorTitle": "페이지를 열지 못했어요",
+  "recovery.errorHelp": "다시 시도하거나 오늘 화면으로 돌아가 주세요.",
+  "recovery.retry": "다시 시도",
+  "recovery.home": "오늘 화면으로",
+  "mc.characters": "{n} / 4,000자",
+  "time.period": "시간대",
+  "time.periodHelp": "정확한 시각을 모를 때 선택할 수 있어요.",
+  "momo.stockReview":
+    "약 또는 수량 단위가 비어 있어요. 재고 검토용으로 저장하거나 상세 내용을 수정해 주세요.",
+  "money.unknown": "금액 미상",
+  "money.currencyUnknown": "{amount} · 통화 미상",
+  "money.knownSpend": "이번 달 확인된 지출",
+  "money.unknownCount": "금액 또는 통화 미상: {n}건",
+  "ai.keepEditing": "계속 수정하기",
+  "money.stockDetails": "재고 상세 (선택)",
+  "money.hint": "천 단위 구분 없이 입력해 주세요. 소수는 12.50 또는 12,50처럼 적어요.",
+  "money.invalid": "금액에 천 단위 구분을 빼 주세요. 예: 12000 또는 12.50.",
+  "evidence.eaten": "실제로 먹은 양",
+  "evidence.excluded": "제외됨",
+  "auth.unavailable": "지금은 연결할 수 없어요. 잠시 후 다시 시도해 주세요.",
+  "auth.connecting": "연결 중이에요…",
+  "photo.viewSource": "원본 사진 {n} 보기",
+  "mc.undated": "선택한 기록 {n}개의 날짜가 비어 있어요.",
+  "mc.useToday": "오늘 날짜로 지정 · {date}",
+
+  "mc.consent": "선택한 글과 사진을 Meta 모델(Baseten)에 보내는 데 동의해요.",
+  "meal.consent": "이 식사의 메모와 선택한 사진을 Meta 모델(Baseten)에 보내는 데 동의해요.",
+  "find.consent":
+    "이 검색어와 동기화된 기록 최대 60개의 텍스트를 Meta 모델(Baseten)에 보내는 데 동의해요.",
+
+  "find.syncRequired":
+    "Momo는 동기화된 기록을 찾아요. 동기화가 끝나기 전에는 키워드로 검색할 수 있어요.",
+  "find.showing": "{total}개 중 {shown}개 표시",
+  "find.more": "더 보기",
+  "find.queryLimit": "{n} / 300자",
+
+  "mc.draftStorage":
+    "로그인 전에 초안을 보관하지 못했어요. 내용은 아직 여기에 있어요. 글을 복사하거나 사진을 줄인 뒤 다시 시도해 주세요.",
+  "mc.signinWithoutDraft": "이 초안 없이 로그인",
+
+  "mc.signinAction": "Momo를 이용하려면 로그인",
+  "intro.tryMomo": "Momo와 시작하기",
+  "intro.momoPreview":
+    "오늘의 이야기를 남기고 제안을 확인해 주세요. AI는 로그인 후 이용해요. 직접 기록도 가능해요.",
+
+  "mc.fixField": "{field} 확인하기",
+  "mc.checkField": "저장 전에 {field}을(를) 확인하거나 이 기록의 선택을 해제해 주세요.",
+  "mc.checkSelected": "{n}개 기록 확인하기",
+
+  "mc.resumeGuestHint":
+    "로그인 전에 작성한 내용이 있어요. 이어서 작성할까요? AI 전송과 저장은 직접 확인해 주세요.",
+  "mc.resumeGuest": "이전 초안 이어쓰기",
+  "mc.startFresh": "새로 시작",
+
+  "intro.language": "언어를 선택하세요",
+  "mc.reviewHint": "Momo가 기록을 제안해요. 직접 수정하고 확인한 내용만 저장돼요.",
   "me.title": "오늘의 한 조각을\n모모에게.",
   "me.subtitle": "말과 사진이, 나의 기록으로.",
   "me.feeling": "기분",
@@ -55,8 +114,7 @@ const ko = {
     "이 브라우저에서는 음성 입력을 시작할 수 없어요. 글이나 사진으로 이어서 남겨 주세요.",
   "mv.blocked":
     "마이크 권한 또는 장치를 확인해 주세요. 자동으로 재시도하지 않아요. 글이나 사진으로도 남길 수 있어요.",
-  "mv.limit":
-    "4,000자를 넘어서 음성 입력을 멈췄어요. 내용은 보존했어요. 분석 전에 4,000자 이내로 줄여 주세요.",
+  "mv.limit": "글이 4,000자를 넘었어요. 내용은 그대로 남아 있어요. 정리하기 전에 줄여 주세요.",
   "mm.estimate": "추정 · 확인이 필요해요",
   "mm.title": "오늘은 무엇을 남길까요?",
   "mm.subtitle": "말하거나 사진을 보내면, 모모가 정리해 드려요.",
@@ -241,7 +299,7 @@ const ko = {
   "site.thigh.left": "내 왼쪽 허벅지",
   "site.thigh.right": "내 오른쪽 허벅지",
 
-  "evidence.currency": "통화 코드 (KRW, USD 등)",
+  "evidence.currency": "통화",
   "evidence.corrected": "직접 수정",
   "evidence.suggested": "모모 제안",
   "evidence.stockLater":
@@ -264,11 +322,11 @@ const ko = {
 
   "stock.adjustmentReview":
     "제품이나 단위가 바뀌어 적용하지 않은 재고 조정이 있어요. 구매 내역을 확인해 주세요.",
-  "stock.provisional": "확인된 연결만 반영한 수량이에요. 이전 기록을 확인해 주세요.",
+  "stock.provisional": "재고가 완전하지 않아요. 아래 기록을 확인해 주세요.",
   "stock.product": "제품 · 규격",
   "stock.lot": "재고 구매 선택",
   "stock.choose": "약과 단위가 맞는 구매를 선택해 주세요",
-  "stock.review": "이전 재고 연결을 확인해 주세요",
+  "stock.review": "재고 상세 확인",
   "stock.multiple": "제품별 재고 보기",
   "stock.legacyAdjustment":
     "이전 전체 재고 조정: {n}. 제품별 수량을 확인한 뒤 각 재고를 수정해 주세요.",
@@ -357,7 +415,7 @@ const ko = {
   "inj.lastPurchase": "최근 구매",
   "inj.basis": "직접 입력한 구매 내역 기준",
   "inj.tabRecords": "주사 기록",
-  "inj.tabStock": "구매 · 재고",
+  "inj.tabStock": "구매 · 지출",
   "inj.recent": "최근 기록",
   "inj.add": "주사 기록",
   "inj.editNote": "저장한 내용은 언제든 수정할 수 있어요.",
@@ -396,7 +454,7 @@ const ko = {
   "f.optional": "선택",
   "f.feeling": "느낌",
   "f.note": "메모",
-  "f.amount": "금액 (원)",
+  "f.amount": "금액",
   "f.doses": "구매 수량 (회분)",
   "f.photo": "사진",
   "f.reminderAt": "알림 날짜와 시간",
@@ -563,8 +621,9 @@ const ko = {
   "momo.invalid": "확인이 필요한 값이 있어요",
   "type.expense": "지출",
   "f.quantity": "수량",
-  "find.title": "모모와 기록 찾기",
-  "find.sub": "내가 남긴 기록에서만 찾아요.",
+  "find.title": "내 기록 찾기",
+  "find.keywords": "키워드로 검색",
+  "find.sub": "단어, 날짜, 금액으로 내 기록을 검색하세요. Momo는 선택 사항이에요.",
   "find.placeholder": "예: 산책, 카페, 복부",
   "find.none": "찾는 기록이 없어요.",
   "find.count": "{n}개 기록을 찾았어요",
@@ -590,7 +649,12 @@ export type Key = keyof typeof ko;
 import { en, fr } from "./i18n-extra";
 const dicts: Record<Locale, Partial<Record<Key, string>>> = { ko, en, fr };
 
-let current: Locale = "ko";
+const hotLocale = import.meta.hot?.data?.["locale"];
+let current: Locale = hotLocale === "en" || hotLocale === "fr" ? hotLocale : "ko";
+if (import.meta.hot?.data)
+  import.meta.hot.dispose((data) => {
+    data["locale"] = current;
+  });
 export const setLocale = (l: Locale) => {
   current = l;
 };

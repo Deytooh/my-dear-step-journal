@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import "@lovable.dev/cloud-auth-js/styles.css";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -34,35 +34,52 @@ function AuthPage() {
   const [pw, setPw] = useState("");
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const request = useRef(false);
 
   useEffect(() => {
     if (j.user) navigate({ to: "/today", replace: true });
   }, [j.user, navigate]);
 
+  async function perform(action: () => Promise<void>) {
+    if (request.current) return;
+    request.current = true;
+    setMsg(null);
+    setBusy(true);
+    try {
+      await action();
+    } catch {
+      setMsg({ kind: "err", text: t("auth.unavailable") });
+    } finally {
+      request.current = false;
+      setBusy(false);
+    }
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
-    setMsg(null);
+    if (request.current) return;
     if (pw.length < 8) return setMsg({ kind: "err", text: t("auth.short") });
-    setBusy(true);
-    if (mode === "up") {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password: pw,
-        options: { emailRedirectTo: window.location.origin },
-      });
-      if (error) setMsg({ kind: "err", text: error.message });
-      else if (!data.session) setMsg({ kind: "ok", text: t("auth.check") });
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
-      if (error) setMsg({ kind: "err", text: t("auth.fail") });
-    }
-    setBusy(false);
+    await perform(async () => {
+      if (mode === "up") {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password: pw,
+          options: { emailRedirectTo: window.location.origin },
+        });
+        if (error) setMsg({ kind: "err", text: error.message });
+        else if (!data.session) setMsg({ kind: "ok", text: t("auth.check") });
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
+        if (error) setMsg({ kind: "err", text: t("auth.fail") });
+      }
+    });
   }
 
   async function social(p: "google" | "lovable") {
-    setMsg(null);
-    const r = await lovable.auth.signInWithOAuth(p, { redirect_uri: window.location.origin });
-    if (r.error) setMsg({ kind: "err", text: t("auth.fail") });
+    await perform(async () => {
+      const r = await lovable.auth.signInWithOAuth(p, { redirect_uri: window.location.origin });
+      if (r.error) setMsg({ kind: "err", text: t("auth.fail") });
+    });
   }
 
   return (
@@ -77,6 +94,7 @@ function AuthPage() {
           size="unstyled"
           type="button"
           onClick={() => social("google")}
+          disabled={busy}
           className="press h-12 w-full rounded-full border bg-card text-sm font-medium"
         >
           {t("auth.google")}
@@ -86,10 +104,16 @@ function AuthPage() {
           size="unstyled"
           type="button"
           onClick={() => social("lovable")}
+          disabled={busy}
           className="lovable-auth-button mt-2 w-full"
         >
           {t("auth.lovable")}
         </Button>
+        {busy && (
+          <p role="status" className="mt-3 text-sm text-muted-foreground">
+            {t("auth.connecting")}
+          </p>
+        )}
         <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
           <span className="h-px flex-1 bg-border" />
           {t("auth.or")}
@@ -102,6 +126,7 @@ function AuthPage() {
               type="email"
               required
               autoComplete="email"
+              disabled={busy}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="mt-1 h-12 w-full rounded-[14px] border bg-background px-4"
@@ -113,6 +138,7 @@ function AuthPage() {
               type="password"
               required
               minLength={8}
+              disabled={busy}
               autoComplete={mode === "up" ? "new-password" : "current-password"}
               value={pw}
               onChange={(e) => setPw(e.target.value)}
@@ -121,7 +147,7 @@ function AuthPage() {
           </label>
           {msg && (
             <p
-              role="status"
+              role={msg.kind === "err" ? "alert" : "status"}
               className={msg.kind === "err" ? "text-sm text-destructive" : "text-sm text-primary"}
             >
               {msg.text}
@@ -141,6 +167,7 @@ function AuthPage() {
           variant="unstyled"
           size="unstyled"
           type="button"
+          disabled={busy}
           onClick={() => {
             setMode(mode === "in" ? "up" : "in");
             setMsg(null);

@@ -72,3 +72,34 @@ it("rejects arbitrary URLs and MIME-spoofed images before calling Meta", () => {
   expect(() => validateImages(["data:image/jpeg;base64,dGV4dA=="])).toThrow();
   expect(() => validateImages(["data:image/png;base64,dGV4dA=="])).toThrow();
 });
+
+it.each(['  \n```json\n{"ok":true}\n``` \n', '```JSON\n{"ok":true}\n```', '  {"ok":true} \n'])(
+  "accepts a complete JSON result with harmless surrounding whitespace: %s",
+  async (content) => {
+    const fetch = vi.fn().mockResolvedValue(response(content));
+    vi.stubGlobal("fetch", fetch);
+    expect(await metaJSON("task", {}, [], parse, async () => true)).toMatchObject({
+      value: { ok: true },
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  },
+);
+it("does not accept a JSON-looking fragment surrounded by unvalidated prose", async () => {
+  const fetch = vi.fn().mockImplementation(async () => response('Here is advice: {"ok":true}'));
+  vi.stubGlobal("fetch", fetch);
+  await expect(metaJSON("task", {}, [], parse, async () => true)).rejects.toMatchObject({
+    code: "parse",
+  });
+  expect(fetch).toHaveBeenCalledTimes(2);
+});
+it.each([
+  "not JSON",
+  JSON.stringify({ choices: [{ message: { content: null } }] }),
+  JSON.stringify({ choices: [{ message: { content: [] } }] }),
+  "null",
+])("classifies malformed provider envelopes as validation failures", async (body) => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body, { status: 200 })));
+  await expect(metaJSON("task", {}, [], parse, async () => true)).rejects.toMatchObject({
+    code: "parse",
+  });
+});

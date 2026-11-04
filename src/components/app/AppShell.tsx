@@ -33,9 +33,26 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [entrySession, setEntrySession] = useState(0);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  // Route head metadata can settle after the pathname changes and replace the title.
+  const routeTitle = useRouterState({
+    select: (state) =>
+      state.matches
+        .flatMap((match) => match.meta ?? [])
+        .map((meta) => (meta && "title" in meta ? meta.title : ""))
+        .join("|"),
+  });
   const [kind, setKind] = useState<EntryKind>("menu");
   const [editing, setEditing] = useState<JournalRecord | Purchase | undefined>();
   const j = useJournal();
+  const owner = j.user?.id ?? "guest";
+  const [entryOwner, setEntryOwner] = useState(owner);
+  const entryOpen = open && entryOwner === owner;
+  useEffect(() => {
+    setOpen(false);
+    setEditing(undefined);
+    setEntryDate(undefined);
+    setKind("menu");
+  }, [owner]);
   const [replayIntroduction, setReplayIntroduction] = useState(false);
   const introductionOpen =
     replayIntroduction ||
@@ -65,9 +82,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [j.records, j.ready, j.user?.id]);
   useEffect(() => {
     document.documentElement.lang = j.settings.locale ?? "ko";
-  }, [j.settings.locale]);
+    const pageLabels: Record<string, Key> = {
+      "/today": "nav.today",
+      "/calendar": "nav.calendar",
+      "/injections": "nav.injections",
+      "/progress": "nav.progress",
+      "/auth": "auth.title",
+      "/history": "hist.title",
+      "/journey": "journey.title",
+    };
+    const label = pageLabels[pathname];
+    document.title = label ? t(label) + " · my dear step" : "my dear step";
+  }, [j.settings.locale, pathname, routeTitle]);
   // A fresh session resets form values even when reopened during the close animation.
   const opener: Opener = (k = "menu", e, date) => {
+    setEntryOwner(owner);
     setEntrySession((n) => n + 1);
     setEntryDate(date);
     setKind(k);
@@ -105,23 +134,25 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           )}
           {j.ready ? children : <PageSkeleton hero={pathname === "/today"} />}
+          {j.ready && !introductionOpen && !entryOpen && pathname === "/today" && (
+            <div className="mt-4">
+              <FirstUseHint kind="manual" />
+            </div>
+          )}
         </main>
       </div>
       <AppFeel />
-      <BottomNav
-        expanded={open}
-        onAdd={() => opener("menu")}
-        showHint={!introductionOpen && !open && pathname === "/today"}
-      />
+      <BottomNav expanded={entryOpen} onAdd={() => opener("menu")} />
       {introductionOpen && <Onboarding open onClose={() => setReplayIntroduction(false)} />}
       <QuickAddSheet
+        key={owner}
         session={entrySession}
-        initialDate={entryDate}
-        open={open}
+        initialDate={entryOwner === owner ? entryDate : undefined}
+        open={entryOpen}
         onOpenChange={setOpen}
-        kind={kind}
+        kind={entryOwner === owner ? kind : "menu"}
         setKind={setKind}
-        editing={editing}
+        editing={entryOwner === owner ? editing : undefined}
       />
     </QuickAddCtx.Provider>
   );
@@ -388,15 +419,7 @@ function Sprout({ hero = false }: { hero?: boolean }) {
   );
 }
 
-function BottomNav({
-  onAdd,
-  expanded,
-  showHint,
-}: {
-  onAdd: () => void;
-  expanded: boolean;
-  showHint: boolean;
-}) {
+function BottomNav({ onAdd, expanded }: { onAdd: () => void; expanded: boolean }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const activePath = pathname === "/journey" || pathname === "/history" ? "/progress" : pathname;
   const item =
@@ -427,11 +450,6 @@ function BottomNav({
   };
   return (
     <nav className="app-nav fixed inset-x-0 bottom-0 z-40 border-t border-primary/10 bg-card pb-[env(safe-area-inset-bottom)]">
-      {showHint && (
-        <div className="absolute inset-x-4 bottom-[calc(100%+1.5rem)] mx-auto max-w-sm">
-          <FirstUseHint kind="manual" />
-        </div>
-      )}
       <div className="mx-auto flex max-w-md items-end px-2 pt-2 pb-2">
         {tabs.slice(0, 2).map(render)}
         <Button

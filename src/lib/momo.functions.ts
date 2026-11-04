@@ -20,13 +20,14 @@ Return ONLY one JSON object, no prose, no markdown:
 For text-derived candidates, quote must be an exact substring of the input text. For photo-derived candidates quote must be null. Never invent quotations.
 Each candidate may include photoIndices: zero-based indices of supporting attached images. Only reference images actually used.
 Candidate shapes:
+- {"type":"water","answer":"yes"|"not_yet"|null,"date","time","timeHint","quote"} only for an explicit statement about having had water or not yet having water. No water candidate for a question, a photo or silence about water. Record only the stated answer, never a volume, daily target, hydration conclusion or recommendation.
 - {"type":"meal","date","time","timeHint","quote","photoIndices","meal":{"title":string,"mealType":"unknown","items":[{"id":string,"name":string,"portionDescription":string|null,"ingredients":[{"name":string,"basis":"visible_estimate"|"possible"|"user_provided"|"label"}],"kcal":{"low":number,"high":number,"basis":"photo_estimate"|"label"|"user_entered"}|null,"included":true}],"photoRefs":[],"consumedFraction":null,"estimateAssumptions":[string]}}
 - {"type":"weight","value":number(kg),"date","time","timeHint","quote"}
 - {"type":"injection","medication","doseValue","doseUnit","site","date","time","timeHint","quote"}
 - {"type":"condition","label","note","date","time","timeHint","quote"}
 - {"type":"measure","waist","hip","chest","thigh","date","time","timeHint","quote"} (cm)
 - {"type":"memory","note","date","time","timeHint","quote"}
-- {"type":"purchase","medication","quantity":number,"amount":number|null,"currency":"KRW"|"EUR"|"USD"|null,"merchant","date","quote"} when the user SAYS they bought/received medication or pens/injections (e.g. "마운자로 하나 샀어", "주사 2개 샀어", "bought 4 pens"). quantity = stated count ("하나"=1, "두 개"=2). This is the only way stock is added, and the user confirms it.
+- {"type":"purchase","medication","quantity":number,"stockUnit":"pen"|"single"|"dose"|null,"amount":number|null,"currency":"KRW"|"EUR"|"USD"|null,"merchant","date","quote"} when the user SAYS they bought/received medication or pens/injections (e.g. "마운자로 하나 샀어", "주사 2개 샀어", "bought 4 pens"). quantity = stated count ("하나"=1, "두 개"=2). This is the only way stock is added, and the user confirms it.
 - {"type":"expense","amount":number,"currency","merchant","product","quantity":number,"date","quote"} (receipts only)
 Rules:
 - Use null for anything not explicitly stated. Never guess medication, dose, date, site, quantity or time. A missing date remains null.
@@ -34,6 +35,7 @@ Rules:
 - "timeHint" keeps approximate wording verbatim (e.g. "저녁", "this morning"), else null.
 - For receipts copy only legible values. A pharmacy payment does NOT prove a GLP-1 purchase: product null unless printed.
 - A meal photo only gives estimates: state portion assumptions, do not infer date, time, meal type, eaten fraction, hidden ingredients or allergens. Mixed dishes are one calorie row with ingredient descriptions; no aggregate totals. No meal candidate for an unclear/non-food photo. Do not convert meal information into memory or expense.
+- A stock purchase needs an exact quote from the user's text; a photo alone cannot establish it. stockUnit is only an explicitly stated unit: pen, single (single-use unit), dose, or null. Never convert between these units or assume an unspecified unit.
 - Never infer stock movements beyond an explicitly stated purchase. Empty candidates list if nothing to record.`;
 
 export const extractWithMomo = createServerFn({ method: "POST" })
@@ -82,7 +84,7 @@ export const extractWithMomo = createServerFn({ method: "POST" })
                   ...candidate.meal,
                   analysis: {
                     model: result.model,
-                    promptVersion: "journal-v3",
+                    promptVersion: "journal-v5",
                     schemaVersion: 1,
                     analyzedAt: new Date().toISOString(),
                   },

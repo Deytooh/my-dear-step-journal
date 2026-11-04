@@ -207,6 +207,7 @@ export function useMomoVoice(options: {
     setStatus("interrupted");
   };
   useEffect(() => {
+    finish();
     const hidden = () => {
       if (document.hidden) interrupt();
     };

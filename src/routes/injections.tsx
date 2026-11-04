@@ -16,15 +16,11 @@ import {
   SectionHeader,
   Segmented,
 } from "@/components/app/ui";
-import { SITE_ZONES } from "@/components/app/SitePicker";
+import { formatPurchaseMoney, summarizePurchaseMoney } from "@/lib/purchase-money";
+import { siteLabel } from "@/lib/injection-sites";
 import { NextReminder } from "@/components/app/ReminderCard";
 import { AnimatedValue } from "@/components/app/AppFeel";
 import { Syringe, Pencil } from "lucide-react";
-
-const siteLabel = (id: string) => {
-  const zone = SITE_ZONES.find((z) => z.id === id);
-  return zone ? t(`site.${zone.key}.${zone.side}`) : id;
-};
 
 export const Route = createFileRoute("/injections")({
   head: () => ({
@@ -48,9 +44,9 @@ function Injections() {
   const open = useQuickAdd();
   const [tab, setTab] = useState<"records" | "stock">("records");
   const month = todayLocal(j.tz).slice(0, 7);
-  const monthSpend = new Map<string, number>();
-  for (const p of j.purchases.filter((p) => p.localDate.startsWith(month)))
-    monthSpend.set(p.currency, (monthSpend.get(p.currency) ?? 0) + p.amount);
+  const { totals: monthSpend, unknown: unknownPrices } = summarizePurchaseMoney(
+    j.purchases.filter((p) => p.localDate.startsWith(month)),
+  );
   const purchases = [...j.purchases].sort((a, b) => b.localDate.localeCompare(a.localDate));
   const injections = j.records
     .filter((r): r is InjectionRec => r.type === "injection")
@@ -159,12 +155,19 @@ function Injections() {
               <Wallet className="size-5" />
             </IconBubble>
             <div>
-              <div className="text-sm text-muted-foreground">{t("inj.monthSpend")}</div>
+              <div className="text-sm text-muted-foreground">
+                {t(unknownPrices ? "money.knownSpend" : "inj.monthSpend")}
+              </div>
               <div className="text-[22px] font-semibold tracking-tight tabular-nums">
                 {[...monthSpend].map(([currency, amount]) => (
                   <div key={currency}>{fmtMoney(amount, currency)}</div>
                 ))}
-                {monthSpend.size === 0 && fmtMoney(0)}
+                {monthSpend.size === 0 && !unknownPrices && fmtMoney(0)}
+                {unknownPrices > 0 && (
+                  <p className="text-sm font-normal text-muted-foreground">
+                    {t("money.unknownCount", { n: unknownPrices })}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -241,7 +244,7 @@ function Injections() {
                       {fmtMonthDayWeekday(r.localDate)}
                       {r.at && r.precision === "exact"
                         ? ` · ${fmtTime(r.at, j.tz)}`
-                        : ` · ${t("f.timeUnknown")}`}
+                        : ` · ${r.partOfDay && r.precision === "part_of_day" ? t(`pod.${r.partOfDay}`) : t("f.timeUnknown")}`}
                       <DemoTag show={r.demo} />
                     </div>
                     <div className="line-clamp-2 text-[18px] font-semibold">{recordValue(r)}</div>
@@ -261,7 +264,7 @@ function Injections() {
         ) : (
           <>
             <SectionHeader
-              title={t("type.purchase")}
+              title={t("inj.tabStock")}
               action={
                 <Button
                   variant="unstyled"
@@ -289,17 +292,30 @@ function Injections() {
                   className="record-row press flex w-full items-center gap-3 py-4 text-left"
                 >
                   <IconBubble tone="peach">
-                    <Package className="size-6" />
+                    {p.addsStock === false ? (
+                      <Wallet className="size-6" />
+                    ) : (
+                      <Package className="size-6" />
+                    )}
                   </IconBubble>
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1 break-words">
                     <div className="text-sm text-muted-foreground">
+                      {t(p.addsStock === false ? "type.expense" : "type.purchase")} ·{" "}
                       {fmtMonthDayWeekday(p.localDate)}
                       <DemoTag show={p.demo} />
                     </div>
-                    <div className="text-[19px] font-bold">{fmtMoney(p.amount, p.currency)}</div>
+                    <div className="text-[19px] font-bold">{formatPurchaseMoney(p)}</div>
                     <div className="text-sm text-muted-foreground">
-                      {p.medication ?? t("med.none")} · {p.doses}{" "}
-                      {p.stockUnit ? t(`unit.${p.stockUnit}`) : t("stock.review")}
+                      {p.addsStock === false
+                        ? [p.product || p.medication, p.merchant].filter(Boolean).join(" · ") ||
+                          t("type.expense")
+                        : [
+                            p.medication || t("stock.unknownMed"),
+                            p.product,
+                            `${p.quantity ?? p.doses} ${p.stockUnit ? t(`unit.${p.stockUnit}`) : t("unknown")}`,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
                     </div>
                   </div>
                   <Pencil className="size-5 text-muted-foreground" />

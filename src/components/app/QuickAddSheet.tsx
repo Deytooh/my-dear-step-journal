@@ -1,5 +1,8 @@
+import { TimeOfDayField } from "./TimeOfDayField";
 import { useRouterState } from "@tanstack/react-router";
 import { validDate } from "@/lib/snapshot";
+import { purchaseMoneyFacts } from "@/lib/purchase-money";
+import { parseAmountInput } from "@/lib/amount-input";
 import { FIELDS } from "@/lib/momo-drafts";
 import { MealForm } from "./MealForm";
 import { retainPhoto, shrinkPhoto } from "@/lib/media";
@@ -369,11 +372,13 @@ function EntryForm({
   const tz = j.tz;
   const rec = editing && "type" in editing ? editing : undefined;
   const pur = editing && !("type" in editing) ? editing : undefined;
+  const savedMoney = pur ? purchaseMoneyFacts(pur) : null;
 
   const [date, setDate] = useState(
     () => rec?.localDate ?? pur?.localDate ?? initialDate ?? todayLocal(tz),
   );
   const [timeKnown, setTimeKnown] = useState(rec ? rec.precision === "exact" : true);
+  const [period, setPeriod] = useState<PartOfDay | "">(rec?.partOfDay ?? "");
   const [time, setTime] = useState(() =>
     rec?.at ? timeOf(rec.at, tz) : timeOf(new Date().toISOString(), tz),
   );
@@ -404,7 +409,10 @@ function EntryForm({
   const [photo, setPhoto] = useState<string | null>(
     rec?.type === "memory" ? (rec.photo ?? null) : null,
   );
-  const [amount, setAmount] = useState(pur ? String(pur.amount) : "");
+  const [amount, setAmount] = useState(
+    pur && savedMoney?.amount !== null ? String(pur.amount) : "",
+  );
+  const [currency, setCurrency] = useState(pur ? (savedMoney?.currency ?? "") : "KRW");
   const [doses, setDoses] = useState(
     pur?.quantity != null
       ? String(pur.quantity)
@@ -448,7 +456,7 @@ function EntryForm({
     injection: t("type.injection"),
     condition: t("type.condition"),
     memory: t("type.memory"),
-    purchase: t("type.purchase"),
+    purchase: t(pur?.addsStock === false ? "type.expense" : "type.purchase"),
     water: t("type.water"),
     reminder: t("reminder.set"),
     stock: t("inv.edit"),
@@ -461,7 +469,9 @@ function EntryForm({
     const values: Record<string, string> = {
       date,
       time: timeKnown ? time : "",
+      partOfDay: timeKnown ? "" : period,
       value: weight,
+      answer: water,
       medication: med,
       doseValue: dose,
       doseUnit,
@@ -473,7 +483,14 @@ function EntryForm({
     const confirmed = { ...rec.evidence.confirmed };
     for (const field of FIELDS[kind as keyof typeof FIELDS] ?? [])
       confirmed[field.k] = values[field.k] ?? confirmed[field.k] ?? "";
-    return { ...rec.evidence, confirmed };
+    return {
+      ...rec.evidence,
+      proposed: {
+        ...rec.evidence.proposed,
+        partOfDay: rec.evidence.proposed["partOfDay"] ?? rec.partOfDay ?? "",
+      },
+      confirmed,
+    };
   };
   const base = () => ({
     ...(rec ?? {}),
@@ -485,11 +502,11 @@ function EntryForm({
     source: "manual_text" as const,
     precision: timeKnown
       ? ("exact" as const)
-      : rec && rec.precision !== "exact"
-        ? rec.precision
+      : period
+        ? ("part_of_day" as const)
         : ("date_only" as const),
     at: timeKnown ? instantFromLocal(date, time, tz) : null,
-    partOfDay: !timeKnown ? (rec?.partOfDay ?? null) : (null as PartOfDay | null),
+    partOfDay: timeKnown ? null : period || null,
   });
 
   const save = () => {
@@ -567,10 +584,14 @@ function EntryForm({
           thigh: vals["thigh"] ?? null,
         });
       } else if (kind === "purchase") {
-        const a = Number(amount.replace(/[^\d]/g, ""));
+        const a = parseAmountInput(amount);
         const hasQty = doses.trim() !== "";
         const n = hasQty ? Number(doses) : 0;
-        if (!a) return setErr(t("validation.manual5"));
+        if (
+          (a === null && savedMoney?.amount !== null) ||
+          (a !== null && (!Number.isFinite(a) || a < 0))
+        )
+          return setErr(t("money.invalid"));
         if (hasQty && (!Number.isInteger(n) || n <= 0)) return setErr(t("validation.manual6"));
         const stockOn = hasQty && addsStock;
         j.savePurchase({
@@ -581,19 +602,21 @@ function EntryForm({
                   confirmed: {
                     ...pur.evidence.confirmed,
                     date,
-                    amount: String(a),
+                    amount: a === null ? "" : String(a),
                     quantity: hasQty ? String(n) : "",
+                    stockUnit: hasQty ? unit : "",
                     product,
                     merchant,
-                    currency: pur.currency,
+                    currency,
+                    medication: med.trim(),
                   },
                 },
               }
             : {}),
           id: entryId,
           localDate: date,
-          amount: a,
-          currency: pur?.currency ?? "KRW",
+          amount: a ?? pur?.amount ?? 0,
+          currency: currency || pur?.currency || "KRW",
           quantity: hasQty ? n : null,
           doses: stockOn ? n : 0,
           medication: med.trim() || null,
@@ -710,7 +733,8 @@ function EntryForm({
         </Field>
       )}
 
-      {(kind === "injection" || kind === "purchase") && (
+      {(kind === "injection" ||
+        (kind === "purchase" && (pur?.addsStock !== false || !!pur.medication))) && (
         <div>
           <span className="mb-1.5 block text-sm font-medium">
             {t("f.medication")} <span className="text-muted-foreground">({t("f.optional")})</span>
@@ -907,7 +931,7 @@ function EntryForm({
 
       {kind === "purchase" && (
         <>
-          <Field label={t("stock.product")} optional>
+          <Field label={t(pur?.addsStock === false ? "f.product" : "stock.product")} optional>
             <input
               className={inputCls}
               value={product}
@@ -921,51 +945,95 @@ function EntryForm({
               onChange={(e) => setMerchant(e.target.value)}
             />
           </Field>
-          <Field label={t("f.amount")}>
-            <input
-              inputMode="numeric"
-              className={inputCls}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="320000"
-            />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t("f.qty")} optional>
+          <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-3">
+            <Field label={t("f.amount")}>
               <input
-                inputMode="numeric"
+                inputMode="decimal"
                 className={inputCls}
-                value={doses}
-                onChange={(e) => setDoses(e.target.value)}
-                placeholder={t("f.qtyHint")}
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+                placeholder="12000"
+                aria-describedby="purchase-amount-hint"
               />
             </Field>
-            <Field label={t("f.unit")}>
+            <Field label={t("evidence.currency")}>
               <select
                 className={inputCls}
-                value={unit}
-                onChange={(e) => setUnit(e.target.value as StockUnit | "")}
+                value={currency}
+                onChange={(event) => setCurrency(event.target.value)}
               >
-                <option value="">{t("stock.review")}</option>
-                <option value="single">{t("unit.single")}</option>
-                <option value="pen">{t("unit.pen")}</option>
-                <option value="dose">{t("unit.dose")}</option>
+                {savedMoney?.currency === null && <option value="">{t("unknown")}</option>}
+                {[
+                  ...new Set([
+                    "KRW",
+                    "EUR",
+                    "USD",
+                    "JPY",
+                    "GBP",
+                    "CAD",
+                    "AUD",
+                    "CHF",
+                    "CNY",
+                    ...(currency ? [currency] : []),
+                  ]),
+                ].map((code) => (
+                  <option key={code} value={code}>
+                    {code}
+                  </option>
+                ))}
               </select>
             </Field>
           </div>
-          <label className="flex min-h-11 items-center gap-3 text-[15px]">
-            <input
-              type="checkbox"
-              className="size-5 accent-[var(--color-primary)]"
-              disabled={!doses.trim()}
-              checked={!!doses.trim() && addsStock}
-              onChange={(e) => setAddsStock(e.target.checked)}
-            />
-            {t("f.addsStock")}
-          </label>
-          {!doses.trim() && (
-            <p className="-mt-3 text-sm text-muted-foreground">{t("f.expenseOnly")}</p>
-          )}
+          <p id="purchase-amount-hint" className="-mt-2 text-sm text-muted-foreground">
+            {t("money.hint")}
+          </p>
+          <details open={pur?.addsStock !== false} className="space-y-3">
+            <summary>{t("money.stockDetails")}</summary>
+            {pur?.addsStock === false && !pur.medication && (
+              <div>
+                <span className="mb-1.5 block text-sm font-medium">
+                  {t("f.medication")} ({t("f.optional")})
+                </span>
+                <MedicationPicker value={med} onChange={setMed} />
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t("f.qty")} optional>
+                <input
+                  inputMode="numeric"
+                  className={inputCls}
+                  value={doses}
+                  onChange={(e) => setDoses(e.target.value)}
+                  placeholder={t("f.qtyHint")}
+                />
+              </Field>
+              <Field label={t("f.unit")}>
+                <select
+                  className={inputCls}
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value as StockUnit | "")}
+                >
+                  <option value="">{t("stock.review")}</option>
+                  <option value="single">{t("unit.single")}</option>
+                  <option value="pen">{t("unit.pen")}</option>
+                  <option value="dose">{t("unit.dose")}</option>
+                </select>
+              </Field>
+            </div>
+            <label className="flex min-h-11 items-center gap-3 text-[15px]">
+              <input
+                type="checkbox"
+                className="size-5 accent-[var(--color-primary)]"
+                disabled={!doses.trim()}
+                checked={!!doses.trim() && addsStock}
+                onChange={(e) => setAddsStock(e.target.checked)}
+              />
+              {t("f.addsStock")}
+            </label>
+            {!doses.trim() && (
+              <p className="-mt-3 text-sm text-muted-foreground">{t("f.expenseOnly")}</p>
+            )}
+          </details>
         </>
       )}
 
@@ -1051,11 +1119,14 @@ function EntryForm({
       {(showDate || showTime) && (
         <details open={!!editing} className="space-y-3">
           <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">
-            {t("ui.when")} · {date}
-            {timeKnown && time ? ` · ${time}` : ` · ${t("unknown")}`}
+            {t(showTime ? "ui.when" : "f.date")} · {date}
+            {showTime &&
+              (timeKnown && time
+                ? ` · ${time}`
+                : ` · ${period ? t(`pod.${period}`) : t("unknown")}`)}
           </summary>
           {showDate && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className={cn("grid gap-3", showTime ? "grid-cols-2" : "grid-cols-1")}>
               <Field label={t("f.date")}>
                 <input
                   type="date"
@@ -1070,7 +1141,7 @@ function EntryForm({
                     type="time"
                     disabled={!timeKnown}
                     className={cn(inputCls, !timeKnown && "opacity-40")}
-                    value={time}
+                    value={timeKnown ? time : ""}
                     onChange={(e) => setTime(e.target.value)}
                   />
                 </Field>
@@ -1088,6 +1159,7 @@ function EntryForm({
               {t("f.timeUnknown")}
             </label>
           )}
+          {showTime && !timeKnown && <TimeOfDayField value={period} onChange={setPeriod} />}
         </details>
       )}
       {err && (

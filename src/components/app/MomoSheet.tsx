@@ -1,9 +1,12 @@
+import { isPartOfDay } from "@/lib/time-of-day";
+import { TimeOfDayField } from "./TimeOfDayField";
 import { retainPhoto, shrinkPhoto } from "@/lib/media";
 import { Button } from "@/components/ui/button";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Scale,
+  Droplet,
   Syringe,
   Smile,
   Ruler,
@@ -26,11 +29,13 @@ import { toast } from "sonner";
 import { DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { extractWithMomo } from "@/lib/momo.functions";
 import { useJournal } from "@/lib/journal";
-import { todayLocal } from "@/lib/dates";
+import { todayLocal, fmtMonthDay } from "@/lib/dates";
 import { useQuickAdd } from "./AppShell";
+import { formatPurchaseMoney } from "@/lib/purchase-money";
 import { recordValue } from "./ui";
 import {
   candidateToDraft,
+  partOfDayFromHint,
   draftToEntry,
   FIELDS,
   isDuplicate,
@@ -47,6 +52,12 @@ import { MealItemsEditor } from "./MealItemsEditor";
 import { draftMealSchema, type MealDetails } from "@/lib/meals";
 import { MedicationPicker } from "./MedicationPicker";
 import { useMomoVoice, type VoiceRecovery } from "./useMomoVoice";
+import {
+  claimMomoHandoff,
+  dismissMomoHandoff,
+  prepareMomoHandoff,
+  type GuestCapture,
+} from "@/lib/momo-handoff";
 import momo from "@/assets/momo-hamster.png.asset.json";
 
 type CaptureRecovery = {
@@ -61,7 +72,7 @@ type CaptureRecovery = {
   voiceSession: VoiceRecovery | null;
 };
 function persistCapture(state: CaptureRecovery | null) {
-  if (!state?.recovered) return;
+  if (!state?.recovered) return false;
   try {
     if (state.saved || (!state.drafts && !state.text.trim() && !state.images.length))
       sessionStorage.removeItem(state.key);
@@ -77,8 +88,10 @@ function persistCapture(state: CaptureRecovery | null) {
           voiceSession: state.voiceSession,
         }),
       );
+    return true;
   } catch {
     /* An unavailable browser store never discards the in-memory capture. */
+    return false;
   }
 }
 
@@ -103,14 +116,18 @@ export function MomoSheet({
   const [usedVoice, setUsedVoice] = useState(false);
   const [saved, setSaved] = useState(false);
   const saveGuard = useRef(false);
+  const captureVersion = useRef(0);
   const [text, setText] = useState("");
+  const inputLimitId = useId();
   const [images, setImages] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const [handoffBlocked, setHandoffBlocked] = useState(false);
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [step, setStep] = useState<"input" | "review">("input");
   const [saving, setSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
   const photoVersion = useRef(0);
   const photoGuard = useRef(false);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -120,10 +137,13 @@ export function MomoSheet({
   const [invitation, setInvitation] = useState<"day" | "meal" | "injection" | null>(null);
   const [starter, setStarter] = useState<Key | null>(null);
   const [topic, setTopic] = useState<"feeling" | "meal" | "injection">("feeling");
-  const updateText = (value: string) => {
+  const interruptAnalysis = () => {
     requestVersion.current++;
     inflight.current = false;
     setBusy(false);
+  };
+  const updateText = (value: string) => {
+    interruptAnalysis();
     setText(value);
   };
   const voice = useMomoVoice({
@@ -138,6 +158,7 @@ export function MomoSheet({
     () => () => {
       requestVersion.current++;
       photoVersion.current++;
+      captureVersion.current++;
     },
     [],
   );
@@ -149,16 +170,22 @@ export function MomoSheet({
   useEffect(() => {
     requestVersion.current++;
     photoVersion.current++;
+    photoGuard.current = false;
+    setPhotoBusy(false);
     inflight.current = false;
     voice.finish();
     setBusy(false);
     setConsent(false);
     setFailure(null);
+    setHandoffBlocked(false);
     setText("");
     setImages([]);
     setDrafts(null);
     setStep("input");
     setSaved(false);
+    saveGuard.current = false;
+    captureVersion.current++;
+    setSaving(false);
     setUsedVoice(false);
     cache.current = null;
     setInvitation(null);
@@ -204,6 +231,16 @@ export function MomoSheet({
     // Voice lifecycle follows the same account boundary as capture recovery.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recoveryKey]);
+  const ownerId = j.user?.id;
+  const [guestCapture, setGuestCapture] = useState<(GuestCapture & { owner: string }) | null>(null);
+  useEffect(() => {
+    try {
+      const input = ownerId ? claimMomoHandoff(sessionStorage, ownerId) : null;
+      setGuestCapture(input && ownerId ? { ...input, owner: ownerId } : null);
+    } catch {
+      setGuestCapture(null);
+    }
+  }, [ownerId]);
   const recovery = useRef<CaptureRecovery | null>(null);
   recovery.current = {
     key: recoveryKey,
@@ -248,7 +285,8 @@ export function MomoSheet({
   };
 
   const addPhotos = async (files: FileList | null) => {
-    if (!files || photoGuard.current) return;
+    if (!files?.length || photoGuard.current) return;
+    interruptAnalysis();
     photoGuard.current = true;
     setPhotoBusy(true);
     const token = photoVersion.current;
@@ -266,8 +304,10 @@ export function MomoSheet({
     } catch {
       if (token === photoVersion.current) setFailure(t("meal.photoError"));
     } finally {
-      photoGuard.current = false;
-      if (token === photoVersion.current) setPhotoBusy(false);
+      if (token === photoVersion.current) {
+        photoGuard.current = false;
+        setPhotoBusy(false);
+      }
     }
   };
 
@@ -322,7 +362,7 @@ export function MomoSheet({
         if (d.evidence && res.model)
           d.evidence.analysis = {
             model: res.model,
-            promptVersion: "journal-v3",
+            promptVersion: "journal-v5",
             schemaVersion: 1,
             analyzedAt: new Date().toISOString(),
           };
@@ -361,11 +401,18 @@ export function MomoSheet({
     .filter((d) => d.on)
     .map((d) => ({ d, e: draftToEntry(d, d.key, j.tz, today) as Entry }));
   const invalid = entries.filter((x) => "error" in x.e);
+  const undated = entries.filter(({ d }) => !d.f["date"]?.trim());
 
   const confirm = async () => {
     if (saveGuard.current || saved || !entries.length) return;
     if (invalid.length) {
       setFailure(t("evidence.clarify"));
+      const card = Array.from(
+        workspaceRef.current?.querySelectorAll<HTMLElement>("[data-draft-key]") ?? [],
+      ).find((element) => element.dataset["draftKey"] === invalid[0]?.d.key);
+      const editButton = card?.querySelector<HTMLButtonElement>("[data-draft-edit]");
+      if (editButton?.getAttribute("aria-expanded") !== "true") editButton?.click();
+      editButton?.focus();
       return;
     }
     const snapshot = j.snapshot();
@@ -398,11 +445,13 @@ export function MomoSheet({
       const before = j.snapshot();
       j.saveMomoBatch(records, purchases, j.user?.id ?? null);
       const undo = j.undoFor(before);
+      const confirmedVersion = captureVersion.current;
       toast.success(t("evidence.localSaved"), {
         action: {
           label: t("toast.undo"),
           onClick: () => {
             undo();
+            if (captureVersion.current !== confirmedVersion) return;
             saveGuard.current = false;
             setSaved(false);
             setStep("review");
@@ -437,6 +486,7 @@ export function MomoSheet({
       )
     : undefined;
   const resetCapture = () => {
+    captureVersion.current++;
     voice.finish();
     setInvitation(null);
     setStarter(null);
@@ -459,6 +509,7 @@ export function MomoSheet({
   const savedIds = new Set((drafts ?? []).filter((d) => d.on).map((d) => d.key));
   return (
     <div
+      ref={workspaceRef}
       id={inline ? "momo-workspace" : undefined}
       tabIndex={inline ? -1 : undefined}
       data-stage={step}
@@ -503,6 +554,41 @@ export function MomoSheet({
         </>
       )}
 
+      {j.user &&
+        guestCapture?.owner === j.user.id &&
+        !hasSources &&
+        !drafts &&
+        !saved &&
+        step === "input" && (
+          <aside className="rounded-2xl border bg-secondary p-4 space-y-3">
+            <p className="text-sm leading-relaxed">{t("mc.resumeGuestHint")}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                className="min-h-11 whitespace-normal"
+                onClick={() => {
+                  updateText(guestCapture.text);
+                  setImages(guestCapture.images);
+                  setUsedVoice(guestCapture.usedVoice);
+                  setConsent(false);
+                  dismissMomoHandoff(sessionStorage);
+                  setGuestCapture(null);
+                }}
+              >
+                {t("mc.resumeGuest")}
+              </Button>
+              <Button
+                variant="ghost"
+                className="min-h-11"
+                onClick={() => {
+                  dismissMomoHandoff(sessionStorage);
+                  setGuestCapture(null);
+                }}
+              >
+                {t("mc.startFresh")}
+              </Button>
+            </div>
+          </aside>
+        )}
       {saved && (
         <div role="status" className="feel-panel rounded-[20px] bg-secondary p-4 space-y-3">
           <p className="flex items-center gap-2">
@@ -534,7 +620,11 @@ export function MomoSheet({
                     className="min-h-12 w-full justify-start whitespace-normal text-left"
                     onClick={() => openEntry("purchase", p)}
                   >
-                    {p.localDate} · {p.product ?? t("type.purchase")} · {p.amount} {p.currency}
+                    {p.localDate} ·{" "}
+                    {p.product ??
+                      p.medication ??
+                      t(p.addsStock === false ? "type.expense" : "type.purchase")}{" "}
+                    · {formatPurchaseMoney(p)}
                   </Button>
                 </li>
               ))}
@@ -689,19 +779,33 @@ export function MomoSheet({
                 aria-label={t("momo.input")}
                 value={text}
                 onChange={(e) => voice.edit(e.target.value)}
-                onCompositionStart={voice.interrupt}
+                onCompositionStart={() => {
+                  interruptAnalysis();
+                  voice.interrupt();
+                }}
                 rows={3}
-                maxLength={4000}
+                maxLength={100_000}
+                aria-invalid={text.length > 4000 ? true : undefined}
                 placeholder={t(editorial ? "me.placeholder" : (starter ?? "mc.placeholder"))}
                 aria-describedby={
-                  [editorial ? "momo-topic-question" : "", voice.active ? "momo-voice-status" : ""]
+                  [
+                    editorial ? "momo-topic-question" : "",
+                    voice.active ? "momo-voice-status" : "",
+                    text.length >= 3600 ? inputLimitId : "",
+                    text.length > 4000 ? inputLimitId + "-error" : "",
+                  ]
                     .filter(Boolean)
                     .join(" ") || undefined
                 }
                 className="momo-composer block w-full resize-y border-0 bg-transparent px-3.5 pt-3.5 pb-2 text-[16px] leading-relaxed shadow-none outline-none placeholder:text-muted-foreground"
               />
+              {text.length >= 3600 && (
+                <p id={inputLimitId} className="px-3.5 text-sm text-muted-foreground">
+                  {t("mc.characters", { n: text.length })}
+                </p>
+              )}
               {text.length > 4000 && (
-                <p role="alert" className="text-sm text-destructive">
+                <p id={inputLimitId + "-error"} role="alert" className="text-sm text-destructive">
                   {t("mv.limit")}
                 </p>
               )}
@@ -771,6 +875,7 @@ export function MomoSheet({
                     disabled={text.length > 4000}
                     onClick={() => {
                       setStarter(null);
+                      interruptAnalysis();
                       voice.start();
                     }}
                     className="press flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-full px-3 py-2 text-sm font-medium hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring"
@@ -830,6 +935,8 @@ export function MomoSheet({
                       onClick={() => {
                         requestVersion.current++;
                         photoVersion.current++;
+                        photoGuard.current = false;
+                        setPhotoBusy(false);
                         inflight.current = false;
                         setBusy(false);
                         setImages(images.filter((_, k) => k !== i));
@@ -854,15 +961,32 @@ export function MomoSheet({
                 <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" />
                 {failure}
               </p>
-              <div className="mt-3 flex gap-2">
-                <Button
-                  variant="unstyled"
-                  size="unstyled"
-                  onClick={run}
-                  className="press h-11 flex-1 rounded-full border"
+              {handoffBlocked && !j.user && (
+                <a
+                  href="/auth"
+                  className="mt-3 inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4"
+                  onClick={() => {
+                    try {
+                      dismissMomoHandoff(sessionStorage);
+                    } catch {
+                      /* Explicitly continue without recovery. */
+                    }
+                  }}
                 >
-                  {t("momo.retry")}
-                </Button>
+                  {t("mc.signinWithoutDraft")}
+                </a>
+              )}
+              <div className="mt-3 flex gap-2">
+                {j.user && !handoffBlocked && (
+                  <Button
+                    variant="unstyled"
+                    size="unstyled"
+                    onClick={run}
+                    className="press h-11 flex-1 rounded-full border"
+                  >
+                    {t("momo.retry")}
+                  </Button>
+                )}
                 <Button
                   variant="unstyled"
                   size="unstyled"
@@ -907,52 +1031,85 @@ export function MomoSheet({
               {t("mm.resume")}
             </Button>
           )}
+          <p className="text-sm leading-relaxed text-muted-foreground">{t("mc.reviewHint")}</p>
           <div className="momo-capture-actions space-y-1">
-            {(editorial || hasSources || busy) && (
-              <Button
-                variant="unstyled"
-                size="unstyled"
-                onClick={() => {
-                  if (!hasSources) {
-                    textareaRef.current?.focus();
+            {!j.user ? (
+              <a
+                href="/auth"
+                aria-disabled={photoBusy}
+                onClick={(event) => {
+                  if (photoBusy) {
+                    event.preventDefault();
                     return;
                   }
-                  if (!consent) {
-                    const details = textareaRef.current
-                      ?.closest(".journal-form")
-                      ?.querySelector<HTMLDetailsElement>("details[data-momo-consent]");
-                    if (details) {
-                      details.open = true;
-                      details.scrollIntoView({ block: "nearest" });
-                      details.querySelector<HTMLInputElement>('input[type="checkbox"]')?.focus();
-                    }
-                  } else {
-                    void run();
+                  voice.finish();
+                  recovery.current = recovery.current
+                    ? { ...recovery.current, voiceSession: null }
+                    : null;
+                  let kept = persistCapture(recovery.current);
+                  try {
+                    kept = prepareMomoHandoff(sessionStorage, hasSources) && kept;
+                  } catch {
+                    kept = false;
+                  }
+                  if (hasSources && !kept) {
+                    event.preventDefault();
+                    setHandoffBlocked(true);
+                    setFailure(t("mc.draftStorage"));
                   }
                 }}
-                disabled={
-                  (!j.user && hasSources) ||
-                  busy ||
-                  photoBusy ||
-                  voice.active ||
-                  text.length > 4000 ||
-                  (!editorial && !hasSources)
-                }
-                className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold whitespace-normal text-primary-foreground disabled:opacity-50"
-                aria-busy={busy}
+                className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
               >
-                {busy && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
-                {busy
-                  ? t("momo.thinking")
-                  : t(
-                      !j.user && hasSources
-                        ? "mc.signin"
-                        : editorial
-                          ? "me.organize"
-                          : "mc.organize",
-                    )}
-                {!busy && <ArrowRight className="size-5" aria-hidden />}
-              </Button>
+                {t("mc.signinAction")}
+                <ArrowRight className="size-5" aria-hidden />
+              </a>
+            ) : (
+              (editorial || hasSources || busy) && (
+                <Button
+                  variant="unstyled"
+                  size="unstyled"
+                  onClick={() => {
+                    if (!hasSources) {
+                      textareaRef.current?.focus();
+                      return;
+                    }
+                    if (!consent) {
+                      const details = textareaRef.current
+                        ?.closest(".journal-form")
+                        ?.querySelector<HTMLDetailsElement>("details[data-momo-consent]");
+                      if (details) {
+                        details.open = true;
+                        details.scrollIntoView({ block: "nearest" });
+                        details.querySelector<HTMLInputElement>('input[type="checkbox"]')?.focus();
+                      }
+                    } else {
+                      void run();
+                    }
+                  }}
+                  disabled={
+                    (!j.user && hasSources) ||
+                    busy ||
+                    photoBusy ||
+                    voice.active ||
+                    text.length > 4000 ||
+                    (!editorial && !hasSources)
+                  }
+                  className="press flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold whitespace-normal text-primary-foreground disabled:opacity-50"
+                  aria-busy={busy}
+                >
+                  {busy && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
+                  {busy
+                    ? t("momo.thinking")
+                    : t(
+                        !j.user && hasSources
+                          ? "mc.signin"
+                          : editorial
+                            ? "me.organize"
+                            : "mc.organize",
+                      )}
+                  {!busy && <ArrowRight className="size-5" aria-hidden />}
+                </Button>
+              )
             )}
           </div>
           <div className="momo-capture-footer grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2">
@@ -964,12 +1121,19 @@ export function MomoSheet({
                 <input
                   type="checkbox"
                   checked={consent}
-                  onChange={(e) => setConsent(e.target.checked)}
+                  onChange={(e) => {
+                    setConsent(e.target.checked);
+                    if (!e.target.checked) {
+                      requestVersion.current++;
+                      inflight.current = false;
+                      setBusy(false);
+                    }
+                  }}
                 />
-                {t("ai.consent")}
+                {t("mc.consent")}
               </label>
             </details>
-            {!editorial && (
+            {(!editorial || !j.user) && (
               <Button
                 variant="ghost"
                 className="min-h-11 px-2 text-sm whitespace-normal"
@@ -987,7 +1151,18 @@ export function MomoSheet({
               {j.settings.showMomo && (
                 <img src={momo.url} alt="" className="momo-pending size-10 object-contain" />
               )}
-              <span>{t("momo.thinking")}</span>
+              <span className="flex-1">{t("momo.thinking")}</span>
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 shrink-0 whitespace-normal"
+                onClick={() => {
+                  interruptAnalysis();
+                  textareaRef.current?.focus();
+                }}
+              >
+                {t("ai.keepEditing")}
+              </Button>
             </div>
           )}
         </>
@@ -1012,30 +1187,52 @@ export function MomoSheet({
               ))}
             </div>
           </details>
-          {question && (
-            <div
-              role="status"
-              className="rounded-2xl border border-primary/30 bg-secondary p-3 space-y-2"
-            >
-              <p className="font-medium">
-                {t("mm.clarify", {
-                  field: t(
-                    (FIELDS[question.d.type].find(
-                      (f) => f.k === ("error" in question.e ? question.e.error : "date"),
-                    )?.label ?? "f.date") as Key,
-                  ),
-                })}
-              </p>
-              {"error" in question.e && question.e.error === "date" && (
-                <Button
-                  variant="outline"
-                  onClick={() => update(question.d.key, { f: { ...question.d.f, date: today } })}
-                >
-                  {t("today")}
-                </Button>
-              )}
+          {undated.length > 1 && (
+            <div className="rounded-2xl border bg-secondary p-3 space-y-2">
+              <p className="text-sm">{t("mc.undated", { n: undated.length })}</p>
+              <Button
+                variant="outline"
+                className="min-h-11 whitespace-normal"
+                disabled={saving}
+                onClick={() =>
+                  changeDrafts((current) =>
+                    current.map((draft) =>
+                      draft.on && !draft.f["date"]?.trim()
+                        ? { ...draft, f: { ...draft.f, date: today } }
+                        : draft,
+                    ),
+                  )
+                }
+              >
+                {t("mc.useToday", { date: fmtMonthDay(today) })}
+              </Button>
             </div>
           )}
+          {question &&
+            !(undated.length > 1 && "error" in question.e && question.e.error === "date") && (
+              <div
+                role="status"
+                className="rounded-2xl border border-primary/30 bg-secondary p-3 space-y-2"
+              >
+                <p className="font-medium">
+                  {t("mm.clarify", {
+                    field: t(
+                      (FIELDS[question.d.type].find(
+                        (f) => f.k === ("error" in question.e ? question.e.error : "date"),
+                      )?.label ?? "f.date") as Key,
+                    ),
+                  })}
+                </p>
+                {"error" in question.e && question.e.error === "date" && (
+                  <Button
+                    variant="outline"
+                    onClick={() => update(question.d.key, { f: { ...question.d.f, date: today } })}
+                  >
+                    {t("today")}
+                  </Button>
+                )}
+              </div>
+            )}
           {mealQuestion && (
             <div className="rounded-2xl bg-secondary p-3 space-y-2">
               <p>{t("mm.portionQuestion")}</p>
@@ -1073,8 +1270,8 @@ export function MomoSheet({
               {t("momo.manual")}
             </Button>
           )}
-          <div>
-            <p className="mb-2 text-sm text-muted-foreground">{t("momo.shortcuts")}</p>
+          <details className="journal-disclosure">
+            <summary>{t("momo.shortcuts")}</summary>
             <div className="flex flex-wrap gap-2">
               {(
                 [
@@ -1102,7 +1299,7 @@ export function MomoSheet({
                 </Button>
               ))}
             </div>
-          </div>
+          </details>
           <ul className="momo-drafts space-y-3">
             {drafts.map((d) => (
               <DraftCard
@@ -1132,7 +1329,11 @@ export function MomoSheet({
               onClick={confirm}
               disabled={saving || !entries.length}
             >
-              {saving ? t("momo.saving") : t("mm.confirm", { n: entries.length })}
+              {saving
+                ? t("momo.saving")
+                : invalid.length
+                  ? t("mc.checkSelected", { n: invalid.length })
+                  : t("mm.confirm", { n: entries.length })}
             </Button>
             <Button variant="ghost" className="min-h-11 w-full" onClick={() => setStep("input")}>
               <Undo2 className="size-4" />
@@ -1143,6 +1344,77 @@ export function MomoSheet({
       )}
     </div>
   );
+}
+
+function draftPreview(d: Draft) {
+  const value = (key: string) => d.f[key]?.trim() || t("unknown");
+  const fact = (key: string, label: Key) => t(label) + ": " + value(key);
+  switch (d.type) {
+    case "water":
+      return {
+        title:
+          d.f["answer"] === "yes"
+            ? t("water.yes")
+            : d.f["answer"] === "not_yet"
+              ? t("water.notYet")
+              : t("unknown"),
+        details: [],
+      };
+    case "weight":
+      return { title: d.f["value"]?.trim() ? value("value") + " kg" : t("unknown"), details: [] };
+    case "injection":
+      return {
+        title: value("medication"),
+        details: [
+          t("f.dose") +
+            ": " +
+            (d.f["doseValue"]?.trim()
+              ? value("doseValue") + " " + value("doseUnit")
+              : t("unknown")),
+          fact("site", "f.site"),
+        ],
+      };
+    case "measure":
+      return {
+        title: t("type.measure"),
+        details: FIELDS.measure
+          .filter((field) => field.kind === "num" && d.f[field.k]?.trim())
+          .map((field) => fact(field.k, field.label as Key)),
+      };
+    case "purchase":
+    case "expense":
+      return {
+        title: d.type === "purchase" ? value("medication") : value("product"),
+        details: [
+          t("f.amount") +
+            ": " +
+            (d.f["amount"]?.trim() ? value("amount") + " " + value("currency") : t("unknown")),
+          ...(d.f["quantity"]?.trim() ? [fact("quantity", "f.quantity")] : []),
+          ...(d.type === "purchase"
+            ? [
+                t("f.unit") +
+                  ": " +
+                  (d.f["stockUnit"] === "pen" ||
+                  d.f["stockUnit"] === "single" ||
+                  d.f["stockUnit"] === "dose"
+                    ? t(`unit.${d.f["stockUnit"]}`)
+                    : t("unknown")),
+              ]
+            : []),
+          ...(d.f["merchant"]?.trim() ? [fact("merchant", "f.merchant")] : []),
+        ],
+      };
+    case "condition":
+      return { title: value("label"), details: d.f["note"]?.trim() ? [d.f["note"]!.trim()] : [] };
+    case "memory":
+      return { title: value("note"), details: [] };
+    case "meal":
+      try {
+        return { title: JSON.parse(d.f["meal"] ?? "").title || t("unknown"), details: [] };
+      } catch {
+        return { title: t("unknown"), details: [] };
+      }
+  }
 }
 
 function DraftCard({
@@ -1159,9 +1431,17 @@ function DraftCard({
   const j = useJournal();
   const open = useQuickAdd();
   const miss = missingFields(d);
+  const preview = draftPreview(d);
   const entry = draftToEntry(d, d.key, j.tz, todayLocal(j.tz));
   const [expanded, setExpanded] = useState(false);
+  const period = d.f["partOfDay"] ?? partOfDayFromHint(d.timeHint);
+  const periodLabel = isPartOfDay(period) ? t(`pod.${period}`) : "";
+  const errorField = d.on && "error" in entry ? entry.error : null;
+  const fieldLabel = errorField
+    ? t((FIELDS[d.type].find((field) => field.k === errorField)?.label ?? "f.date") as Key)
+    : "";
   const Icon = {
+    water: Droplet,
     weight: Scale,
     injection: Syringe,
     condition: Smile,
@@ -1173,6 +1453,7 @@ function DraftCard({
   }[d.type];
   return (
     <li
+      data-draft-key={d.key}
       className={cn(
         "app-surface rounded-[22px] border bg-card p-4",
         d.on ? "border-primary" : "opacity-60",
@@ -1203,23 +1484,18 @@ function DraftCard({
           </Button>
         </div>
       </div>
-      <p className="mt-2 text-[18px] font-bold">
-        {d.type === "meal"
-          ? (() => {
-              try {
-                return JSON.parse(d.f["meal"] ?? "").title;
-              } catch {
-                return t("unknown");
-              }
-            })()
-          : d.f["value"] ||
-            d.f["medication"] ||
-            d.f["label"] ||
-            d.f["amount"] ||
-            d.f["note"] ||
-            t("unknown")}
+      <p className="mt-2 break-words text-[18px] font-bold">{preview.title}</p>
+      {preview.details.length > 0 && (
+        <ul className="mt-1 space-y-1 text-sm leading-relaxed break-words">
+          {preview.details.map((detail, index) => (
+            <li key={index}>{detail}</li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-1 text-sm">
+        {d.f["date"] || t("evidence.clarify")}
+        {d.f["time"] ? " · " + d.f["time"] : periodLabel ? " · " + periodLabel : ""}
       </p>
-      <p className="text-sm">{d.f["date"] || t("evidence.clarify")}</p>
       {d.type === "meal" && (
         <p className="mt-1 text-sm font-medium text-primary">{t("mm.estimate")}</p>
       )}
@@ -1227,14 +1503,19 @@ function DraftCard({
         variant="unstyled"
         size="unstyled"
         className="mt-2 min-h-11 rounded-full border px-3 text-sm font-medium"
+        data-draft-edit
         aria-expanded={expanded}
         onClick={() => setExpanded(!expanded)}
       >
-        {t("evidence.edit")}
+        {errorField ? t("mc.fixField", { field: fieldLabel }) : t("evidence.edit")}
       </Button>
       {d.evidence && (
         <div className="mt-2">
-          <SourceEvidence evidence={{ ...d.evidence, confirmed: d.f }} />
+          <SourceEvidence
+            evidence={
+              ("record" in entry && entry.record.evidence) || { ...d.evidence, confirmed: d.f }
+            }
+          />
         </div>
       )}
       {d.dup && (
@@ -1264,7 +1545,7 @@ function DraftCard({
                 className="mt-2 w-full whitespace-normal"
                 onClick={() => open("purchase", p)}
               >
-                {p.localDate} · {p.product ?? t("type.purchase")} · {p.amount} {p.currency}
+                {p.localDate} · {p.product ?? t("type.purchase")} · {formatPurchaseMoney(p)}
               </Button>
             ))}
         </div>
@@ -1279,7 +1560,48 @@ function DraftCard({
           {FIELDS[d.type]
             .filter((f) => f.k !== "meal")
             .map((f) =>
-              f.k === "medication" ? (
+              f.k === "stockUnit" ? (
+                <label key={f.k} className="col-span-2">
+                  <span className="mb-1 block text-sm font-medium">{t("f.unit")}</span>
+                  <select
+                    className={inputCls}
+                    value={d.f["stockUnit"] ?? ""}
+                    onChange={(event) => onChange({ f: { ...d.f, stockUnit: event.target.value } })}
+                  >
+                    <option value="">{t("unknown")}</option>
+                    {(["single", "pen", "dose"] as const).map((unit) => (
+                      <option key={unit} value={unit}>
+                        {t(`unit.${unit}`)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : f.k === "partOfDay" ? (
+                <TimeOfDayField
+                  key={f.k}
+                  value={period ?? ""}
+                  disabled={!!d.f["time"]?.trim()}
+                  onChange={(value) => onChange({ f: { ...d.f, partOfDay: value } })}
+                />
+              ) : f.k === "answer" ? (
+                <label key={f.k} className="col-span-2">
+                  <span className="mb-1 block text-sm font-medium">{t("type.water")}</span>
+                  <select
+                    aria-label={t("type.water")}
+                    aria-describedby={"water-hint-" + d.key}
+                    className={inputCls}
+                    value={d.f["answer"] ?? ""}
+                    onChange={(event) => onChange({ f: { ...d.f, answer: event.target.value } })}
+                  >
+                    <option value="">{t("unknown")}</option>
+                    <option value="yes">{t("water.yes")}</option>
+                    <option value="not_yet">{t("water.notYet")}</option>
+                  </select>
+                  <p id={"water-hint-" + d.key} className="mt-1 text-sm text-muted-foreground">
+                    {t("water.note")}
+                  </p>
+                </label>
+              ) : f.k === "medication" ? (
                 <div key={f.k} className="col-span-2">
                   <span className="mb-1 block text-sm font-medium">{t(f.label as Key)}</span>
                   <MedicationPicker
@@ -1312,10 +1634,20 @@ function DraftCard({
                     className={inputCls}
                     type={f.kind === "date" ? "date" : f.kind === "time" ? "time" : "text"}
                     inputMode={f.kind === "num" ? "decimal" : undefined}
+                    aria-label={f.k === "amount" ? t("f.amount") : undefined}
+                    aria-describedby={f.k === "amount" ? "momo-amount-hint-" + d.key : undefined}
                     value={d.f[f.k] ?? ""}
                     placeholder={f.kind === "time" ? t("unknown") : t("missing")}
                     onChange={(e) => onChange({ f: { ...d.f, [f.k]: e.target.value } })}
                   />
+                  {f.k === "amount" && (
+                    <span
+                      id={"momo-amount-hint-" + d.key}
+                      className="mt-1 block text-sm text-muted-foreground"
+                    >
+                      {t("money.hint")}
+                    </span>
+                  )}
                 </label>
               ),
             )}
@@ -1332,6 +1664,9 @@ function DraftCard({
           {miss.map((k) => t(FIELDS[d.type].find((f) => f.k === k)!.label as Key)).join(", ")}
         </p>
       )}
+      {d.type === "purchase" && (!d.f["medication"]?.trim() || !d.f["stockUnit"]?.trim()) && (
+        <p className="mt-2 text-sm text-muted-foreground">{t("momo.stockReview")}</p>
+      )}
       {d.type === "injection" && (
         <p className="mt-1 text-sm text-muted-foreground">
           {t("stock.move")}: {t("evidence.stockLater")}
@@ -1340,7 +1675,7 @@ function DraftCard({
 
       {error && (
         <p role="alert" className="mt-2 text-sm text-destructive">
-          {error}
+          {errorField ? t("mc.checkField", { field: fieldLabel }) : error}
         </p>
       )}
     </li>

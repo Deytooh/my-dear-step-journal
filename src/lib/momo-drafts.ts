@@ -3,6 +3,9 @@ import type { MomoCandidate } from "./momo-schema";
 import type { Evidence, JournalRecord, PartOfDay, Purchase } from "./journal";
 import { mealSchema } from "./meals";
 import { instantFromLocal } from "./dates";
+import { parseAmountInput } from "./amount-input";
+import { purchaseMoneyFacts } from "./purchase-money";
+import { isPartOfDay } from "./time-of-day";
 
 export type DraftType = MomoCandidate["type"];
 export type FieldKind = "text" | "num" | "date" | "time";
@@ -19,29 +22,39 @@ export type Draft = {
 };
 
 export const FIELDS: Record<DraftType, FieldDef[]> = {
+  water: [
+    { k: "answer", label: "type.water", kind: "text", important: true },
+    { k: "date", label: "f.date", kind: "date" },
+    { k: "time", label: "f.time", kind: "time" },
+    { k: "partOfDay", label: "time.period", kind: "text" },
+  ],
   meal: [
     { k: "meal", label: "type.meal", kind: "text" },
     { k: "date", label: "f.date", kind: "date", important: true },
     { k: "time", label: "f.time", kind: "time" },
+    { k: "partOfDay", label: "time.period", kind: "text" },
   ],
   weight: [
     { k: "value", label: "f.value", kind: "num", important: true },
     { k: "date", label: "f.date", kind: "date" },
     { k: "time", label: "f.time", kind: "time", important: true },
+    { k: "partOfDay", label: "time.period", kind: "text" },
   ],
   injection: [
     { k: "medication", label: "f.medication", kind: "text", important: true },
     { k: "doseValue", label: "f.dose", kind: "num", important: true },
-    { k: "doseUnit", label: "f.unit", kind: "text" },
+    { k: "doseUnit", label: "ux.doseUnit", kind: "text" },
     { k: "site", label: "f.site", kind: "text", important: true },
     { k: "date", label: "f.date", kind: "date" },
     { k: "time", label: "f.time", kind: "time", important: true },
+    { k: "partOfDay", label: "time.period", kind: "text" },
   ],
   condition: [
     { k: "label", label: "f.feeling", kind: "text", important: true },
     { k: "note", label: "f.note", kind: "text" },
     { k: "date", label: "f.date", kind: "date" },
     { k: "time", label: "f.time", kind: "time" },
+    { k: "partOfDay", label: "time.period", kind: "text" },
   ],
   measure: [
     { k: "waist", label: "f.waist", kind: "num" },
@@ -50,15 +63,18 @@ export const FIELDS: Record<DraftType, FieldDef[]> = {
     { k: "thigh", label: "f.thigh", kind: "num" },
     { k: "date", label: "f.date", kind: "date" },
     { k: "time", label: "f.time", kind: "time" },
+    { k: "partOfDay", label: "time.period", kind: "text" },
   ],
   memory: [
     { k: "note", label: "f.note", kind: "text", important: true },
     { k: "date", label: "f.date", kind: "date" },
     { k: "time", label: "f.time", kind: "time" },
+    { k: "partOfDay", label: "time.period", kind: "text" },
   ],
   purchase: [
     { k: "medication", label: "f.medication", kind: "text", important: true },
     { k: "quantity", label: "f.quantity", kind: "num", important: true },
+    { k: "stockUnit", label: "f.unit", kind: "text", important: true },
     { k: "amount", label: "f.amount", kind: "num" },
     { k: "currency", label: "evidence.currency", kind: "text" },
     { k: "merchant", label: "f.merchant", kind: "text" },
@@ -84,7 +100,13 @@ export function candidateToDraft(
 ): Draft {
   const f: Record<string, string> = {};
   const rec = c as unknown as Record<string, unknown>;
-  for (const def of FIELDS[c.type]) f[def.k] = def.k === "date" ? s(rec["date"]) : s(rec[def.k]);
+  for (const def of FIELDS[c.type])
+    f[def.k] =
+      def.k === "partOfDay"
+        ? s(c.time ? null : partOfDayFromHint(c.timeHint ?? null))
+        : def.k === "date"
+          ? s(rec["date"])
+          : s(rec[def.k]);
   const photos = c.photoIndices?.length
     ? c.photoIndices.flatMap((i) => (input?.photos[i] ? [input.photos[i]!] : []))
     : c.quote
@@ -138,14 +160,29 @@ export function draftToEntry(d: Draft, id: string, tz: string, today: string): E
   const f = d.f;
   const date = /^\d{4}-\d{2}-\d{2}$/.test(f["date"] ?? "") ? f["date"]! : "";
   const time = /^\d{2}:\d{2}$/.test(f["time"] ?? "") ? f["time"]! : null;
-  const pod = time ? null : partOfDayFromHint(d.timeHint);
+  const period = f["partOfDay"];
+  const validatedPeriod = isPartOfDay(period) ? period : null;
+  if (period && !validatedPeriod) return { error: "partOfDay" };
+  // An explicit blank clears an approximate suggestion; old cached drafts still retain their hint.
+  const pod = time ? null : period === undefined ? partOfDayFromHint(d.timeHint) : validatedPeriod;
   if (
     f["date"] &&
     (!date || Number.isNaN(Date.parse(date)) || new Date(date).toISOString().slice(0, 10) !== date)
   )
     return { error: "date" };
   if (f["time"] && !/^([01]\d|2[0-3]):[0-5]\d$/.test(f["time"])) return { error: "time" };
-  const evidence = d.evidence ? { ...d.evidence, confirmed: { ...f } } : undefined;
+  const evidence = d.evidence
+    ? {
+        ...d.evidence,
+        proposed: {
+          ...d.evidence.proposed,
+          ...(period !== undefined && d.evidence.proposed["partOfDay"] === undefined
+            ? { partOfDay: d.evidence.proposed["time"] ? "" : s(partOfDayFromHint(d.timeHint)) }
+            : {}),
+        },
+        confirmed: { ...f, ...(period !== undefined ? { partOfDay: s(pod) } : {}) },
+      }
+    : undefined;
   const base = {
     ...(evidence ? { evidence } : {}),
     id,
@@ -160,6 +197,11 @@ export function draftToEntry(d: Draft, id: string, tz: string, today: string): E
   // The journal requires a calendar day: ask for it rather than silently using today.
   if (!date) return bad("date");
   switch (d.type) {
+    case "water": {
+      const answer = f["answer"];
+      if (answer !== "yes" && answer !== "not_yet") return bad("answer");
+      return { record: { ...base, type: "water", answer } };
+    }
     case "meal": {
       try {
         const parsed = mealSchema.safeParse(JSON.parse(f["meal"] ?? ""));
@@ -233,7 +275,10 @@ export function draftToEntry(d: Draft, id: string, tz: string, today: string): E
       const q = n(f["quantity"]);
       if (q == null || !Number.isInteger(q) || q <= 0) return bad("quantity");
       if (!date) return bad("date");
-      const a = n(f["amount"]);
+      const unit = f["stockUnit"]?.trim() || "";
+      const stockUnit = unit === "pen" || unit === "single" || unit === "dose" ? unit : null;
+      if (unit && !stockUnit) return bad("stockUnit");
+      const a = parseAmountInput(f["amount"]);
       if (a !== null && (Number.isNaN(a) || a < 0)) return bad("amount");
       const cur = (f["currency"] ?? "").trim().toUpperCase() || "KRW";
       if (!/^[A-Z]{3}$/.test(cur)) return bad("currency");
@@ -250,13 +295,13 @@ export function draftToEntry(d: Draft, id: string, tz: string, today: string): E
           medication: f["medication"]?.trim() || null,
           product: null,
           merchant: f["merchant"]?.trim() || null,
-          stockUnit: "single",
+          stockUnit,
           addsStock: true,
         },
       };
     }
     case "expense": {
-      const a = n(f["amount"]);
+      const a = parseAmountInput(f["amount"]);
       if (a == null || Number.isNaN(a) || a <= 0) return bad("amount");
       if (!date) return bad("date");
       if (!/^[A-Z]{3}$/.test(f["currency"] ?? "")) return bad("currency");
@@ -285,18 +330,85 @@ export function draftToEntry(d: Draft, id: string, tz: string, today: string): E
 
 /** A conservative duplicate check against what's already in the journal. */
 export function isDuplicate(e: Entry, records: JournalRecord[], purchases: Purchase[]) {
-  if ("purchase" in e)
-    return purchases.some(
-      (p) => p.localDate === e.purchase.localDate && p.amount === e.purchase.amount,
-    );
+  if ("purchase" in e) {
+    const next = e.purchase;
+    const money = purchaseMoneyFacts(next);
+    return purchases.some((purchase) => {
+      if (purchase.localDate !== next.localDate) return false;
+      const prior = purchaseMoneyFacts(purchase);
+      const text = (value: string | null | undefined) => value?.trim().normalize("NFC") || "";
+      const sameDetails =
+        (purchase.addsStock !== false) === (next.addsStock !== false) &&
+        text(purchase.medication) === text(next.medication) &&
+        text(purchase.product) === text(next.product) &&
+        text(purchase.merchant) === text(next.merchant) &&
+        (purchase.stockUnit ?? null) === (next.stockUnit ?? null) &&
+        (purchase.quantity ?? purchase.doses) === (next.quantity ?? next.doses);
+      if (!sameDetails) return false;
+      const sameSource =
+        !!purchase.evidence?.quote &&
+        purchase.evidence.quote === next.evidence?.quote &&
+        purchase.evidence.text === next.evidence?.text;
+      if (
+        money.amount !== null &&
+        money.currency !== null &&
+        prior.amount !== null &&
+        prior.currency !== null
+      )
+        return (
+          prior.amount === money.amount &&
+          prior.currency === money.currency &&
+          (!!text(next.medication) || !!text(next.product) || !!text(next.merchant) || sameSource)
+        );
+      // Unknown prices need matching source facts, never placeholder zeroes.
+      return prior.amount === money.amount && prior.currency === money.currency && sameSource;
+    });
+  }
   if (!("record" in e)) return false;
   const r = e.record;
   return records.some((x) => {
     if (x.type !== r.type || x.localDate !== r.localDate) return false;
+    if (r.type === "water" && x.type === "water")
+      return (
+        x.answer === r.answer && x.at === r.at && (x.partOfDay ?? null) === (r.partOfDay ?? null)
+      );
+    if (x.at !== r.at || (x.partOfDay ?? null) !== (r.partOfDay ?? null)) return false;
     if (r.type === "weight" && x.type === "weight") return x.value === r.value;
-    if (r.type === "condition" && x.type === "condition") return x.label === r.label;
-    if (r.type === "meal" && x.type === "meal") return x.meal.title === r.meal.title;
+    if (r.type === "condition" && x.type === "condition")
+      return x.label === r.label && (x.note ?? "") === (r.note ?? "");
+    if (r.type === "meal" && x.type === "meal") {
+      const facts = (meal: typeof r.meal) => ({
+        title: meal.title,
+        mealType: meal.mealType,
+        consumedFraction: meal.consumedFraction,
+        consumptionNote: meal.consumptionNote ?? "",
+        note: meal.note ?? "",
+        // Generated item IDs and analysis timestamps do not identify a meal.
+        items: meal.items.map(({ id: _id, ...item }) => item),
+      });
+      return JSON.stringify(facts(x.meal)) === JSON.stringify(facts(r.meal));
+    }
     if (r.type === "memory" && x.type === "memory") return x.note === r.note;
-    return r.type === "injection" || r.type === "measure";
+    if (r.type === "measure" && x.type === "measure")
+      return x.waist === r.waist && x.hip === r.hip && x.chest === r.chest && x.thigh === r.thigh;
+    if (r.type === "injection" && x.type === "injection") {
+      if (
+        x.medication !== r.medication ||
+        x.doseValue !== r.doseValue ||
+        x.doseUnit !== r.doseUnit ||
+        x.site !== r.site
+      )
+        return false;
+      // Two unspecified injections on one date are not enough evidence of a duplicate.
+      return !!(
+        r.medication ||
+        r.doseValue !== null ||
+        r.site ||
+        (r.evidence?.quote &&
+          r.evidence.quote === x.evidence?.quote &&
+          r.evidence.text === x.evidence?.text)
+      );
+    }
+    return false;
   });
 }

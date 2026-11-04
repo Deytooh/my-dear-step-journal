@@ -2,12 +2,13 @@ import { Button } from "@/components/ui/button";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search, ChevronRight, Bell } from "lucide-react";
 import { useState } from "react";
-import { t, fmtMoney } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 import { fmtMonthDay, fmtMonthDayWeekday, todayLocal } from "@/lib/dates";
 import { sortByTime, useJournal } from "@/lib/journal";
 import { useQuickAdd } from "@/components/app/AppShell";
 import { Card, DemoTag, RecordRow, SectionHeader } from "@/components/app/ui";
 import { reminderText } from "@/components/app/ReminderCard";
+import { formatPurchaseMoney } from "@/lib/purchase-money";
 import { MomoSheet } from "@/components/app/MomoSheet";
 import { RecordFinder } from "@/components/app/RecordFinder";
 import { PromptCarousel } from "@/components/app/PromptCarousel";
@@ -127,7 +128,8 @@ function Today() {
               >
                 <span className="min-w-0">
                   <span className="block text-xs text-muted-foreground">
-                    {t("type.purchase")} · {fmtMonthDay(item.date)}
+                    {t(item.purchase.addsStock === false ? "type.expense" : "type.purchase")} ·{" "}
+                    {fmtMonthDay(item.date)}
                     <DemoTag show={item.purchase.demo} />
                   </span>
                   <span className="block text-[16px] font-semibold">
@@ -135,7 +137,7 @@ function Today() {
                   </span>
                 </span>
                 <span className="shrink-0 text-sm font-semibold">
-                  {fmtMoney(item.purchase.amount, item.purchase.currency)}
+                  {formatPurchaseMoney(item.purchase)}
                 </span>
               </Button>
             ) : null,

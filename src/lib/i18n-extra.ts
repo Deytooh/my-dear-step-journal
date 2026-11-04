@@ -2,6 +2,64 @@
 type D = Record<string, string>;
 
 export const en: D = {
+  "recovery.language": "Language",
+  "recovery.missingTitle": "Page not found",
+  "recovery.missingHelp": "Check the address, or return to Today.",
+  "recovery.errorTitle": "Could not open this page",
+  "recovery.errorHelp": "Try again, or return to Today.",
+  "recovery.retry": "Try again",
+  "recovery.home": "Back to Today",
+  "mc.characters": "{n} / 4,000 characters",
+  "time.period": "Time of day",
+  "time.periodHelp": "Optional, when the exact time is unknown.",
+  "momo.stockReview":
+    "Medication or quantity unit is missing. Save for stock review, or edit the details.",
+  "money.unknown": "Amount unknown",
+  "money.currencyUnknown": "{amount} · currency unknown",
+  "money.knownSpend": "Known spending this month",
+  "money.unknownCount": "Prices incomplete: {n}",
+  "ai.keepEditing": "Keep editing",
+  "money.stockDetails": "Inventory details (optional)",
+  "money.hint": "No thousands separators. Decimals: 12.50 or 12,50.",
+  "money.invalid": "Enter an amount without thousands separators, such as 12000 or 12.50.",
+  "evidence.eaten": "Amount eaten",
+  "evidence.excluded": "Excluded",
+  "auth.unavailable": "Could not connect. Please try again.",
+  "auth.connecting": "Connecting…",
+  "photo.viewSource": "View source photo {n}",
+  "mc.undated": "{n} selected entries have no date.",
+  "mc.useToday": "Use today · {date}",
+
+  "mc.consent": "Send these words and selected photos to Meta via Baseten.",
+  "meal.consent": "Send this meal note and selected photos to Meta via Baseten.",
+  "find.consent": "Send this search and text from up to 60 synced entries to Meta via Baseten.",
+
+  "find.syncRequired":
+    "Momo searches synced entries. Use keyword search until syncing is complete.",
+  "find.showing": "Showing {shown} of {total}",
+  "find.more": "Show more entries",
+  "find.queryLimit": "{n} / 300 characters",
+
+  "mc.draftStorage":
+    "Your draft could not be kept for sign-in. It is still here. Copy your words or remove a photo, then try again.",
+  "mc.signinWithoutDraft": "Sign in without this draft",
+
+  "mc.signinAction": "Sign in to use Momo",
+  "intro.tryMomo": "Start with Momo",
+  "intro.momoPreview":
+    "Describe your day, review suggestions, then confirm. Sign in for AI, or add entries manually.",
+
+  "mc.fixField": "Check {field}",
+  "mc.checkField": "Check {field} before saving, or deselect this entry.",
+  "mc.checkSelected": "Review details ({n})",
+
+  "mc.resumeGuestHint":
+    "You started a draft before signing in. Continue it here? Nothing is sent to AI or added to your journal until you choose.",
+  "mc.resumeGuest": "Continue my draft",
+  "mc.startFresh": "Start fresh",
+
+  "intro.language": "Choose your language",
+  "mc.reviewHint": "Momo suggests entries. Review and edit them, then confirm what to save.",
   "me.title": "A bit of today,\nwith Momo.",
   "me.subtitle": "Your words and photos, organized.",
   "me.feeling": "Feeling",
@@ -56,8 +114,7 @@ export const en: D = {
   "mv.unsupported": "Dictation could not start in this browser. Continue with text or photos.",
   "mv.blocked":
     "Check microphone permission or your device. We won’t retry automatically. You can use text or photos.",
-  "mv.limit":
-    "Dictation paused above 4,000 characters. All text is kept. Shorten it to 4,000 characters before analysis.",
+  "mv.limit": "Your text is over 4,000 characters. It stays here. Shorten it before organizing.",
 
   "mm.estimate": "Estimate · review before saving",
   "mm.title": "What would you like to keep today?",
@@ -156,7 +213,7 @@ export const en: D = {
   "evidence.clarify":
     "Confirm the date and required values. Leave unknown medication, dose, time and site blank.",
   "evidence.corrected": "Your correction",
-  "evidence.currency": "Currency code (KRW, USD, …)",
+  "evidence.currency": "Currency",
   "evidence.edit": "Details · edit",
   "evidence.localSaved": "Saved on this device. Account sync status is shown below.",
   "evidence.mixed": "Text · photos",
@@ -181,9 +238,9 @@ export const en: D = {
   "stock.lot": "Stock purchase lot",
   "stock.multiple": "View stock by product",
   "stock.product": "Product · presentation",
-  "stock.provisional": "Only confirmed allocations are counted. Review older entries.",
+  "stock.provisional": "Stock is incomplete. Review the entries below.",
   "stock.purchaseReview": "Purchases needing medication/unit review: {n}",
-  "stock.review": "Review older stock links",
+  "stock.review": "Review stock details",
   "stock.unlinked": "Injections needing a stock link: {n}",
 
   "validation.date": "Check the date and time. Select unknown when the time is not known.",
@@ -374,7 +431,7 @@ export const en: D = {
   "inj.lastPurchase": "Last purchase",
   "inj.basis": "Based on purchases you entered",
   "inj.tabRecords": "Shot log",
-  "inj.tabStock": "Purchases · stock",
+  "inj.tabStock": "Purchases · expenses",
   "inj.recent": "Recent",
   "inj.add": "Log shot",
   "inj.editNote": "You can edit anything you saved.",
@@ -413,7 +470,7 @@ export const en: D = {
   "f.optional": "optional",
   "f.feeling": "Feeling",
   "f.note": "Note",
-  "f.amount": "Amount (KRW)",
+  "f.amount": "Amount",
   "f.doses": "Doses bought",
   "f.photo": "Photo",
   "f.reminderAt": "Reminder date and time",
@@ -555,11 +612,12 @@ export const en: D = {
   "momo.invalid": "Some values need checking",
   "type.expense": "Expense",
   "f.quantity": "Quantity",
-  "find.title": "Find entries with Momo",
-  "find.sub": "Searches only your own entries.",
+  "find.title": "Find my entries",
+  "find.keywords": "Search keywords",
+  "find.sub": "Search your entries by word, date or amount. Momo is optional.",
   "find.placeholder": "e.g. walk, café, abdomen",
   "find.none": "No matching entries.",
-  "find.count": "Found {n} entries",
+  "find.count": "Entries found: {n}",
   "find.open": "Open entry",
   "chart.unit": "Weight (kg)",
   "chart.injBand": "Shots",
@@ -594,6 +652,67 @@ export const en: D = {
 };
 
 export const fr: D = {
+  "recovery.language": "Langue",
+  "recovery.missingTitle": "Page introuvable",
+  "recovery.missingHelp": "Vérifiez l’adresse ou revenez à Aujourd’hui.",
+  "recovery.errorTitle": "Impossible d’ouvrir cette page",
+  "recovery.errorHelp": "Réessayez ou revenez à Aujourd’hui.",
+  "recovery.retry": "Réessayer",
+  "recovery.home": "Retour à Aujourd’hui",
+  "mc.characters": "{n} / 4 000 caractères",
+  "time.period": "Moment de la journée",
+  "time.periodHelp": "Facultatif, si l’heure exacte est inconnue.",
+  "momo.stockReview":
+    "Médicament ou unité manquants. Enregistrez pour vérifier le stock ou corrigez les détails.",
+  "money.unknown": "Montant inconnu",
+  "money.currencyUnknown": "{amount} · devise inconnue",
+  "money.knownSpend": "Dépenses connues ce mois-ci",
+  "money.unknownCount": "Prix incomplets : {n}",
+  "ai.keepEditing": "Continuer à modifier",
+  "money.stockDetails": "Détails du stock (facultatif)",
+  "money.hint": "Sans séparateur de milliers. Décimales : 12,50 ou 12.50.",
+  "money.invalid": "Saisissez un montant sans séparateur de milliers, comme 12000 ou 12,50.",
+  "evidence.eaten": "Quantité consommée",
+  "evidence.excluded": "Exclu",
+  "auth.unavailable": "Connexion impossible. Réessayez.",
+  "auth.connecting": "Connexion en cours…",
+  "photo.viewSource": "Voir la photo source {n}",
+  "mc.undated": "{n} entrées sélectionnées n’ont pas de date.",
+  "mc.useToday": "Utiliser aujourd’hui · {date}",
+
+  "mc.consent": "Envoyer ce texte et les photos choisies au modèle Meta via Baseten.",
+  "meal.consent": "Envoyer cette note de repas et les photos choisies au modèle Meta via Baseten.",
+  "find.consent":
+    "Envoyer cette recherche et le texte de 60 entrées synchronisées au maximum au modèle Meta via Baseten.",
+
+  "find.syncRequired":
+    "Momo recherche dans les entrées synchronisées. En attendant, la recherche par mots-clés reste disponible.",
+  "find.showing": "{shown} sur {total} affichées",
+  "find.more": "Afficher plus d’entrées",
+  "find.queryLimit": "{n} / 300 caractères",
+
+  "mc.draftStorage":
+    "Impossible de conserver ce brouillon pour la connexion. Il est toujours ici. Copiez votre texte ou retirez une photo, puis réessayez.",
+  "mc.signinWithoutDraft": "Se connecter sans ce brouillon",
+
+  "mc.signinAction": "Se connecter pour utiliser Momo",
+  "intro.tryMomo": "Commencer avec Momo",
+  "intro.momoPreview":
+    "Racontez votre journée, relisez les propositions, puis confirmez. Connectez-vous pour l’IA, ou saisissez vos entrées manuellement.",
+
+  "mc.fixField": "Vérifier : {field}",
+  "mc.checkField":
+    "Vérifiez ce champ avant d’enregistrer, ou désélectionnez cette entrée : {field}.",
+  "mc.checkSelected": "Vérifier les détails ({n})",
+
+  "mc.resumeGuestHint":
+    "Vous aviez commencé un brouillon avant de vous connecter. Le reprendre ici ? Rien n’est envoyé à l’IA ni enregistré sans votre accord.",
+  "mc.resumeGuest": "Reprendre mon brouillon",
+  "mc.startFresh": "Repartir de zéro",
+
+  "intro.language": "Choisissez votre langue",
+  "mc.reviewHint":
+    "Momo propose des entrées. Relisez, corrigez, puis confirmez ce que vous souhaitez enregistrer.",
   "me.title": "Un instant,\npour Momo.",
   "me.subtitle": "Vos mots et photos deviennent votre journal.",
   "me.feeling": "Ressenti",
@@ -651,7 +770,7 @@ export const fr: D = {
   "mv.blocked":
     "Vérifie l’autorisation ou le microphone. Pas de reprise automatique. Tu peux continuer avec du texte ou des photos.",
   "mv.limit":
-    "La dictée s’est arrêtée au-delà de 4 000 caractères. Tout le texte est conservé. Raccourcis-le avant l’analyse.",
+    "Votre texte dépasse 4 000 caractères. Il est conservé ici. Raccourcissez-le avant de l’organiser.",
 
   "mm.estimate": "Estimation · à vérifier",
   "mm.title": "Que souhaitez-vous garder aujourd’hui ?",
@@ -755,7 +874,7 @@ export const fr: D = {
   "evidence.clarify":
     "Confirmez la date et les valeurs requises. Laissez médicament, dose, heure et zone inconnus vides.",
   "evidence.corrected": "Votre correction",
-  "evidence.currency": "Code devise (KRW, USD, …)",
+  "evidence.currency": "Devise",
   "evidence.edit": "Détails · modifier",
   "evidence.localSaved": "Enregistré sur cet appareil. Le statut du compte est indiqué ci-dessous.",
   "evidence.mixed": "Texte · photos",
@@ -780,10 +899,9 @@ export const fr: D = {
   "stock.lot": "Lot d’achat",
   "stock.multiple": "Voir le stock par produit",
   "stock.product": "Produit · présentation",
-  "stock.provisional":
-    "Seules les allocations confirmées sont comptées. Vérifiez les anciennes entrées.",
+  "stock.provisional": "Le stock est incomplet. Vérifiez les entrées ci-dessous.",
   "stock.purchaseReview": "Achats à vérifier (médicament/unité) : {n}",
-  "stock.review": "Vérifier les anciens liens de stock",
+  "stock.review": "Vérifier les détails du stock",
   "stock.unlinked": "Injections à relier au stock : {n}",
 
   "validation.date":
@@ -976,7 +1094,7 @@ export const fr: D = {
   "inj.lastPurchase": "Dernier achat",
   "inj.basis": "D'après vos achats saisis",
   "inj.tabRecords": "Journal",
-  "inj.tabStock": "Achats · stock",
+  "inj.tabStock": "Achats · dépenses",
   "inj.recent": "Récent",
   "inj.add": "Noter une injection",
   "inj.editNote": "Tout ce que vous enregistrez reste modifiable.",
@@ -1015,7 +1133,7 @@ export const fr: D = {
   "f.optional": "facultatif",
   "f.feeling": "Ressenti",
   "f.note": "Note",
-  "f.amount": "Montant (KRW)",
+  "f.amount": "Montant",
   "f.doses": "Doses achetées",
   "f.photo": "Photo",
   "f.reminderAt": "Date et heure du rappel",
@@ -1159,8 +1277,9 @@ export const fr: D = {
   "momo.invalid": "Certaines valeurs sont à vérifier",
   "type.expense": "Dépense",
   "f.quantity": "Quantité",
-  "find.title": "Chercher avec Momo",
-  "find.sub": "Recherche uniquement dans vos entrées.",
+  "find.title": "Retrouver mes entrées",
+  "find.keywords": "Chercher par mots-clés",
+  "find.sub": "Cherchez dans vos entrées par mot, date ou montant. Momo est facultatif.",
   "find.placeholder": "ex. balade, café, abdomen",
   "find.none": "Aucune entrée correspondante.",
   "find.count": "{n} entrées trouvées",

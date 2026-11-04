@@ -380,6 +380,10 @@ export function JournalProvider({ children }: { children: ReactNode }) {
   const synced = useRef<State | null>(null);
   const latest = useRef(state);
   const owner = useRef<string | null>(null);
+  const accountLocale = useRef<{
+    owner: string;
+    locale: NonNullable<State["settings"]["locale"]>;
+  } | null>(null);
   const epoch = useRef(0);
   const remoteUnknown = useRef(false);
   const pushQueue = useRef<Promise<void>>(Promise.resolve());
@@ -414,6 +418,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     const switchUser = (u: { id: string; email?: string | undefined | null } | null) => {
+      const guestLocale = owner.current === null ? latest.current.settings.locale : undefined;
       epoch.current += 1;
       owner.current = u?.id ?? null;
       setStorageBlocked(false);
@@ -425,6 +430,11 @@ export function JournalProvider({ children }: { children: ReactNode }) {
       setConflict(false);
       const stored = read(keyFor(owner.current));
       const next = stored ?? empty();
+      // Carry only an explicit guest interface language; never journal data, consent or account-to-account preferences.
+      accountLocale.current =
+        !stored && u && guestLocale ? { owner: u.id, locale: guestLocale } : null;
+      if (accountLocale.current)
+        next.settings = { ...next.settings, locale: accountLocale.current.locale };
       // Only a genuinely new guest sees the automatic introduction. Existing accounts
       // and existing guest snapshots (including empty ones) keep their current experience.
       setIntroductionPending(!u && !stored && !invalidKeys.current.has(KEY));
@@ -484,14 +494,23 @@ export function JournalProvider({ children }: { children: ReactNode }) {
         }
         const target = !cloud ? local : base && !sameSnapshot(local, base) ? local : cloud;
         if (target === cloud) {
-          localStorage.setItem(keyFor(id), JSON.stringify(target));
+          const preference = accountLocale.current;
+          const locale =
+            preference?.owner === id ? (local.settings.locale ?? preference.locale) : undefined;
+          const received =
+            locale && !target.settings.locale
+              ? { ...target, settings: { ...target.settings, locale } }
+              : target;
+          localStorage.setItem(keyFor(id), JSON.stringify(received));
           localStorage.setItem(`${keyFor(id)}.base`, JSON.stringify(target));
-          latest.current = target;
-          setState(target);
+          latest.current = received;
+          setState(received);
           synced.current = target;
-          setSync("synced");
+          accountLocale.current = null;
+          setSync(received === target ? "synced" : "syncing");
         } else {
           synced.current = cloud ?? empty();
+          accountLocale.current = null;
           setBump((n) => n + 1);
         }
       } catch {

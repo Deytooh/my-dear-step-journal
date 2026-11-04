@@ -94,9 +94,15 @@ export async function metaJSON<T>(
         );
       const payload = await response.text();
       if (payload.length > 100000) throw new ProviderError("parse");
-      const result = JSON.parse(payload) as {
+      let result: {
         choices?: { finish_reason?: string; message?: { content?: string; refusal?: string } }[];
       };
+      try {
+        result = JSON.parse(payload);
+      } catch {
+        throw new ProviderError("parse");
+      }
+      if (!result || !Array.isArray(result.choices)) throw new ProviderError("parse");
       const choice = result.choices?.[0];
       if (
         !choice ||
@@ -104,7 +110,11 @@ export async function metaJSON<T>(
         choice.message?.refusal
       )
         throw new ProviderError("parse");
-      const content = choice.message?.content?.replace(/^```(?:json)?\s*|\s*```$/g, "") ?? "";
+      if (typeof choice.message?.content !== "string") throw new ProviderError("parse");
+      const trimmed = choice.message.content.trim();
+      // Tolerate one complete JSON fence, never fish a JSON fragment out of surrounding prose.
+      const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
+      const content = fenced ? fenced[1]! : trimmed;
       try {
         return { value: parse(JSON.parse(content)), model };
       } catch {
