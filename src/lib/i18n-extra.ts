@@ -2,6 +2,12 @@
 type D = Record<string, string>;
 
 export const en: D = {
+  "mq.pause": "Pause suggestions",
+  "mq.play": "Resume suggestions",
+  "mb.reading": "Momo is reading what you shared…",
+  "mb.details": "Looking for the little details…",
+  "mb.suggestions": "Organizing possible journal entries…",
+  "mb.review": "You’ll check everything before saving.",
   "mv.interruptedHint": "Your words are still here. Resume when ready, or finish to review.",
   "mc.draftRecoveryUnavailable":
     "Your latest draft could not be kept in this tab. Keep this screen open until you save your entries.",
@@ -31,11 +37,11 @@ export const en: D = {
   "meal.recent": "Start from a recent meal",
   "meal.repeatHint": "Copy meal and food names and portions. Add today’s photos and amount eaten.",
   "meal.repeatReady": "Meal details copied. Check portions and choose how much you ate this time.",
-  "mq.day": "What would you like to remember about today?",
-  "mq.feeling": "How has your day felt so far?",
-  "mq.food": "Anything you ate or drank that you’d like to note?",
-  "mq.treatment": "Anything about your treatment you’d like to note?",
-  "mq.moment": "Is there a small moment you’d like to keep?",
+  "mq.day": "How was your day?",
+  "mq.feeling": "How are you feeling?",
+  "mq.food": "What did you eat today?",
+  "mq.treatment": "Anything to note about your treatment?",
+  "mq.moment": "Any moment worth keeping?",
   "mq.another": "Another question",
   "mq.hint": "Mix meals, feelings and more in one note.",
   "recovery.language": "Language",
@@ -104,7 +110,7 @@ export const en: D = {
   "me.feelingQuestion": "How are you feeling today?",
   "me.mealQuestion": "What did you eat?",
   "me.injectionQuestion": "When was your injection?",
-  "me.placeholder": "Start with just a few words…",
+  "me.placeholder": "Tell Momo…",
   "me.organize": "Organize with Momo",
   "me.voice": "Speak",
 
@@ -689,6 +695,12 @@ export const en: D = {
 };
 
 export const fr: D = {
+  "mq.pause": "Mettre les questions en pause",
+  "mq.play": "Reprendre les questions",
+  "mb.reading": "Momo lit ce que vous avez partagé…",
+  "mb.details": "À la recherche des petits détails…",
+  "mb.suggestions": "Momo organise les entrées possibles…",
+  "mb.review": "Vous pourrez tout vérifier avant d’enregistrer.",
   "mv.interruptedHint":
     "Votre texte est conservé. Reprenez quand vous voulez, ou terminez pour le relire.",
   "mc.draftRecoveryUnavailable":
@@ -722,11 +734,11 @@ export const fr: D = {
     "Reprenez les noms et les portions. Ajoutez les photos et la quantité mangée aujourd’hui.",
   "meal.repeatReady":
     "Repas repris. Vérifiez les portions et précisez la quantité mangée cette fois.",
-  "mq.day": "Qu’aimeriez-vous retenir de votre journée ?",
-  "mq.feeling": "Comment vous sentez-vous aujourd’hui ?",
-  "mq.food": "Envie de noter ce que vous avez mangé ou bu ?",
-  "mq.treatment": "Quelque chose à noter sur votre traitement ?",
-  "mq.moment": "Un petit moment que vous aimeriez garder ?",
+  "mq.day": "Comment s’est passée votre journée ?",
+  "mq.feeling": "Comment vous sentez-vous ?",
+  "mq.food": "Qu’avez-vous mangé aujourd’hui ?",
+  "mq.treatment": "Un mot sur votre traitement ?",
+  "mq.moment": "Un moment à garder ?",
   "mq.another": "Une autre question",
   "mq.hint": "Repas, ressentis et autres moments : une seule note suffit.",
   "recovery.language": "Langue",
@@ -798,7 +810,7 @@ export const fr: D = {
   "me.feelingQuestion": "Comment vous sentez-vous aujourd’hui ?",
   "me.mealQuestion": "Qu’avez-vous mangé ?",
   "me.injectionQuestion": "Quand l’injection a-t-elle eu lieu ?",
-  "me.placeholder": "Quelques mots suffisent…",
+  "me.placeholder": "Racontez à Momo…",
   "me.organize": "Organiser avec Momo",
   "me.voice": "Parler",
 

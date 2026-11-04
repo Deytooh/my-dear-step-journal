@@ -2,6 +2,12 @@
 export type Locale = "ko" | "en" | "fr";
 
 const ko = {
+  "mq.pause": "질문 자동 변경 멈추기",
+  "mq.play": "질문 자동 변경 다시 시작",
+  "mb.reading": "모모가 남겨 주신 내용을 읽고 있어요…",
+  "mb.details": "기록할 만한 작은 내용을 찾고 있어요…",
+  "mb.suggestions": "저널에 담을 기록을 정리하고 있어요…",
+  "mb.review": "저장하기 전에 모두 확인할 수 있어요.",
   "mv.interruptedHint": "내용은 그대로 있어요. 준비되면 다시 시작하거나, 마치고 내용을 확인하세요.",
   "mc.draftRecoveryUnavailable":
     "이 탭에 최신 임시 내용을 보관하지 못했어요. 기록을 저장할 때까지 이 화면을 열어 두세요.",
@@ -29,11 +35,11 @@ const ko = {
   "meal.recent": "최근 식사에서 시작",
   "meal.repeatHint": "식사와 음식 이름, 분량을 가져와요. 사진과 먹은 양은 새로 추가해 주세요.",
   "meal.repeatReady": "식사 내용을 가져왔어요. 분량을 확인하고 이번에 먹은 양을 선택해 주세요.",
-  "mq.day": "오늘 어떤 이야기를 남기고 싶으세요?",
-  "mq.feeling": "오늘 몸과 마음은 어떠세요?",
-  "mq.food": "오늘 먹거나 마신 것 중 남기고 싶은 게 있나요?",
-  "mq.treatment": "치료 과정에서 기록해 두고 싶은 게 있나요?",
-  "mq.moment": "기억하고 싶은 작은 순간이 있나요?",
+  "mq.day": "오늘 하루는 어땠나요?",
+  "mq.feeling": "지금 기분은 어떠세요?",
+  "mq.food": "오늘 무엇을 드셨나요?",
+  "mq.treatment": "치료에 대해 남길 이야기가 있나요?",
+  "mq.moment": "기억하고 싶은 순간이 있나요?",
   "mq.another": "다른 질문 보기",
   "mq.hint": "식사, 기분 등 여러 이야기를 한 번에 적어도 좋아요.",
   "recovery.language": "언어",
@@ -103,7 +109,7 @@ const ko = {
   "me.feelingQuestion": "오늘, 어떤 기분이었나요?",
   "me.mealQuestion": "무엇을 드셨나요?",
   "me.injectionQuestion": "언제 주사를 맞았나요?",
-  "me.placeholder": "한마디부터 남겨도 좋아요…",
+  "me.placeholder": "모모에게 들려주세요…",
   "me.organize": "함께 정리하기",
   "me.voice": "말하기",
   "mc.title": "오늘은 무엇을 남길까요?",

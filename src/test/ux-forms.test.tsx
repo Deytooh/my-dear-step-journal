@@ -1419,11 +1419,13 @@ it("keeps an existing medication visible and unchanged on an expense-only receip
   });
 });
 
-it("offers one optional Momo question and rotates only on clean entry or manual refresh", () => {
+it("offers one optional Momo question with manual refresh and no duplicate introduction", () => {
   const view = render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
   expect(screen.getByText(t("mq.day"))).toBeVisible();
   expect(screen.queryByRole("group", { name: t("mg.choices") })).not.toBeInTheDocument();
-  expect(screen.getByText(t("mq.hint"))).toBeVisible();
+  expect(screen.queryByText(t("mq.hint"))).not.toBeInTheDocument();
+  expect(screen.queryByText(t("me.subtitle"))).not.toBeInTheDocument();
+  expect(screen.queryByText(t("mc.reviewHint"))).not.toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: t("mq.another") }));
   expect(screen.getByText(t("mq.feeling"))).toBeVisible();
   view.rerender(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
@@ -2129,6 +2131,180 @@ it.each(["unsupported", "blocked"] as const)(
       else delete (window as unknown as Record<string, unknown>)["SpeechRecognition"];
       if (webkit) Object.defineProperty(window, "webkitSpeechRecognition", webkit);
       else delete (window as unknown as Record<string, unknown>)["webkitSpeechRecognition"];
+    }
+  },
+);
+
+it("rotates empty suggestions every five seconds with pause, resume and manual refresh", () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+  try {
+    render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    act(() => vi.advanceTimersByTime(4999));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(t("mq.day"));
+    act(() => vi.advanceTimersByTime(1));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(t("mq.feeling"));
+    fireEvent.click(screen.getByRole("button", { name: t("mq.pause") }));
+    act(() => vi.advanceTimersByTime(15000));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(t("mq.feeling"));
+    fireEvent.click(screen.getByRole("button", { name: t("mq.another") }));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(t("mq.food"));
+    fireEvent.click(screen.getByRole("button", { name: t("mq.play") }));
+    act(() => vi.advanceTimersByTime(5000));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(t("mq.treatment"));
+    expect(screen.getByRole("textbox")).toHaveValue("");
+    expect(ai.extract).not.toHaveBeenCalled();
+    expect(j.saveMomoBatch).not.toHaveBeenCalled();
+  } finally {
+    cleanup();
+    hidden.mockRestore();
+    vi.useRealTimers();
+  }
+});
+
+it.each(["typing", "composition", "photo", "voice"] as const)(
+  "keeps the timed question fixed during %s",
+  (interaction) => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+    const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+    const previous = Object.getOwnPropertyDescriptor(window, "SpeechRecognition");
+    class FakeSpeech {
+      onstart: (() => void) | null = null;
+      start() {
+        this.onstart?.();
+      }
+      abort() {}
+    }
+    Object.defineProperty(window, "SpeechRecognition", { configurable: true, value: FakeSpeech });
+    try {
+      render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+      if (interaction === "typing")
+        fireEvent.change(screen.getByRole("textbox"), { target: { value: " " } });
+      if (interaction === "composition") fireEvent.compositionStart(screen.getByRole("textbox"));
+      if (interaction === "photo") {
+        photo.shrink.mockReturnValue(new Promise(() => {}));
+        fireEvent.change(screen.getByLabelText(t("momo.photos")), {
+          target: { files: [new File(["fixture"], "fictional.jpg", { type: "image/jpeg" })] },
+        });
+      }
+      if (interaction === "voice")
+        fireEvent.click(screen.getByRole("button", { name: t("me.voice") }));
+      act(() => vi.advanceTimersByTime(15000));
+      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(t("mq.day"));
+      expect(screen.getByRole("button", { name: t("mq.another") })).toBeDisabled();
+      expect(ai.extract).not.toHaveBeenCalled();
+    } finally {
+      cleanup();
+      hidden.mockRestore();
+      vi.useRealTimers();
+      if (previous) Object.defineProperty(window, "SpeechRecognition", previous);
+      else delete (window as unknown as Record<string, unknown>)["SpeechRecognition"];
+    }
+  },
+);
+
+it("pauses timed questions in a hidden tab and waits five fresh seconds on return", () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  let isHidden = false;
+  const hidden = vi.spyOn(document, "hidden", "get").mockImplementation(() => isHidden);
+  try {
+    render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    act(() => vi.advanceTimersByTime(4000));
+    act(() => {
+      isHidden = true;
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    act(() => vi.advanceTimersByTime(15000));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(t("mq.day"));
+    act(() => {
+      isHidden = false;
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    act(() => vi.advanceTimersByTime(4999));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(t("mq.day"));
+    act(() => vi.advanceTimersByTime(1));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(t("mq.feeling"));
+  } finally {
+    cleanup();
+    hidden.mockRestore();
+    vi.useRealTimers();
+  }
+});
+
+it("starts suggestions paused for reduced motion while retaining explicit playback", () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+  const original = window.matchMedia;
+  const motion = vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+    ...original(query),
+    matches: query === "(prefers-reduced-motion: reduce)",
+  }));
+  try {
+    render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+    expect(screen.getByRole("button", { name: t("mq.play") })).toBeVisible();
+    act(() => vi.advanceTimersByTime(10000));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(t("mq.day"));
+    fireEvent.click(screen.getByRole("button", { name: t("mq.play") }));
+    act(() => vi.advanceTimersByTime(5000));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(t("mq.feeling"));
+  } finally {
+    cleanup();
+    hidden.mockRestore();
+    motion.mockRestore();
+    vi.useRealTimers();
+  }
+});
+
+it.each(["success", "error", "cancel"] as const)(
+  "rotates truthful loading copy only while a request is pending, then stops on %s",
+  async (outcome) => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+    const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+    j.user = { id: "A" };
+    let finish!: (value: unknown) => void;
+    ai.extract.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const text = "Fictional example. Today I weighed 78.2kg.";
+    try {
+      render(<MomoSheet inline onDone={vi.fn()} onManual={vi.fn()} />);
+      fireEvent.change(screen.getByRole("textbox"), { target: { value: text } });
+      fireEvent.click(screen.getByRole("checkbox", { name: t("mc.consent") }));
+      fireEvent.click(screen.getByRole("button", { name: t("me.organize") }));
+      expect(screen.getByText(t("mb.reading"))).toBeVisible();
+      act(() => vi.advanceTimersByTime(3500));
+      expect(screen.getByText(t("mb.details"))).toBeVisible();
+      expect(ai.extract).toHaveBeenCalledOnce();
+      expect(ai.extract.mock.calls[0]![0].data.text).toBe(text);
+      expect(j.saveMomoBatch).not.toHaveBeenCalled();
+      if (outcome === "cancel")
+        fireEvent.click(screen.getByRole("button", { name: t("ai.keepEditing") }));
+      await act(async () =>
+        finish(
+          outcome === "error"
+            ? { error: "service", candidates: [], reply: "" }
+            : {
+                candidates: sanitizeCandidates(
+                  [{ type: "weight", value: 78.2, date: todayLocal(j.tz), quote: "78.2kg" }],
+                  text,
+                ),
+                reply: "",
+              },
+        ),
+      );
+      act(() => vi.advanceTimersByTime(15000));
+      expect(screen.queryByText(t("mb.reading"))).not.toBeInTheDocument();
+      expect(screen.queryByText(t("mb.details"))).not.toBeInTheDocument();
+      if (outcome === "success")
+        expect(screen.getByRole("button", { name: t("mm.confirm", { n: 1 }) })).toBeVisible();
+      else expect(screen.getByRole("textbox")).toHaveValue(text);
+      expect(j.saveMomoBatch).not.toHaveBeenCalled();
+    } finally {
+      cleanup();
+      hidden.mockRestore();
+      vi.useRealTimers();
     }
   },
 );

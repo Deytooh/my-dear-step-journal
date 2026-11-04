@@ -59,4 +59,30 @@ Accepted differences: live approved mascot artwork; native resize affordance and
 
 [P3] Browser-native textarea resize affordance and real font rasterization vary slightly from the generated mock. No further visual changes are required for this pass.
 
-final result: passed
+Historical result (2026-11-03): passed.
+# Refined Momo composer review
+
+- Source visual truth: the user-approved refined third mockup in this conversation, image-generation item exec-0e728e6e-2aba-4f6f-9d56-147c37ccc89c. The platform returned savedPath: null; an exact local source bitmap was not available.
+- Implementation screenshot: C:/Users/deyto/Documents/Codex/2026-11-04/task/momo-refined-implementation-en.jpg (425 x 510 px, composer-only capture).
+- Viewport: 440 x 900 CSS px; document client width 425 px after the desktop scrollbar. Capture aligned to the Momo component by scrolling 99 px. The mockup was displayed at 1150 x 1370 px and intended a 425 x 505 logical-pixel surface; exact paired density normalization remains incomplete.
+- State: English guest, empty composer, How was your day?, suggestions manually paused for capture, privacy collapsed. Existing app shell remains outside the composer scope.
+
+## Findings and evidence
+
+- Fonts/typography: retained the existing serif/sans system, with a 24 px question (22 px at the narrow breakpoint) and 15-16 px controls. Exact font fidelity against the source bitmap is unverified.
+- Spacing/layout: centred smaller Momo, one question and one softly bordered writing surface; duplicated hero/subtitle/help paragraphs removed from the empty view. Rendered composer captured; no completed paired full-view comparison is claimed.
+- Colors/tokens: reused existing cream, espresso, caramel and biscuit tokens. No new brand palette or gradient was introduced.
+- Image quality: reused the actual shared Momo asset pointer; no replacement drawing, generated mascot or new asset was introduced.
+- Copy/content: short English/Korean/French questions and placeholders; direct sign-in, manual input and privacy/consent routes retained. A labelled pause/play control intentionally supplements the mockup because automatic rotation was requested afterward.
+- Interactions: automatic question changes, manual pause/refresh and typing lock were observed in the actual browser. Exact five-second timing and voice/photo/IME/hidden-tab/reduced-motion guards are covered by component tests. Pending-only loading text rotates every 3.5 seconds without fake percentages or completed-stage claims; success/error/cancel cleanup is tested.
+- Focused region comparison: incomplete. Computer Use was stopped from the user's keyboard before the remaining visual review; no further Computer Use was attempted after that stop.
+
+## Verification
+
+338 tests across 33 files, TypeScript, production build and focused changed-file lint passed. All 631 Korean/English/French translation keys match, without duplicate/missing keys or mismatched placeholders. Live Meta, a real microphone/device and authenticated cloud behavior were not certified by this pass.
+
+## Remaining work
+
+Resume a paired source/implementation visual review, including narrow screens and all three languages, when computer control is available. Do not interpret the automated checks or this push as a passed pixel-fidelity review. The user separately requested publication of the current update with this limitation retained.
+
+final result: blocked

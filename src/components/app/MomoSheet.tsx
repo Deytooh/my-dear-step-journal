@@ -25,6 +25,8 @@ import {
   Package,
   Bell,
   RefreshCw,
+  Pause,
+  Play,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
@@ -62,6 +64,7 @@ import {
 import momo from "@/assets/momo-hamster.png.asset.json";
 
 const questions = ["mq.day", "mq.feeling", "mq.food", "mq.treatment", "mq.moment"] as const;
+const loadingPhrases = ["mb.reading", "mb.details", "mb.suggestions", "mb.review"] as const;
 type Question = (typeof questions)[number];
 const isQuestion = (value: unknown): value is Question => questions.some((key) => key === value);
 function nextQuestion(current?: Question): Question {
@@ -187,6 +190,9 @@ export function MomoSheet({
   const [invitation, setInvitation] = useState<"day" | "meal" | "injection" | null>(null);
   const [starter, setStarter] = useState<Key | null>(null);
   const [guideQuestion, setGuideQuestion] = useState<Question>(questions[0]);
+  const [suggestionsPaused, setSuggestionsPaused] = useState(false);
+  const [presentationVisible, setPresentationVisible] = useState(true);
+  const [loadingPhrase, setLoadingPhrase] = useState(0);
   const interruptAnalysis = () => {
     requestVersion.current++;
     inflight.current = false;
@@ -643,6 +649,50 @@ export function MomoSheet({
   const hasSources = !!text.trim() || images.length > 0;
   const canChangeQuestion =
     !text.length && !composing && !images.length && !voice.active && !busy && !photoBusy && !saving;
+  useEffect(() => {
+    const media = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    const visibility = () => setPresentationVisible(!document.hidden);
+    const motion = () => {
+      if (media?.matches) setSuggestionsPaused(true);
+    };
+    visibility();
+    motion();
+    document.addEventListener("visibilitychange", visibility);
+    media?.addEventListener?.("change", motion);
+    return () => {
+      document.removeEventListener("visibilitychange", visibility);
+      media?.removeEventListener?.("change", motion);
+    };
+  }, []);
+  useEffect(() => {
+    if (
+      !editorial ||
+      !canChangeQuestion ||
+      suggestionsPaused ||
+      !presentationVisible ||
+      recoveredKey !== recoveryKey
+    )
+      return;
+    const timer = setTimeout(() => setGuideQuestion((current) => nextQuestion(current)), 5000);
+    return () => clearTimeout(timer);
+  }, [
+    editorial,
+    canChangeQuestion,
+    suggestionsPaused,
+    presentationVisible,
+    recoveredKey,
+    recoveryKey,
+    guideQuestion,
+  ]);
+  useEffect(() => {
+    setLoadingPhrase(0);
+    if (!busy || !presentationVisible) return;
+    const timer = setInterval(
+      () => setLoadingPhrase((current) => (current + 1) % loadingPhrases.length),
+      3500,
+    );
+    return () => clearInterval(timer);
+  }, [busy, presentationVisible]);
   const savedIds = new Set((drafts ?? []).filter((d) => d.on).map((d) => d.key));
   return (
     <div
@@ -660,22 +710,46 @@ export function MomoSheet({
       {inline ? (
         editorial ? (
           <header className="momo-editorial-hero">
-            <div className="momo-editorial-heading">
-              <p className="momo-overline">MOMO</p>
-              <h1>
-                {t("me.title")
-                  .split("\n")
-                  .map((line, index) => (
-                    <span key={index}>{line}</span>
-                  ))}
-              </h1>
-            </div>
             {j.settings.showMomo && (
               <div className="momo-hero-art" aria-hidden>
-                <img src={momo.url} alt="" width={88} height={104} />
+                <img src={momo.url} alt="" width={72} height={88} />
               </div>
             )}
-            <p className="momo-editorial-subtitle">{t("me.subtitle")}</p>
+            <div className="momo-topic-guide">
+              <Button
+                type="button"
+                variant="ghost"
+                className="momo-question-control"
+                aria-label={t(suggestionsPaused ? "mq.play" : "mq.pause")}
+                title={t(suggestionsPaused ? "mq.play" : "mq.pause")}
+                aria-pressed={suggestionsPaused}
+                disabled={!canChangeQuestion}
+                onClick={() => setSuggestionsPaused((value) => !value)}
+              >
+                {suggestionsPaused ? (
+                  <Play className="size-4" aria-hidden />
+                ) : (
+                  <Pause className="size-4" aria-hidden />
+                )}
+              </Button>
+              <h1 className="momo-topic-question" id="momo-topic-question">
+                {t(guideQuestion)}
+              </h1>
+              <Button
+                type="button"
+                variant="ghost"
+                className="momo-question-control"
+                aria-label={t("mq.another")}
+                title={t("mq.another")}
+                disabled={!canChangeQuestion}
+                onClick={() => {
+                  if (canChangeQuestion) setGuideQuestion(nextQuestion(guideQuestion));
+                }}
+              >
+                <RefreshCw className="size-5" aria-hidden />
+              </Button>
+            </div>
+            <span className="sr-only">{t("mg.local")}</span>
           </header>
         ) : (
           <h1 className="text-[22px] font-bold tracking-tight leading-snug">
@@ -779,27 +853,7 @@ export function MomoSheet({
       {step === "input" && !saved && (
         <>
           <div className="momo-capture-input space-y-2">
-            {editorial ? (
-              <div className="momo-topic-guide">
-                <p className="momo-topic-question" id="momo-topic-question" aria-live="polite">
-                  {t(guideQuestion)}
-                </p>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="min-h-11 -ml-2 gap-1.5 rounded-full px-2 text-sm text-muted-foreground"
-                  disabled={!canChangeQuestion}
-                  onClick={() => {
-                    if (canChangeQuestion) setGuideQuestion(nextQuestion(guideQuestion));
-                  }}
-                >
-                  <RefreshCw className="size-3.5" aria-hidden />
-                  {t("mq.another")}
-                </Button>
-                <p className="text-sm leading-relaxed text-muted-foreground">{t("mq.hint")}</p>
-                <span className="sr-only">{t("mg.local")}</span>
-              </div>
-            ) : !text.trim() && !voice.active ? (
+            {editorial ? null : !text.trim() && !voice.active ? (
               <div className="space-y-2">
                 {invitation && (
                   <p className="text-sm leading-relaxed text-muted-foreground">
@@ -1181,7 +1235,9 @@ export function MomoSheet({
               {t("mm.resume")}
             </Button>
           )}
-          <p className="text-sm leading-relaxed text-muted-foreground">{t("mc.reviewHint")}</p>
+          {!editorial && (
+            <p className="text-sm leading-relaxed text-muted-foreground">{t("mc.reviewHint")}</p>
+          )}
           <div className="momo-capture-actions space-y-1">
             {!j.user ? (
               <a
@@ -1266,6 +1322,9 @@ export function MomoSheet({
             <details data-momo-consent className="momo-privacy" open={consent || undefined}>
               <summary>{t("mc.privacy")}</summary>
               <p className="text-sm text-muted-foreground">{t("mm.voiceHint")}</p>
+              {editorial && (
+                <p className="mt-2 text-sm text-muted-foreground">{t("mc.reviewHint")}</p>
+              )}
               {!j.user && <p className="mt-2 text-sm text-muted-foreground">{t("ai.signin")}</p>}
               <label className="flex min-h-11 items-center gap-3 text-sm">
                 <input
@@ -1301,7 +1360,10 @@ export function MomoSheet({
               {j.settings.showMomo && (
                 <img src={momo.url} alt="" className="momo-pending size-10 object-contain" />
               )}
-              <span className="flex-1">{t("momo.thinking")}</span>
+              <span className="flex-1">
+                <span aria-hidden>{t(loadingPhrases[loadingPhrase]!)}</span>
+                <span className="sr-only">{t("momo.thinking")}</span>
+              </span>
               <Button
                 type="button"
                 variant="outline"
