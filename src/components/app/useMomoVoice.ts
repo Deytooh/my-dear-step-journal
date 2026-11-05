@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 type Result = ArrayLike<{ transcript: string }> & { isFinal: boolean };
 type Recognition = {
   start(): void;
+  stop?(): void;
   abort(): void;
   lang: string;
   continuous: boolean;
@@ -77,8 +78,10 @@ export function useMomoVoice(options: {
   const cycle = useRef<Cycle>(newCycle(options.text));
   const continuation = useRef<Continuation | null>(null);
   const seenFinals = useRef(new WeakSet<object>());
+  const finishing = useRef(false);
 
   const release = () => {
+    finishing.current = false;
     generation.current++;
     if (timer.current) clearTimeout(timer.current);
     if (watchdog.current) clearTimeout(watchdog.current);
@@ -221,6 +224,10 @@ export function useMomoVoice(options: {
     };
     r.onend = () => {
       if (!valid()) return;
+      if (finishing.current) {
+        finish();
+        return;
+      }
       engine.current = null;
       // Ended engines become stale immediately, including during the restart delay.
       release();
@@ -284,6 +291,26 @@ export function useMomoVoice(options: {
     setIssue(null);
     setProvisional(false);
   };
+  const finishListening = () => {
+    // User-requested Finish lets the browser flush its final transcript.
+    // Cancellation, account changes and navigation still abort immediately.
+    const recognizer = engine.current;
+    if (!isCurrent() || !recognizer?.stop) {
+      finish();
+      return;
+    }
+    if (finishing.current) return;
+    finishing.current = true;
+    if (timer.current) clearTimeout(timer.current);
+    if (watchdog.current) clearTimeout(watchdog.current);
+    timer.current = null;
+    watchdog.current = setTimeout(() => finish(), 2000);
+    try {
+      recognizer.stop();
+    } catch {
+      finish();
+    }
+  };
   const cancel = () => {
     if (!isCurrent()) return;
     const before = session.current;
@@ -297,7 +324,7 @@ export function useMomoVoice(options: {
   const edit = (text: string) => {
     if (!isCurrent()) return;
     // Treat user edits as authoritative, including an edited interim hypothesis.
-    if (timer.current || cycle.current.boundary) interrupt();
+    if (finishing.current || timer.current || cycle.current.boundary) interrupt();
     cycle.current.base = text;
     cycle.current.finals.clear();
     cycle.current.finalText = cycle.current.interimText = cycle.current.retained = "";
@@ -343,6 +370,7 @@ export function useMomoVoice(options: {
     active: recovery !== null,
     start,
     finish,
+    finishListening,
     cancel,
     edit,
     interrupt,

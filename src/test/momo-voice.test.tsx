@@ -14,6 +14,7 @@ class FakeRecognition {
   onerror: ((event: { error: string }) => void) | null = null;
   onresult: ((event: { results: ReturnType<typeof speechResult>[] }) => void) | null = null;
   start = vi.fn(() => this.onstart?.());
+  stop = vi.fn(() => this.onend?.());
   abort = vi.fn(() => this.onend?.());
   constructor() {
     FakeRecognition.instances.push(this);
@@ -102,6 +103,19 @@ it("finish keeps the transcript while releasing the recognition engine", () => {
   expect(hook.result.current.voice.status).toBe("idle");
   expect(hook.result.current.voice.active).toBe(false);
   expect(engine.abort).toHaveBeenCalled();
+});
+it("accepts the last spoken words delivered only when Finish stops recognition", () => {
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  const engine = FakeRecognition.instances[0];
+  if (!engine) throw new Error("Missing recognizer");
+  engine.stop.mockImplementation(() => {
+    engine.onresult?.({ results: [speechResult("I walked today", true)] });
+    engine.onend?.();
+  });
+  act(() => hook.result.current.voice.finishListening());
+  expect(hook.result.current.text).toBe("Fictional existing note I walked today");
+  expect(hook.result.current.voice.active).toBe(false);
 });
 it("bounds automatic restarts and requires an explicit resume after repeated interruptions", () => {
   const hook = harness();

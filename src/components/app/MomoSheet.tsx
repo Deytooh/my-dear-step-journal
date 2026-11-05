@@ -1188,7 +1188,7 @@ export function MomoSheet({
                     <Button
                       type="button"
                       onClick={() => {
-                        voice.finish();
+                        voice.finishListening();
                         textareaRef.current?.focus();
                       }}
                       className="min-h-11 flex-1 gap-1 rounded-full"
