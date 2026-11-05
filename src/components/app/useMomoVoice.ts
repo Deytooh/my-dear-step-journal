@@ -169,7 +169,21 @@ export function useMomoVoice(options: {
           seenFinals.current.add(result);
         }
       });
-      const ordered = [...slots].sort(([a], [b]) => a - b).map(([, value]) => value);
+      const ordered = [...slots]
+        .sort(([a], [b]) => a - b)
+        .map(([, value]) => value)
+        .reduce<{ text: string; final: boolean }[]>((phrases, slot) => {
+          const previous = phrases.at(-1);
+          // Some mobile engines append expanded hypotheses as new slots instead
+          // of updating the old slot. Replace only a strictly growing prefix;
+          // equal phrases and ordinary repeated words remain intentional text.
+          if (previous && comparable(slot.text).startsWith(comparable(previous.text) + " ")) {
+            phrases[phrases.length - 1] = slot;
+          } else {
+            phrases.push(slot);
+          }
+          return phrases;
+        }, []);
       c.finalText = ordered
         .filter((slot) => slot.final)
         .map((slot) => slot.text)

@@ -68,6 +68,26 @@ it("replaces interim speech results instead of duplicating them", () => {
   expect(hook.result.current.usedVoice).toBe(true);
   expect(engine.lang).toBe("en-US");
 });
+it.each([false, true])(
+  "replaces growing mobile transcript snapshots rather than appending them (final=%s)",
+  (isFinal) => {
+    const hook = harness();
+    act(() => hook.result.current.voice.start());
+    const engine = FakeRecognition.instances[0];
+    if (!engine) throw new Error("Missing recognizer");
+    const phrases = ["hey", "hey so", "hey so this morning", "hey so this morning I took a walk"];
+    for (let index = 0; index < phrases.length; index++) {
+      act(() =>
+        engine.onresult?.({
+          results: phrases.slice(0, index + 1).map((phrase) => speechResult(phrase, isFinal)),
+        }),
+      );
+    }
+    expect(hook.result.current.text).toBe(
+      "Fictional existing note hey so this morning I took a walk",
+    );
+  },
+);
 it("keeps typed corrections authoritative over late provisional speech", () => {
   const hook = harness();
   act(() => hook.result.current.voice.start());
