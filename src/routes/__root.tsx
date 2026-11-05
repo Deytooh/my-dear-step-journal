@@ -15,6 +15,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { JournalProvider } from "@/lib/journal";
 import { AppShell } from "@/components/app/AppShell";
 import { Toaster } from "@/components/ui/sonner";
+import { APP_FONT_STYLESHEETS } from "@/lib/fonts";
 
 function NotFoundComponent() {
   return <RouteRecovery kind="not-found" embedded />;
@@ -51,10 +52,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=Noto+Serif+KR:wght@900&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap",
-      },
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
@@ -66,10 +63,26 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  // Keep third-party font CSS off the first-render path. The print-only links
+  // download without blocking the app; hydration enables them even if their
+  // load events fired before React attached its listeners.
+  useEffect(() => {
+    document.querySelectorAll<HTMLLinkElement>("link[data-app-fonts]").forEach((link) => {
+      link.media = "all";
+    });
+  }, []);
   return (
     <html lang="ko">
       <head>
         <HeadContent />
+        {APP_FONT_STYLESHEETS.map((href) => (
+          <link key={href} data-app-fonts rel="stylesheet" href={href} media="print" />
+        ))}
+        <noscript>
+          {APP_FONT_STYLESHEETS.map((href) => (
+            <link key={href} rel="stylesheet" href={href} />
+          ))}
+        </noscript>
       </head>
       <body>
         {children}

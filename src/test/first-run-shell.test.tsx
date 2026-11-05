@@ -47,12 +47,25 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("@/components/app/AppFeel", () => ({ AppFeel: () => null }));
 vi.mock("@/components/app/EntrySheet", () => ({
-  EntrySheet: ({ header, children }: { header: ReactNode; children: ReactNode }) => (
-    <div role="dialog" aria-label="Introduction fixture">
-      {header}
-      {children}
-    </div>
-  ),
+  EntrySheet: ({
+    open,
+    header,
+    children,
+  }: {
+    open: boolean;
+    header: ReactNode;
+    children: ReactNode;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label="Introduction fixture">
+        {header}
+        {children}
+      </div>
+    ) : null,
+}));
+vi.mock("@radix-ui/react-dialog", () => ({
+  Title: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
+  Description: ({ children }: { children: ReactNode }) => <p>{children}</p>,
 }));
 vi.mock("@/components/ui/drawer", () => ({
   DrawerTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
@@ -154,7 +167,7 @@ it("defers delayed first-run onboarding until an unsaved manual editor is dismis
   const finish = delayedAuth();
   showShell();
   fireEvent.click(await screen.findByRole("button", { name: "Start manual fixture" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Fictional note" }), {
+  fireEvent.change(await screen.findByRole("textbox", { name: "Fictional note" }), {
     target: { value: "Fictional unsaved note" },
   });
   const session = effects.sessions.at(-1);
@@ -181,7 +194,7 @@ it.each(["before-auth", "after-auth"])(
     const finish = delayedAuth();
     showShell();
     fireEvent.click(await screen.findByRole("button", { name: "Start manual fixture" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "Fictional note" }), {
+    fireEvent.change(await screen.findByRole("textbox", { name: "Fictional note" }), {
       target: { value: "Fictional saved note" },
     });
     if (when === "after-auth") await act(async () => finish({ data: { user: null } }));
@@ -197,7 +210,7 @@ it("keeps a failed save editable, and a retry completes without automatic onboar
   const finish = delayedAuth();
   showShell();
   fireEvent.click(await screen.findByRole("button", { name: "Start manual fixture" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Fictional note" }), {
+  fireEvent.change(await screen.findByRole("textbox", { name: "Fictional note" }), {
     target: { value: "Fictional retry note" },
   });
   await act(async () => finish({ data: { user: null } }));
@@ -236,7 +249,7 @@ it("closes guest editor on a genuine account transition without opening a guest 
   const finish = delayedAuth();
   showShell();
   fireEvent.click(await screen.findByRole("button", { name: "Start manual fixture" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Fictional note" }), {
+  fireEvent.change(await screen.findByRole("textbox", { name: "Fictional note" }), {
     target: { value: "Fictional guest-only draft" },
   });
   await act(async () => finish({ data: { user: { id: "fictional-account" } } }));

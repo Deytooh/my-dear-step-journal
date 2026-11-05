@@ -105,14 +105,14 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
-it("closes the current editor without passing its record or date to the next account", () => {
+it("closes the current editor without passing its record or date to the next account", async () => {
   const view = render(
     <AppShell>
       <Controls />
     </AppShell>,
   );
   fireEvent.click(screen.getByRole("button", { name: "Edit A fixture" }));
-  expect(screen.getByTestId("open-editor")).toHaveTextContent(fixture.note);
+  expect(await screen.findByTestId("open-editor")).toHaveTextContent(fixture.note);
   j.user = { id: "B", email: null };
   view.rerender(
     <AppShell>

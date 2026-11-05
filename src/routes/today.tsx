@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search, ChevronRight, Bell } from "lucide-react";
-import { useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { t } from "@/lib/i18n";
 import { fmtMonthDay, fmtMonthDayWeekday, todayLocal } from "@/lib/dates";
 import { sortByTime, useJournal } from "@/lib/journal";
@@ -10,8 +10,12 @@ import { Card, DemoTag, RecordRow, SectionHeader } from "@/components/app/ui";
 import { reminderText } from "@/components/app/ReminderCard";
 import { formatPurchaseMoney } from "@/lib/purchase-money";
 import { MomoSheet } from "@/components/app/MomoSheet";
-import { RecordFinder } from "@/components/app/RecordFinder";
-import { PromptCarousel } from "@/components/app/PromptCarousel";
+const RecordFinder = lazy(() =>
+  import("@/components/app/RecordFinder").then((module) => ({ default: module.RecordFinder })),
+);
+const PromptCarousel = lazy(() =>
+  import("@/components/app/PromptCarousel").then((module) => ({ default: module.PromptCarousel })),
+);
 
 export const Route = createFileRoute("/today")({
   head: () => ({
@@ -36,25 +40,30 @@ function Today() {
   const [finding, setFinding] = useState(false);
   const [dailyOpen, setDailyOpen] = useState(false);
   const today = todayLocal(j.tz);
-  const recent = [
-    ...j.records.map((record) => ({
-      id: record.id,
-      date: record.localDate,
-      record,
-      purchase: undefined,
-    })),
-    ...j.purchases.map((purchase) => ({
-      id: purchase.id,
-      date: purchase.localDate,
-      record: undefined,
-      purchase,
-    })),
-  ]
-    .sort(
-      (a, b) =>
-        b.date.localeCompare(a.date) || (a.record && b.record ? sortByTime(a.record, b.record) : 0),
-    )
-    .slice(0, 5);
+  const recent = useMemo(
+    () =>
+      [
+        ...j.records.map((record) => ({
+          id: record.id,
+          date: record.localDate,
+          record,
+          purchase: undefined,
+        })),
+        ...j.purchases.map((purchase) => ({
+          id: purchase.id,
+          date: purchase.localDate,
+          record: undefined,
+          purchase,
+        })),
+      ]
+        .sort(
+          (a, b) =>
+            b.date.localeCompare(a.date) ||
+            (a.record && b.record ? sortByTime(a.record, b.record) : 0),
+        )
+        .slice(0, 5),
+    [j.records, j.purchases],
+  );
   const reminder = j.reminder && j.reminder.at >= new Date().toISOString() ? j.reminder : null;
   return (
     <div className="pb-4">
@@ -82,7 +91,17 @@ function Today() {
         <Search className="size-5" />
         {t("mm.find")}
       </Button>
-      {finding && <RecordFinder key={`finder:${j.user?.id ?? "guest"}`} />}
+      {finding && (
+        <Suspense
+          fallback={
+            <p role="status" className="py-4 text-sm">
+              {t("ui.loading")}
+            </p>
+          }
+        >
+          <RecordFinder key={`finder:${j.user?.id ?? "guest"}`} />
+        </Suspense>
+      )}
       {reminder && (
         <Button
           variant="outline"
@@ -154,7 +173,17 @@ function Today() {
         onToggle={(event) => setDailyOpen(event.currentTarget.open)}
       >
         <summary>{t("ctx.settings")}</summary>
-        {dailyOpen && <PromptCarousel />}
+        {dailyOpen && (
+          <Suspense
+            fallback={
+              <p role="status" className="py-4 text-sm">
+                {t("ui.loading")}
+              </p>
+            }
+          >
+            <PromptCarousel />
+          </Suspense>
+        )}
       </details>
     </div>
   );

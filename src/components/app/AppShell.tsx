@@ -9,7 +9,9 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { CalendarDays, ChartNoAxesColumn, Home, Plus, Syringe, Settings2 } from "lucide-react";
 import { t, type Key } from "@/lib/i18n";
 import { useJournal } from "@/lib/journal";
-import { QuickAddSheet, type EntryKind } from "./QuickAddSheet";
+import type { EntryKind } from "./QuickAddSheet";
+import { DeferredQuickAddSheet } from "./DeferredQuickAddSheet";
+import { preloadQuickAdd } from "./quick-add-loader";
 import type { JournalRecord, JournalSnapshot, Purchase } from "@/lib/journal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
@@ -213,7 +215,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         addTrigger={addTrigger}
       />
       {introductionOpen && <Onboarding open onClose={() => setReplayIntroduction(null)} />}
-      <QuickAddSheet
+      <DeferredQuickAddSheet
         key={owner}
         session={entrySession}
         initialDate={entryOwner === owner ? entryDate : undefined}
@@ -730,6 +732,7 @@ function BottomNav({
       <Link
         key={tab.to}
         to={tab.to}
+        preload="intent"
         className={`${item} ${active ? "text-foreground font-semibold" : ""}`}
         aria-current={active ? "page" : undefined}
         activeProps={{ className: "!text-foreground font-semibold" }}
@@ -756,6 +759,9 @@ function BottomNav({
           variant="unstyled"
           size="unstyled"
           onClick={onAdd}
+          onPointerDown={() => void preloadQuickAdd()}
+          onPointerEnter={() => void preloadQuickAdd()}
+          onFocus={() => void preloadQuickAdd()}
           aria-expanded={expanded}
           className="feel-add press -mt-7 flex min-w-0 flex-1 flex-col items-center gap-1 text-[12px] text-muted-foreground"
           aria-label={t("nav.add")}

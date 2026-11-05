@@ -4,7 +4,7 @@ import { journalCSV } from "@/lib/export";
 import { Button } from "@/components/ui/button";
 import { PhotoImg } from "@/components/app/PhotoImg";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import {
   ChevronRight,
   Download,
@@ -15,7 +15,6 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Area, AreaChart, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { t, fmtNumber } from "@/lib/i18n";
 import { addDays, fmtMonthDay, fmtTime, todayLocal } from "@/lib/dates";
@@ -40,6 +39,8 @@ import {
   SectionHeader,
   Segmented,
 } from "@/components/app/ui";
+
+const WeightChart = lazy(() => import("@/components/app/WeightChart"));
 
 const ts = (d: string) => Date.parse(d + "T12:00:00Z");
 const CHART_L = 40,
@@ -204,70 +205,9 @@ function Progress() {
                   {hasDemoPoints && <DemoTag show />}
                 </p>
                 <div className="h-56" aria-hidden>
-                  <ResponsiveContainer>
-                    <AreaChart data={data} margin={{ top: 18, right: CHART_R, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="wf" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0" stopColor="var(--color-chart-4)" stopOpacity={0.25} />
-                          <stop offset="1" stopColor="var(--color-chart-4)" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <XAxis
-                        dataKey="ts"
-                        type="number"
-                        scale="time"
-                        domain={[x0, x1]}
-                        tickFormatter={(v: number) =>
-                          fmtMonthDay(new Date(v).toISOString().slice(0, 10))
-                        }
-                        tick={{ fontSize: 13, fill: "var(--color-muted-foreground)" }}
-                        axisLine={false}
-                        tickLine={false}
-                        minTickGap={40}
-                      />
-                      <YAxis
-                        width={CHART_L}
-                        domain={["dataMin - 0.5", "dataMax + 0.5"]}
-                        tickFormatter={(v: number) => fmtNumber(v)}
-                        tick={{ fontSize: 13, fill: "var(--color-muted-foreground)" }}
-                        axisLine={false}
-                        tickLine={false}
-                        tickCount={4}
-                      />
-                      <Tooltip
-                        formatter={(v: number) => [`${fmtNumber(v)} kg`, t("type.weight")]}
-                        labelFormatter={(v) =>
-                          fmtMonthDay(new Date(Number(v)).toISOString().slice(0, 10))
-                        }
-                        contentStyle={{
-                          borderRadius: 16,
-                          border: "1px solid var(--color-border)",
-                          background: "var(--card)",
-                          boxShadow: "var(--shadow-soft)",
-                          padding: "10px 14px",
-                          fontSize: 14,
-                        }}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="v"
-                        stroke="var(--color-primary)"
-                        strokeWidth={2.5}
-                        fill="url(#wf)"
-                        dot={{ r: 3.5, fill: "var(--color-primary)" }}
-                        isAnimationActive={false}
-                      >
-                        {data.length <= 8 && (
-                          <LabelList
-                            dataKey="v"
-                            position="top"
-                            formatter={(v: number) => fmtNumber(v)}
-                            style={{ fontSize: 12, fill: "var(--color-foreground)" }}
-                          />
-                        )}
-                      </Area>
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  <Suspense fallback={<div className="feel-busy h-full rounded-xl bg-secondary" />}>
+                    <WeightChart data={data} x0={x0} x1={x1} />
+                  </Suspense>
                 </div>
                 {/* Injection band: same time axis as the chart, independent of weigh-ins. */}
                 <div

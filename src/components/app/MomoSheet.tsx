@@ -70,7 +70,8 @@ import {
   prepareMomoHandoff,
   type GuestCapture,
 } from "@/lib/momo-handoff";
-import momo from "@/assets/momo-hamster.png.asset.json";
+import { MomoImage } from "./MomoImage";
+import { MomoQuestion } from "./MomoQuestion";
 
 const currentInlineSession = () => true;
 
@@ -845,7 +846,7 @@ export function MomoSheet({
           <header className="momo-editorial-hero">
             {j.settings.showMomo && (
               <div className="momo-hero-art" aria-hidden>
-                <img src={momo.url} alt="" width={72} height={88} />
+                <MomoImage alt="" width={72} height={88} />
               </div>
             )}
             <div className="momo-topic-guide">
@@ -865,9 +866,10 @@ export function MomoSheet({
                   <Pause className="size-4" aria-hidden />
                 )}
               </Button>
-              <h1 className="momo-topic-question" id="momo-topic-question">
-                {t(guideQuestion)}
-              </h1>
+              <MomoQuestion
+                question={t(guideQuestion)}
+                questions={questions.map((question) => t(question))}
+              />
               <Button
                 type="button"
                 variant="ghost"
@@ -894,13 +896,7 @@ export function MomoSheet({
               {t(saved ? "mm.saved" : "mr.title")}
             </h1>
             {!saved && j.settings.showMomo && (
-              <img
-                src={momo.url}
-                alt=""
-                width={36}
-                height={44}
-                className="h-11 w-9 object-contain"
-              />
+              <MomoImage alt="" width={36} height={44} className="h-11 w-9 object-contain" />
             )}
           </header>
         )
@@ -1514,7 +1510,7 @@ export function MomoSheet({
               className="feel-panel flex min-h-12 items-center gap-3 text-sm text-muted-foreground"
             >
               {j.settings.showMomo && (
-                <img src={momo.url} alt="" className="momo-pending size-10 object-contain" />
+                <MomoImage alt="" className="momo-pending size-10 object-contain" />
               )}
               <span className="flex-1">
                 <span aria-hidden>{t(loadingPhrases[loadingPhrase]!)}</span>

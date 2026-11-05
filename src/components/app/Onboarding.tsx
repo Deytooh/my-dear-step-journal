@@ -15,7 +15,7 @@ import { useJournal, type TrackingInterest } from "@/lib/journal";
 import { t, tFor, type Locale } from "@/lib/i18n";
 import { EntrySheet } from "./EntrySheet";
 import { useQuickAdd } from "./quick-add-context";
-import momo from "@/assets/momo-hamster.png.asset.json";
+import { MomoImage } from "./MomoImage";
 import { toast } from "sonner";
 
 const interests = [
@@ -146,7 +146,7 @@ export function Onboarding({ open, onClose }: { open: boolean; onClose: () => vo
           )}
           <div className="flex items-center gap-3 py-4">
             {j.settings.showMomo && (
-              <img src={momo.url} alt="" className="size-20 shrink-0 object-contain" />
+              <MomoImage alt="" className="size-20 shrink-0 object-contain" />
             )}
             <DrawerTitle className="text-2xl leading-snug">{copy(Title)}</DrawerTitle>
           </div>

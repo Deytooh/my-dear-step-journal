@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { AppShell, useQuickAdd } from "@/components/app/AppShell";
+import { preloadQuickAdd } from "@/components/app/quick-add-loader";
 import { DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import type { WaterRec } from "@/lib/journal";
 import { setLocale, t } from "@/lib/i18n";
@@ -117,7 +118,9 @@ async function expectClosedAt(button: HTMLElement) {
   await waitFor(() => expect(button).toHaveFocus());
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  // These cases exercise the loaded forms; cold-download cancellation has its own tests.
+  await preloadQuickAdd();
   vi.clearAllMocks();
   j.user = { id: "focus-fixture", email: null };
   j.sync = "synced";

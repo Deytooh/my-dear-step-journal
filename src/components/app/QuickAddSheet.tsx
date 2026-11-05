@@ -48,7 +48,7 @@ import {
   type StockUnit,
 } from "@/lib/journal";
 import { IconBubble } from "./ui";
-import momo from "@/assets/momo-hamster.png.asset.json";
+import { MomoImage } from "./MomoImage";
 import { MomoSheet } from "./MomoSheet";
 import { celebrateSave } from "./AppFeel";
 import { cn } from "@/lib/utils";
@@ -70,7 +70,7 @@ export type EntryKind =
   | "measure"
   | "water";
 
-type Props = {
+export type QuickAddSheetProps = {
   session?: number;
   initialDate?: string | undefined;
   open: boolean;
@@ -92,7 +92,7 @@ export function QuickAddSheet({
   initialDate,
   returnFocusTo,
   fallbackFocus,
-}: Props) {
+}: QuickAddSheetProps) {
   const { settings, user } = useJournal();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const homeVoice = kind === "voice" && pathname === "/today";
@@ -300,8 +300,7 @@ function Menu({ setKind, showMomo }: { setKind: (k: EntryKind) => void; showMomo
           </DrawerDescription>
         </div>
         {showMomo && (
-          <img
-            src={momo.url}
+          <MomoImage
             alt=""
             aria-hidden
             width={80}
