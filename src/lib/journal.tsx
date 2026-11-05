@@ -161,13 +161,13 @@ function demoState(preferences: State["settings"]): State {
   const inj = (n: number, site: string): InjectionRec => ({
     id: `demo-i${n}`,
     type: "injection",
-    medication: "마운자로",
+    medication: "Mounjaro",
     doseValue: 2.5,
     doseUnit: "mg",
     site,
     usedStock: true,
     stockPurchaseId: "demo-p1",
-    stockIdentity: JSON.stringify(["마운자로", "single", null]),
+    stockIdentity: JSON.stringify(["Mounjaro", "single", null]),
     localDate: d(n),
     precision: "exact",
     at: instantFromLocal(d(n), "20:00", tz),
@@ -190,7 +190,7 @@ function demoState(preferences: State["settings"]): State {
         {
           id: `demo-feeling-${n}`,
           type: "condition",
-          label: ["편안해요", "괜찮아요", "피곤해요"][index % 3] ?? "편안해요",
+          label: ["Calm", "Feeling okay", "Tired"][index % 3] ?? "Calm",
           localDate: d(n),
           precision: "date_only",
           at: null,
@@ -220,17 +220,17 @@ function demoState(preferences: State["settings"]): State {
         source: "manual_text",
         demo: true,
         meal: {
-          title: "예시 · 비빔밥",
+          title: "Example · Bibimbap",
           mealType: "unknown",
           photoRefs: [],
           consumedFraction: null,
-          note: "가상 예시 기록 · 실제 사진 분석 결과가 아니에요.",
-          estimateAssumptions: ["가상 예시 수치"],
+          note: "Fictional example, not a real photo analysis.",
+          estimateAssumptions: ["Fictional example values"],
           items: [
             {
               id: "demo-food",
-              name: "비빔밥",
-              portionDescription: "예시 한 그릇",
+              name: "Bibimbap",
+              portionDescription: "Example bowl",
               ingredients: [],
               included: true,
               kcal: { low: 500, high: 700, basis: "user_entered" },
@@ -275,7 +275,7 @@ function demoState(preferences: State["settings"]): State {
       {
         id: "demo-mem1",
         type: "memory",
-        note: "예시 · 강가를 30분 산책했어요. 바람이 시원했어요.",
+        note: "Example · A 30-minute riverside walk in the fresh breeze.",
         photo: null,
         localDate: d(-6),
         precision: "part_of_day",
@@ -288,7 +288,7 @@ function demoState(preferences: State["settings"]): State {
       {
         id: "demo-mem2",
         type: "memory",
-        note: "예시 · 친구와 카페에서 오랜만에 이야기했어요.",
+        note: "Example · Caught up with a friend at a cafe.",
         photo: null,
         localDate: d(-13),
         precision: "date_only",
@@ -300,7 +300,7 @@ function demoState(preferences: State["settings"]): State {
       {
         id: "demo-c0",
         type: "condition",
-        label: "편안해요",
+        label: "Calm",
         localDate: today,
         precision: "exact",
         at: instantFromLocal(today, "08:15", tz),
@@ -317,7 +317,7 @@ function demoState(preferences: State["settings"]): State {
         amount: 320000,
         currency: "KRW",
         doses: 6,
-        medication: "마운자로",
+        medication: "Mounjaro",
         stockUnit: "single",
         addsStock: true,
         demo: true,
@@ -819,24 +819,15 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     addDemo: () =>
       commitForOwner((current) => {
         const examples = demoState(current.settings);
-        const realRecords = current.records.filter((record) => !record.demo);
-        const realPurchases = current.purchases.filter((purchase) => !purchase.demo);
-        const realReminder = current.reminder?.demo ? null : current.reminder;
         return {
-          ...current,
-          records: [...realRecords, ...examples.records],
-          purchases: [...realPurchases, ...examples.purchases],
-          reminder: realReminder ?? examples.reminder,
+          ...examples,
           settings: {
             ...current.settings,
-            demoMode:
-              !owner.current && !realRecords.length && !realPurchases.length && !realReminder,
-            stockAdjustments: Object.fromEntries(
-              Object.entries(current.settings.stockAdjustments ?? {}).filter(
-                ([id]) =>
-                  !current.purchases.some((purchase) => purchase.id === id && purchase.demo),
-              ),
-            ),
+            locale: "en",
+            demoMode: true,
+            stockAdjustments: {},
+            legacyAdjustmentConfirmed: false,
+            prompts: examples.settings.prompts ?? {},
           },
         };
       }),

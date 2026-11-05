@@ -414,10 +414,10 @@ export const en: D = {
   "sync.importConfirm":
     "Add this device’s non-demo guest records to the account? Existing records remain.",
   "demo.reset": "Start/reset fictional demo (replaces guest data)",
-  "demo.add": "Add 30 days of demo data",
+  "demo.add": "Replace journal with 30-day English demo",
   "demo.addConfirm":
-    "Add fictional entries for the past 30 days? Real entries and reminders stay unchanged; existing examples are refreshed. You can clear examples later.",
-  "demo.added": "30 days of demo data added",
+    "Replace ALL current journal entries, purchases, inventory and reminders with a 30-day English demo? If signed in, this also updates your account. Export a backup first. The interface switches to English; Undo is available immediately afterwards.",
+  "demo.added": "Journal replaced with 30-day English demo",
   "demo.confirm": "Replace guest entries with fictional demo data? Export a backup first.",
   "find.ai": "Find my records with Momo",
   "find.fallback": "Keyword results · not AI retrieval",
@@ -1193,10 +1193,10 @@ export const fr: D = {
   "sync.importConfirm":
     "Ajouter les entrées invitées hors exemples au compte ? Les entrées existantes sont conservées.",
   "demo.reset": "Démarrer/réinitialiser la démo fictive (remplace les données invitées)",
-  "demo.add": "Ajouter 30 jours de données de démo",
+  "demo.add": "Remplacer le journal par une démo anglaise de 30 jours",
   "demo.addConfirm":
-    "Ajouter des entrées fictives pour les 30 derniers jours ? Vos entrées et rappels réels sont conservés ; les exemples existants sont actualisés. Vous pourrez les effacer ensuite.",
-  "demo.added": "30 jours de données de démo ajoutés",
+    "Remplacer TOUTES les entrées, achats, stocks et rappels actuels par une démo anglaise de 30 jours ? Si vous êtes connecté, votre compte sera aussi mis à jour. Exportez une sauvegarde d’abord. L’interface passe en anglais ; Annuler est disponible juste après.",
+  "demo.added": "Journal remplacé par la démo anglaise de 30 jours",
   "demo.confirm":
     "Remplacer les entrées invitées par la démo fictive ? Exportez d’abord une sauvegarde.",
   "find.ai": "Retrouver mes entrées avec Momo",

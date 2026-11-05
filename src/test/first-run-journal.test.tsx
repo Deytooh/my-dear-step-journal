@@ -185,7 +185,7 @@ it("adds exactly 30 local days of labeled examples without duplicates on repeat"
   expect(JSON.parse(localStorage.getItem(key) ?? "{}").records).toHaveLength(count);
 });
 
-it("preserves real journal entries, preferences and reminders through sample add and clear", async () => {
+it("replaces all journal activity with the English demo, preserving consent and supporting Undo", async () => {
   const saved: JournalSnapshot = {
     ...blank(),
     records: [entry],
@@ -211,16 +211,25 @@ it("preserves real journal entries, preferences and reminders through sample add
   localStorage.setItem(key, JSON.stringify(saved));
   const hook = renderJournal();
   await waitFor(() => expect(hook.result.current.ready).toBe(true));
+  const before = hook.result.current.snapshot();
   act(() => hook.result.current.addDemo());
-  expect(hook.result.current.records).toContainEqual(entry);
-  expect(hook.result.current.purchases).toContainEqual(saved.purchases[0]);
-  expect(hook.result.current.reminder).toEqual(saved.reminder);
-  expect(hook.result.current.settings.demoMode).toBe(false);
-  expect(hook.result.current.settings.prompts).toEqual(saved.settings.prompts);
-  act(() => hook.result.current.clearDemo());
+  expect(hook.result.current.records).not.toContainEqual(entry);
+  expect(hook.result.current.purchases).not.toContainEqual(saved.purchases[0]);
+  expect(hook.result.current.reminder?.id).toBe("demo-r");
+  expect(hook.result.current.stockAdjust).toBe(0);
+  expect(hook.result.current.settings.stockAdjustments).toEqual({});
+  expect(hook.result.current.settings.demoMode).toBe(true);
+  expect(hook.result.current.settings.locale).toBe("en");
+  expect(hook.result.current.settings.prompts?.aiConsent).toBe(false);
+  act(() => hook.result.current.undoFor(before)());
   expect(hook.result.current.records).toEqual(saved.records);
   expect(hook.result.current.purchases).toEqual(saved.purchases);
   expect(hook.result.current.reminder).toEqual(saved.reminder);
+  act(() => hook.result.current.addDemo());
+  act(() => hook.result.current.clearDemo());
+  expect(hook.result.current.records).toEqual([]);
+  expect(hook.result.current.purchases).toEqual([]);
+  expect(hook.result.current.reminder).toBeNull();
 });
 
 it("does not reinitialize the guest or discard a conflict when delayed auth confirms the same guest", async () => {
