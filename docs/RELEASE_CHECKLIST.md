@@ -1,6 +1,6 @@
 # Owner release checklist
 
-Status as of **4 November 2026**: the requested local UX/review pass is complete; no push, deployment, visibility change or submission was performed in this UX pass. The repository is still private. Publishing it and submitting the entry require the owner's separate authorization.
+**Publication update, 5 November 2026:** the repository is public and the implementation has been pushed to `main`. Project code is now covered by the owner-approved [MIT License](../LICENSE). Inherited asset rights, live provider/privacy checks, hosted-build verification and video/portal status remain separate. The 4 November test evidence below is a historical snapshot; see the [later mobile report](MOBILE_PERFORMANCE_2026-11-05.md) for the 990-test gate and its lint limitations.
 
 The [official rules](https://cerebralvalley.ai/e/meta-ai-developer-hackathon/waiver), checked on 4 November, require an open-source repository and a three-minute video. **Deadline: 5 November 2026, 11:00 KST / 02:00 UTC.** See [SUBMISSION_STATUS](SUBMISSION_STATUS.md) for dated evidence, not a release certification.
 
@@ -13,10 +13,11 @@ The [official rules](https://cerebralvalley.ai/e/meta-ai-developer-hackathon/wai
 - [ ] Rehearse [DEMO_SCRIPT](DEMO_SCRIPT.md): capture, compact review, one correction, count-specific save once, reload, original source and correction. Check missing fields and unclear photo attribution.
 - [ ] Check the intended hosted build and actual phone keyboard/large text, plus 360/390/430 px layouts. Verify purchase/expense visibility, selected Calendar date, Progress filter recovery and sync/recovery actions outside the recording.
 
-## Before making the repository public
+## Publication and licensing
 
-- [ ] Obtain owner authorization for the specific repository visibility change. Preserve Lovable history; do not force-push or rewrite published commits.
-- [ ] Confirm inherited Momo/Lovable/font asset rights and choose an appropriate source license. Preserve dependency notices.
+- [x] Owner made the repository public; public visibility verified on 5 November. Preserve Lovable history; do not force-push or rewrite published commits.
+- [x] Add the owner-approved MIT license for project source code.
+- [ ] Confirm inherited Momo/Lovable/font asset rights. Preserve dependency notices; the project MIT license does not grant third-party rights.
 - [ ] Recheck tracked files and the final client bundle for privileged secrets/private exports. Earlier `.env` classification covered public/publishable configuration only; keep provider secrets server-side.
 - [ ] Match [HACKATHON_CONTRIBUTIONS](HACKATHON_CONTRIBUTIONS.md) to the original Git history and official event window. Confirm actual team membership and the applicable team limit.
 

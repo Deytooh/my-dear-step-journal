@@ -1,6 +1,8 @@
 # Submission status
 
-**Updated 4 November 2026, 22:40 UTC. The requested local UX and review pass is complete; external release gates remain.** No push, deployment, repository visibility change or portal submission was performed in this pass. The repository remains private; publication and submission need the owner's separate authorization.
+**Publication update, 5 November 2026:** the repository is public and `main` includes the published implementation. The README now presents the Meta AI Developer Hackathon project, with an [in-repo presentation](HACKATHON_PRESENTATION.md) and owner-approved [MIT license](../LICENSE) for project code. Third-party asset rights remain separate. Live Meta, deployed privacy, hosted-build and video/portal verification remain pending in this record.
+
+The dated results below describe the 4 November local UX pass and are retained as historical evidence. Later local performance/build results appear in [MOBILE_PERFORMANCE_2026-11-05](MOBILE_PERFORMANCE_2026-11-05.md). Neither snapshot certifies every subsequent commit.
 
 The [official rules](https://cerebralvalley.ai/e/meta-ai-developer-hackathon/waiver), checked on 4 November, specify **impact 30%, Meta tooling 25%, execution 20%, demo 25%**, an open-source repository and a three-minute video. **Deadline: 5 November 2026, 11:00 KST / 02:00 UTC.** These requirements do not establish eligibility, a completed portal form or a guaranteed score.
 
@@ -25,7 +27,7 @@ The [official rules](https://cerebralvalley.ai/e/meta-ai-developer-hackathon/wai
 
 Design/QA evidence lives in `docs/momo-review/` and `design-qa.md`. Current screenshots include a generated fictional salad/toast photo, not a user photo or live inference result. Local QA fixtures were moved out of the public asset directory before the 20:40 build; no `__qa__` paths remain in its production output. Mockups, UI fixtures, automated tests and browser emulation do not establish live provider behavior, real-device behavior or deployed security.
 
-The remote was rechecked through the connected GitHub integration at **22:39 UTC**. [main](https://github.com/Deytooh/my-dear-step-journal/tree/main) still points to [`0ff786fa29a5b864a464a862cf43e16537ccc491`](https://github.com/Deytooh/my-dear-step-journal/commit/0ff786fa29a5b864a464a862cf43e16537ccc491), matching the portable packet baseline; no remote writes were made. The 17:14 checkpoint includes durable cross-tab conflict choices, account-safe imports, safe handling of missing local snapshots/orphan baselines, note clearing and explicit stock-alias selection. Independent source/test review found no remaining unsafe scenario in that reviewed scope. Live cloud behavior remains unverified.
+Historical remote check on **4 November, 22:39 UTC**: [main](https://github.com/Deytooh/my-dear-step-journal/tree/main) then pointed to [`0ff786fa29a5b864a464a862cf43e16537ccc491`](https://github.com/Deytooh/my-dear-step-journal/commit/0ff786fa29a5b864a464a862cf43e16537ccc491), matching the portable packet baseline; no remote writes were made. The 17:14 checkpoint includes durable cross-tab conflict choices, account-safe imports, safe handling of missing local snapshots/orphan baselines, note clearing and explicit stock-alias selection. Independent source/test review found no remaining unsafe scenario in that reviewed scope. Live cloud behavior remains unverified.
 
 ## Submission blockers
 
@@ -35,7 +37,7 @@ The remote was rechecked through the connected GitHub integration at **22:39 UTC
 | Model identity                          | Default `meta-models/muse-spark-open-1026` is not verified for this account | Use the account-supported slug; distinguish requested configuration from independently verified provider identity             |
 | Authenticated Supabase privacy/sync     | Two-account checks, deployed RLS and private storage not verified           | Test direct record/photo denial, reload, retry, signed access and sign-out with two dedicated accounts                        |
 | Final build/device evidence             | 22:40 UTC final local gate; external gates remain                           | Final integrated gate, intended hosted build and actual-phone keyboard/large-text check                                       |
-| Open-source repository                  | Still private; no visibility change authorized here                         | Confirm source/asset licenses, scan final files and obtain owner publication approval                                         |
+| Public source and licensing             | Public; project code is now MIT-licensed                                    | Confirm inherited asset rights, preserve third-party notices and recheck final files                                          |
 | Video and portal                        | No final recording or submission confirmation                               | Record the coherent three-minute flow, verify judge access and portal fields, obtain submission approval, retain confirmation |
 
 Use [RELEASE_CHECKLIST](RELEASE_CHECKLIST.md) for the short preflight and [DEMO_SCRIPT](DEMO_SCRIPT.md) for capture → review → correct → confirm → reopen. Manual fallback remains useful but does not substitute for live Meta evidence.

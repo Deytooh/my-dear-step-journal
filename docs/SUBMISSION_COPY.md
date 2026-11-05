@@ -36,7 +36,7 @@ TanStack Start/React/TypeScript, existing Supabase/Lovable Cloud JSONB/RLS, priv
 
 ## Links to confirm
 
-- Source: https://github.com/Deytooh/my-dear-step-journal (still private when checked on 4 November 2026; owner must decide publication)
+- Source: https://github.com/Deytooh/my-dear-step-journal (public as checked on 5 November 2026; project code is MIT-licensed, with third-party rights retained)
 - Hosted app supplied by owner: https://my-dear-step-journal.lovable.app/ (verify latest connected build and judge access)
 - Demo video: [OWNER: insert actual shareable URL]
 - Team and event-window contribution fields: [OWNER: confirm actual participants and dates]
