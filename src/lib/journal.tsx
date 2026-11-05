@@ -175,22 +175,41 @@ function demoState(preferences: State["settings"]): State {
     createdAt: now,
     source: "manual_text",
   });
-  const weights = [
-    [-27, 80.6],
-    [-24, 80.5],
-    [-21, 80.0],
-    [-18, 79.9],
-    [-15, 79.9],
-    [-12, 79.5],
-    [-9, 79.2],
-    [-7, 78.7],
-    [-4, 78.9],
-    [-2, 78.6],
-    [0, 78.4],
-  ] as const;
+  const weights = Array.from(
+    { length: 30 },
+    (_, index) =>
+      [
+        index - 29,
+        Math.round((80.6 - index * 0.075 + Math.sin(index * 1.7) * 0.15) * 10) / 10,
+      ] as const,
+  );
   return {
     records: [
       ...weights.map(([n, v]) => w(n, v)),
+      ...weights.flatMap(([n], index): JournalRecord[] => [
+        {
+          id: `demo-feeling-${n}`,
+          type: "condition",
+          label: ["편안해요", "괜찮아요", "피곤해요"][index % 3] ?? "편안해요",
+          localDate: d(n),
+          precision: "date_only",
+          at: null,
+          demo: true,
+          createdAt: now,
+          source: "manual_text",
+        },
+        {
+          id: `demo-water-${n}`,
+          type: "water",
+          answer: index % 5 === 0 ? "not_yet" : "yes",
+          localDate: d(n),
+          precision: "date_only",
+          at: null,
+          demo: true,
+          createdAt: now,
+          source: "manual_text",
+        },
+      ]),
       {
         id: "demo-meal",
         type: "meal",
@@ -222,6 +241,7 @@ function demoState(preferences: State["settings"]): State {
       inj(-5, "복부 왼쪽"),
       inj(-12, "복부 오른쪽"),
       inj(-19, "복부 왼쪽"),
+      inj(-26, "허벅지 오른쪽"),
       {
         id: "demo-m1",
         type: "measure",
@@ -293,10 +313,10 @@ function demoState(preferences: State["settings"]): State {
     purchases: [
       {
         id: "demo-p1",
-        localDate: d(-12),
+        localDate: d(-29),
         amount: 320000,
         currency: "KRW",
-        doses: 4,
+        doses: 6,
         medication: "마운자로",
         stockUnit: "single",
         addsStock: true,
@@ -327,9 +347,7 @@ function demoState(preferences: State["settings"]): State {
           }
         : {}),
       demoMode: true,
-      stockAdjustments: {
-        "demo-p1": { identity: JSON.stringify(["마운자로", "single", null]), delta: 1 },
-      },
+      stockAdjustments: {},
     },
   };
 }
@@ -343,6 +361,7 @@ export type JournalContextValue = State & {
   resolveConflict: (choice: "local" | "cloud") => void;
   importGuest: () => Promise<void>;
   resetDemo: () => void;
+  addDemo: () => void;
   undoFor: (before: State) => () => void;
   respondPrompt: (id: PromptId, day: string, record?: JournalRecord, contextId?: string) => void;
   saveMomoBatch: (
@@ -797,6 +816,30 @@ export function JournalProvider({ children }: { children: ReactNode }) {
       assertCurrentOwner();
       if (!owner.current) commitForOwner((current) => demoState(current.settings));
     },
+    addDemo: () =>
+      commitForOwner((current) => {
+        const examples = demoState(current.settings);
+        const realRecords = current.records.filter((record) => !record.demo);
+        const realPurchases = current.purchases.filter((purchase) => !purchase.demo);
+        const realReminder = current.reminder?.demo ? null : current.reminder;
+        return {
+          ...current,
+          records: [...realRecords, ...examples.records],
+          purchases: [...realPurchases, ...examples.purchases],
+          reminder: realReminder ?? examples.reminder,
+          settings: {
+            ...current.settings,
+            demoMode:
+              !owner.current && !realRecords.length && !realPurchases.length && !realReminder,
+            stockAdjustments: Object.fromEntries(
+              Object.entries(current.settings.stockAdjustments ?? {}).filter(
+                ([id]) =>
+                  !current.purchases.some((purchase) => purchase.id === id && purchase.demo),
+              ),
+            ),
+          },
+        };
+      }),
     importGuest: async () => {
       assertCurrentOwner();
       const account = owner.current,

@@ -17,6 +17,7 @@
 - Instants are stored as ISO UTC plus `localDate` and `precision`; all date math/formatting goes through `src/lib/dates.ts` with the user's timezone, never `new Date().getDate()`.
 - UI strings go through `t()` in `src/lib/i18n.ts`; Korean is the complete source dictionary.
 - Demo records carry `demo: true` and are labelled in UI; inventory is derived from purchases minus stock-using injections plus a manual adjustment.
+- Explicit sample loading goes through the journal context, replaces only demo-tagged activity and preserves real entries/settings/reminders, so repeat demos and cleanup are non-destructive.
 - Spec source documents are the user's uploaded master prompt / tokens; root `roadmap.md` tracks phases.
 - Journal data syncs via src/lib/cloud-sync.ts: journal.tsx keeps local state and diffs it to Lovable Cloud when signed in, so page code stays storage-agnostic.
 

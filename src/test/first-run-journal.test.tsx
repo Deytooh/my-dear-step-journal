@@ -1,7 +1,7 @@
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { JournalProvider, useJournal, type JournalSnapshot, type MemoryRec } from "@/lib/journal";
-import { localDateOf } from "@/lib/dates";
+import { addDays, localDateOf, todayLocal } from "@/lib/dates";
 
 const auth = vi.hoisted(() => ({ getUser: vi.fn(), listener: (_e: string, _s: unknown) => {} }));
 vi.mock("@/integrations/supabase/client", () => ({
@@ -163,6 +163,64 @@ it("keeps the original snapshot on a failed demo write and permits a safe retry"
   act(() => hook.result.current.resetDemo());
   expect(hook.result.current.settings.locale).toBe("fr");
   expect(hook.result.current.settings.demoMode).toBe(true);
+});
+
+it("adds exactly 30 local days of labeled examples without duplicates on repeat", async () => {
+  const hook = renderJournal();
+  await waitFor(() => expect(hook.result.current.ready).toBe(true));
+  act(() => hook.result.current.addDemo());
+  const today = todayLocal(hook.result.current.tz);
+  const weights = hook.result.current.records.filter((record) => record.type === "weight");
+  expect(weights).toHaveLength(30);
+  expect(new Set(weights.map((record) => record.localDate)).size).toBe(30);
+  expect(weights[0]?.localDate).toBe(addDays(today, -29));
+  expect(weights[29]?.localDate).toBe(today);
+  expect(hook.result.current.records.every((record) => record.demo)).toBe(true);
+  expect(hook.result.current.purchases.every((purchase) => purchase.demo)).toBe(true);
+  expect(hook.result.current.inventory.lots[0]?.balance).toBe(2);
+  expect(hook.result.current.stockNeedsReview).toBe(false);
+  const count = hook.result.current.records.length;
+  act(() => hook.result.current.addDemo());
+  expect(hook.result.current.records).toHaveLength(count);
+  expect(JSON.parse(localStorage.getItem(key) ?? "{}").records).toHaveLength(count);
+});
+
+it("preserves real journal entries, preferences and reminders through sample add and clear", async () => {
+  const saved: JournalSnapshot = {
+    ...blank(),
+    records: [entry],
+    reminder: { id: "real-reminder", at: "2026-12-01T10:00:00Z" },
+    purchases: [
+      {
+        id: "real-purchase",
+        localDate: "2026-11-01",
+        medication: "Ozempic",
+        doses: 2,
+        amount: 120,
+        currency: "EUR",
+        stockUnit: "pen",
+        addsStock: true,
+      },
+    ],
+    settings: {
+      ...blank().settings,
+      locale: "fr",
+      prompts: { aiConsent: false, answered: { water: "2026-11-04" } },
+    },
+  };
+  localStorage.setItem(key, JSON.stringify(saved));
+  const hook = renderJournal();
+  await waitFor(() => expect(hook.result.current.ready).toBe(true));
+  act(() => hook.result.current.addDemo());
+  expect(hook.result.current.records).toContainEqual(entry);
+  expect(hook.result.current.purchases).toContainEqual(saved.purchases[0]);
+  expect(hook.result.current.reminder).toEqual(saved.reminder);
+  expect(hook.result.current.settings.demoMode).toBe(false);
+  expect(hook.result.current.settings.prompts).toEqual(saved.settings.prompts);
+  act(() => hook.result.current.clearDemo());
+  expect(hook.result.current.records).toEqual(saved.records);
+  expect(hook.result.current.purchases).toEqual(saved.purchases);
+  expect(hook.result.current.reminder).toEqual(saved.reminder);
 });
 
 it("does not reinitialize the guest or discard a conflict when delayed auth confirms the same guest", async () => {

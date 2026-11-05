@@ -540,22 +540,25 @@ function Header({
             >
               {t("sync.importGuest")}
             </Button>
-          ) : (
-            <Button
-              variant="outline"
-              className="min-h-11 w-full whitespace-normal"
-              onClick={() => {
-                if (!window.confirm(t("demo.confirm"))) return;
-                try {
-                  j.resetDemo();
-                } catch {
-                  toast.error(t("sync.error"));
-                }
-              }}
-            >
-              {t("demo.reset")}
-            </Button>
-          )}
+          ) : null}
+          <Button
+            variant="outline"
+            className="min-h-11 w-full whitespace-normal"
+            onClick={() => {
+              if (!j.isCurrentOwner() || !window.confirm(t("demo.addConfirm"))) return;
+              try {
+                const before = j.snapshot();
+                j.addDemo();
+                toast.success(t("demo.added"), {
+                  action: { label: t("toast.undo"), onClick: j.undoFor(before) },
+                });
+              } catch {
+                toast.error(t("sync.error"));
+              }
+            }}
+          >
+            {t("demo.add")}
+          </Button>
           <p className="text-sm text-muted-foreground">{t("backup.media")}</p>
           <label className="flex min-h-11 items-center justify-between gap-3 text-sm">
             {t("set.momo")}
