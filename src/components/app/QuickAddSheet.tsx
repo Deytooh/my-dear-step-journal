@@ -828,10 +828,7 @@ function EntryForm({
       )}
 
       {kind === "injection" && (
-        <details open={!!editing} className="space-y-3">
-          <summary className="min-h-11 cursor-pointer py-3 font-medium">
-            {t("ui.injectionDetails")}
-          </summary>
+        <div className="space-y-5">
           <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-2">
             <Field label={t("f.dose")} optional>
               <input
@@ -918,7 +915,7 @@ function EntryForm({
                 (useStock ? 1 : 0)}
             </p>
           )}
-        </details>
+        </div>
       )}
 
       {kind === "condition" && (

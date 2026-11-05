@@ -1,12 +1,22 @@
 import { Button } from "@/components/ui/button";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Search, ChevronRight, Bell } from "lucide-react";
+import {
+  Search,
+  ChevronRight,
+  Bell,
+  Scale,
+  Smile,
+  Package,
+  Image as ImageIcon,
+} from "lucide-react";
 import { lazy, Suspense, useMemo, useState } from "react";
 import { t } from "@/lib/i18n";
 import { fmtMonthDay, fmtMonthDayWeekday, todayLocal } from "@/lib/dates";
-import { sortByTime, useJournal } from "@/lib/journal";
+import { latestRecord, sortByTime, useJournal } from "@/lib/journal";
 import { useQuickAdd } from "@/components/app/AppShell";
-import { Card, DemoTag, RecordRow, SectionHeader } from "@/components/app/ui";
+import { DemoTag, RecordRow } from "@/components/app/ui";
+import { AnimatedValue } from "@/components/app/AppFeel";
+import { PhotoImg } from "@/components/app/PhotoImg";
 import { reminderText } from "@/components/app/ReminderCard";
 import { formatPurchaseMoney } from "@/lib/purchase-money";
 import { MomoSheet } from "@/components/app/MomoSheet";
@@ -40,6 +50,14 @@ function Today() {
   const [finding, setFinding] = useState(false);
   const [dailyOpen, setDailyOpen] = useState(false);
   const today = todayLocal(j.tz);
+  const weight = latestRecord(j.records, "weight");
+  const condition = latestRecord(
+    j.records.filter((record) => record.localDate === today),
+    "condition",
+  );
+  const moment = latestRecord(j.records, "memory");
+  const tileClass =
+    "press flex min-h-40 min-w-0 flex-col items-start justify-between gap-3 rounded-2xl border bg-card p-4 text-left shadow-soft";
   const recent = useMemo(
     () =>
       [
@@ -118,19 +136,122 @@ function Today() {
           </span>
         </Button>
       )}
-      <SectionHeader
-        title={t("mm.recent")}
-        action={
-          <Link
-            to="/history"
-            className="flex min-h-11 items-center gap-1 text-sm text-muted-foreground"
-          >
-            {t("today.seeAll")}
-            <ChevronRight className="size-4" />
-          </Link>
-        }
-      />
-      <Card className="px-4">
+      <div className="home-metrics mt-6 grid grid-cols-2 gap-3">
+        <Button
+          variant="unstyled"
+          size="unstyled"
+          className={tileClass}
+          onClick={() => open("weight")}
+        >
+          <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Scale className="size-4" />
+            {t("home.weight")}
+          </span>
+          <span className="block w-full min-w-0 break-words">
+            {weight ? (
+              <span className="text-[28px] font-bold">
+                <AnimatedValue value={weight.value} digits={1} />
+                <span className="ml-1 text-sm font-medium">kg</span>
+              </span>
+            ) : (
+              <span className="text-lg font-semibold">{t("home.weightAdd")}</span>
+            )}
+            {weight && (
+              <span className="mt-1 block text-xs text-muted-foreground">
+                {fmtMonthDay(weight.localDate)}
+                <DemoTag show={weight.demo} />
+              </span>
+            )}
+          </span>
+        </Button>
+        <Button
+          variant="unstyled"
+          size="unstyled"
+          className={tileClass}
+          onClick={() => open("condition")}
+        >
+          <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Smile className="size-4" />
+            {t("home.cond")}
+          </span>
+          <span className="block w-full break-words text-lg font-semibold">
+            {condition?.label ?? t("home.condAsk")}
+            <DemoTag show={condition?.demo} />
+          </span>
+        </Button>
+        <Button
+          variant="unstyled"
+          size="unstyled"
+          className={tileClass}
+          onClick={() => open(j.inventory.lots.length ? "stock" : "purchase")}
+        >
+          <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Package className="size-4" />
+            {t("home.stock")}
+          </span>
+          <span className="block w-full min-w-0 space-y-2">
+            {j.inventory.lots.length ? (
+              j.inventory.lots.map((lot) => (
+                <span key={lot.id} className="block">
+                  <span className="block break-words text-xs text-muted-foreground">
+                    {lot.medication}
+                    <DemoTag show={lot.demo} />
+                  </span>
+                  <span className="text-[24px] font-bold">
+                    <AnimatedValue value={lot.balance} digits={0} />
+                    <span className="ml-1 text-sm font-medium">{t(`unit.${lot.unit}`)}</span>
+                  </span>
+                </span>
+              ))
+            ) : (
+              <span className="block text-lg font-semibold">{t("home.stockUnknown")}</span>
+            )}
+            {j.stockNeedsReview && (
+              <span className="block text-xs text-muted-foreground">{t("stock.provisional")}</span>
+            )}
+          </span>
+        </Button>
+        <Button
+          variant="unstyled"
+          size="unstyled"
+          className={tileClass}
+          onClick={() => open("memory", moment)}
+        >
+          <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <ImageIcon className="size-4" />
+            {t("home.moment")}
+          </span>
+          <span className="block w-full min-w-0">
+            {moment?.photo && (
+              <PhotoImg
+                src={moment.photo}
+                alt={t("home.moment")}
+                className="mb-2 aspect-[2/1] w-full rounded-lg object-cover"
+              />
+            )}
+            <span className="block line-clamp-2 break-words text-base font-semibold">
+              {moment?.note || t("home.photo")}
+            </span>
+            {moment && (
+              <span className="mt-1 block text-xs text-muted-foreground">
+                {fmtMonthDay(moment.localDate)}
+                <DemoTag show={moment.demo} />
+              </span>
+            )}
+          </span>
+        </Button>
+      </div>
+      <details className="journal-disclosure mt-5">
+        <summary className="min-h-11 cursor-pointer text-sm text-muted-foreground">
+          {t("mm.recent")}
+        </summary>
+        <Link
+          to="/history"
+          className="flex min-h-11 items-center justify-end gap-1 text-sm text-muted-foreground"
+        >
+          {t("today.seeAll")}
+          <ChevronRight className="size-4" />
+        </Link>
         {!recent.length && (
           <p className="py-4 text-sm leading-relaxed text-muted-foreground">{t("mm.empty")}</p>
         )}
@@ -140,7 +261,9 @@ function Today() {
               <RecordRow
                 key={item.id}
                 r={item.record}
-                onEdit={() => open(item.record!.type, item.record)}
+                onEdit={() => {
+                  if (item.record) open(item.record.type, item.record);
+                }}
               />
             ) : item.purchase ? (
               <Button
@@ -167,7 +290,7 @@ function Today() {
             ) : null,
           )}
         </div>
-      </Card>
+      </details>
       <details
         className="journal-disclosure mt-5"
         onToggle={(event) => setDailyOpen(event.currentTarget.open)}

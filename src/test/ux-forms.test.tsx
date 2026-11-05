@@ -96,7 +96,6 @@ it("makes all eight manual types reachable, including water", () => {
 });
 it("names dose units and prevents stock use without a selected lot", () => {
   render(<QuickAddSheet open onOpenChange={vi.fn()} kind="injection" setKind={vi.fn()} />);
-  fireEvent.click(screen.getByText("용량 · 부위 · 재고 (선택)"));
   expect(screen.getByRole("combobox", { name: "용량 단위" })).toBeVisible();
   expect(
     screen.getByRole("checkbox", { name: "제품을 선택하면 재고를 차감할 수 있어요" }),

@@ -81,7 +81,6 @@ const renderInjection = () => {
       initialDate="2026-11-03"
     />,
   );
-  fireEvent.click(screen.getByText(t("ui.injectionDetails"), { selector: "summary" }));
 };
 const chooseMedication = (name: string) => {
   const medication = findMedication(name)!;
