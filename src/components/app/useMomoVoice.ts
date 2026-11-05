@@ -30,6 +30,11 @@ type Cycle = {
   boundary: boolean;
   progress: boolean;
 };
+// Android Chrome's continuous mode re-sends the whole utterance as extra final
+// slots, so the same sentence gets appended several times. One utterance per
+// engine (auto-restarted between phrases) avoids that engine bug entirely.
+const singleUtterance = () =>
+  typeof navigator !== "undefined" && /android/i.test(navigator.userAgent ?? "");
 const join = (...parts: string[]) => parts.filter(Boolean).join(" ");
 const comparable = (text: string) =>
   text
@@ -131,7 +136,8 @@ export function useMomoVoice(options: {
     cycle.current = newCycle(currentText.current, continuation.current);
     continuation.current = null;
     r.lang = latest.current.lang;
-    r.continuous = true;
+    const single = singleUtterance();
+    r.continuous = !single;
     r.interimResults = true;
     const valid = () =>
       token === generation.current &&
@@ -269,7 +275,7 @@ export function useMomoVoice(options: {
       timer.current = setTimeout(() => {
         timer.current = null;
         if (restartToken === generation.current && session.current) connect();
-      }, 650);
+      }, single ? 200 : 650);
     };
     engine.current = r;
     setStatus("starting");

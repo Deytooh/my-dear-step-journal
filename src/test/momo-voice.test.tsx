@@ -511,3 +511,22 @@ it("retains the full provisional phrase until a case-changed shorter replay catc
   );
   expect(hook.result.current.text).toBe("Fictional existing note I feel tired now.");
 });
+it("listens one phrase at a time on Android so a sentence is never repeated", () => {
+  vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36",
+  );
+  const hook = harness();
+  act(() => hook.result.current.voice.start());
+  const first = FakeRecognition.instances[0]!;
+  expect(first.continuous).toBe(false);
+  act(() => first.onresult?.({ results: [speechResult("i took")] }));
+  act(() => first.onresult?.({ results: [speechResult("i took a shot", true)] }));
+  act(() => first.onresult?.({ results: [speechResult("i took a shot", true)] }));
+  act(() => {
+    first.onend?.();
+    vi.advanceTimersByTime(200);
+  });
+  const second = FakeRecognition.instances[1]!;
+  act(() => second.onresult?.({ results: [speechResult("in my belly", true)] }));
+  expect(hook.result.current.text).toBe("Fictional existing note i took a shot in my belly");
+});
